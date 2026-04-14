@@ -1,0 +1,6 @@
+{
+  "streams": [
+    { "codec_type": "video", "codec_name": "hevc", "width": 3840, "height": 2160, "r_frame_rate": "30/1" }
+  ],
+  "format": { "filename": "/tmp/silent.mp4", "duration": "120.0", "size": "104857600" }
+}
