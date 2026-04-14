@@ -1,13 +1,31 @@
-mod video_info;
+pub mod video_info;
 mod drawtext;
 mod layout;
-mod output_path;
+pub mod output_path;
 mod header;
-mod ffmpeg;
-mod contact_sheet;
-mod screenshots;
+pub mod ffmpeg;
+pub mod contact_sheet;
+pub mod screenshots;
 mod jobs;
 mod commands;
+
+pub fn ffmpeg_test_hook_locate() -> Result<ffmpeg::Tools, ffmpeg::ToolsError> {
+    ffmpeg::locate_tools()
+}
+
+pub async fn ffmpeg_test_hook_probe(exe: &std::path::Path, path: &str) -> Result<String, String> {
+    let args = [
+        "-v", "error",
+        "-show_entries", "format=filename,duration,size,bit_rate",
+        "-show_entries", "stream=codec_name,codec_type,width,height,r_frame_rate,sample_rate,channels,bit_rate,profile",
+        "-of", "json", path,
+    ];
+    ffmpeg::run_capture(exe, &args).await.map_err(|e| e.to_string())
+}
+
+pub fn video_info_test_hook_parse(json: &str) -> Result<video_info::VideoInfo, video_info::ProbeParseError> {
+    video_info::parse(json)
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
