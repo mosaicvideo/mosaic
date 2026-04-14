@@ -1,4 +1,4 @@
-const VIDEO_EXTS = ['mp4','mkv','mov','avi','webm','wmv','flv','m4v','mpg','mpeg','ts','m2ts'];
+export const VIDEO_EXTS = ['mp4','mkv','mov','avi','webm','wmv','flv','m4v','mpg','mpeg','ts','m2ts'];
 
 export function isVideo(path) {
   const m = path.toLowerCase().match(/\.([^./\\]+)$/);
@@ -6,61 +6,90 @@ export function isVideo(path) {
 }
 
 export function createQueue(root) {
-  const items = new Map(); // id -> { id, path, status, error, progress }
+  const items = new Map(); // id -> { id, path, status, error, progress, probed?, info? }
+  const nodes = new Map(); // id -> { el, nameEl, progEl, badgeEl, removeBtn, errorEl }
 
-  function render() {
-    root.innerHTML = '';
-    for (const it of items.values()) {
-      const li = document.createElement('li');
-      const name = document.createElement('span');
-      name.textContent = shorten(it.path, 60);
-      name.title = it.path;
-      const prog = document.createElement('span');
-      prog.className = 'progress-label';
-      prog.textContent = it.progress || '';
-      const badge = document.createElement('span');
-      badge.className = `status ${it.status}`;
-      badge.textContent = it.status;
-      const rm = document.createElement('button');
-      rm.className = 'subtle';
-      rm.textContent = '×';
-      rm.disabled = it.status === 'Running';
-      rm.onclick = () => { items.delete(it.id); render(); };
-      li.append(name, prog, badge, rm);
-      if (it.error) {
-        const err = document.createElement('div');
-        err.className = 'error';
-        err.style.gridColumn = '1 / -1';
-        err.style.color = '#ffa0a0';
-        err.style.fontSize = '11px';
-        err.textContent = it.error;
-        li.append(err);
-      }
-      root.append(li);
-    }
+  function buildRow(it) {
+    const el = document.createElement('li');
+    const nameEl = document.createElement('span');
+    nameEl.textContent = shorten(it.path, 60);
+    nameEl.title = it.path;
+    const progEl = document.createElement('span');
+    progEl.className = 'progress-label';
+    progEl.textContent = it.progress || '';
+    const badgeEl = document.createElement('span');
+    badgeEl.className = `status ${it.status}`;
+    badgeEl.textContent = it.status;
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'subtle';
+    removeBtn.textContent = '×';
+    removeBtn.disabled = it.status === 'Running';
+    removeBtn.onclick = () => {
+      items.delete(it.id);
+      const n = nodes.get(it.id);
+      if (n) { n.el.remove(); nodes.delete(it.id); }
+    };
+    el.append(nameEl, progEl, badgeEl, removeBtn);
+    return { el, nameEl, progEl, badgeEl, removeBtn, errorEl: null };
   }
 
   function add(paths) {
-    let added = 0;
+    const existing = new Set([...items.values()].map(i => i.path));
+    const added = [];
     for (const p of paths) {
       if (!isVideo(p)) continue;
-      if ([...items.values()].some(i => i.path === p)) continue;
+      if (existing.has(p)) continue;
       const id = crypto.randomUUID();
-      items.set(id, { id, path: p, status: 'Pending' });
-      added++;
+      const it = { id, path: p, status: 'Pending' };
+      items.set(id, it);
+      existing.add(p);
+      const n = buildRow(it);
+      nodes.set(id, n);
+      root.append(n.el);
+      added.push({ id, path: p });
     }
-    if (added) render();
     return added;
   }
 
   function update(id, patch) {
     const it = items.get(id);
     if (!it) return;
+    const before = { status: it.status, progress: it.progress, error: it.error };
     Object.assign(it, patch);
-    render();
+    const n = nodes.get(id);
+    if (!n) return;
+    if (it.status !== before.status) {
+      n.badgeEl.className = `status ${it.status}`;
+      n.badgeEl.textContent = it.status;
+      n.removeBtn.disabled = it.status === 'Running';
+    }
+    if ((it.progress || '') !== (before.progress || '')) {
+      n.progEl.textContent = it.progress || '';
+    }
+    if ((it.error || null) !== (before.error || null)) {
+      if (it.error) {
+        if (!n.errorEl) {
+          const err = document.createElement('div');
+          err.className = 'error';
+          err.style.gridColumn = '1 / -1';
+          err.style.color = '#ffa0a0';
+          err.style.fontSize = '11px';
+          n.el.append(err);
+          n.errorEl = err;
+        }
+        n.errorEl.textContent = it.error;
+      } else if (n.errorEl) {
+        n.errorEl.remove();
+        n.errorEl = null;
+      }
+    }
   }
 
-  function clear() { items.clear(); render(); }
+  function clear() {
+    items.clear();
+    nodes.clear();
+    root.innerHTML = '';
+  }
   function values() { return [...items.values()]; }
   function pending() { return values().filter(i => i.status !== 'Done'); }
 

@@ -15,14 +15,13 @@ async fn end_to_end_contact_sheet_and_screenshots() {
     assert!(font.exists(), "missing bundled font");
 
     // Probe
-    let json = mosaic_lib::ffmpeg_test_hook_probe(&tools.ffprobe, &fixture.to_string_lossy()).await.unwrap();
-    let info = mosaic_lib::video_info_test_hook_parse(&json).unwrap();
+    let info = mosaic_lib::ffmpeg_test_hook_probe(&tools.ffprobe, &fixture.to_string_lossy()).await.unwrap();
     assert!(info.duration_secs > 1.0);
 
     let tmp = tempfile::tempdir().unwrap();
     let out = tmp.path().join("sample_contact_sheet.png");
 
-    let reporter = mosaic_lib::contact_sheet::ProgressReporter {
+    let reporter = mosaic_lib::jobs::ProgressReporter {
         emit: &|_, _, _| {},
     };
     let opts = mosaic_lib::contact_sheet::SheetOptions {

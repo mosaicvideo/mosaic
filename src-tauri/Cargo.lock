@@ -1880,7 +1880,6 @@ dependencies = [
 name = "mosaic"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "serde",
  "serde_json",
  "tauri",
@@ -1890,7 +1889,6 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
- "uuid",
  "which",
 ]
 

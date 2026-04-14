@@ -7,6 +7,12 @@ edition = "2021"
 name = "mosaic_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+# Exposes internal modules (video_info, output_path, ffmpeg, contact_sheet,
+# screenshots) and test hooks for the integration test. Off by default so the
+# shipped binary keeps these as private implementation details.
+test-api = []
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -19,11 +25,13 @@ serde_json = "1"
 tokio = { version = "1", features = ["process", "io-util", "sync", "rt-multi-thread", "macros"] }
 tempfile = "3"
 thiserror = "1"
-anyhow = "1"
 which = "6"
-uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tempfile = "3"
 which = "6"
+
+[[test]]
+name = "integration"
+required-features = ["test-api"]

@@ -1,6 +1,6 @@
-use crate::contact_sheet::{self, SheetOptions, ProgressReporter};
+use crate::contact_sheet::{self, SheetOptions};
 use crate::ffmpeg::{locate_tools, run_capture};
-use crate::jobs::JobState;
+use crate::jobs::{JobState, ProgressReporter};
 use crate::output_path::contact_sheet_path;
 use crate::screenshots::{self, ScreenshotsOptions};
 use crate::video_info::{parse, VideoInfo};
@@ -11,15 +11,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 #[tauri::command]
 pub async fn probe_video(path: String) -> Result<VideoInfo, String> {
     let tools = locate_tools().map_err(|e| e.to_string())?;
-    let args = [
-        "-v", "error",
-        "-show_entries", "format=filename,duration,size,bit_rate",
-        "-show_entries", "stream=codec_name,codec_type,width,height,r_frame_rate,sample_rate,channels,bit_rate,profile",
-        "-of", "json",
-        &path,
-    ];
-    let json = run_capture(&tools.ffprobe, &args).await.map_err(|e| e.to_string())?;
-    parse(&json).map_err(|e| e.to_string())
+    probe(&tools.ffprobe, &path).await
 }
 
 #[tauri::command]
@@ -34,9 +26,10 @@ pub struct QueueItem {
 }
 
 #[derive(serde::Deserialize)]
-pub struct OutputLocation {
-    pub mode: String, // "next_to_source" | "custom"
-    pub custom: Option<String>,
+#[serde(tag = "mode", rename_all = "snake_case")]
+pub enum OutputLocation {
+    NextToSource,
+    Custom { custom: Option<String> },
 }
 
 #[tauri::command]
@@ -68,7 +61,7 @@ pub async fn generate_contact_sheets(
 
         let source = PathBuf::from(&item.path);
         let out_dir = resolve_out_dir(&source, &output);
-        let info = match probe_inner(&tools.ffprobe, &item.path).await {
+        let info = match probe(&tools.ffprobe, &item.path).await {
             Ok(i) => i,
             Err(e) => {
                 failed += 1;
@@ -144,7 +137,7 @@ pub async fn generate_screenshots(
 
         let source = PathBuf::from(&item.path);
         let out_dir = resolve_out_dir(&source, &output);
-        let info = match probe_inner(&tools.ffprobe, &item.path).await {
+        let info = match probe(&tools.ffprobe, &item.path).await {
             Ok(i) => i,
             Err(e) => {
                 failed += 1;
@@ -199,7 +192,8 @@ pub fn cancel_job(state: State<'_, Arc<JobState>>) {
     state.cancel();
 }
 
-async fn probe_inner(ffprobe: &std::path::Path, path: &str) -> Result<VideoInfo, String> {
+/// Canonical ffprobe pipeline: run ffprobe with our arg list, parse into `VideoInfo`.
+pub(crate) async fn probe(ffprobe: &std::path::Path, path: &str) -> Result<VideoInfo, String> {
     let args = [
         "-v", "error",
         "-show_entries", "format=filename,duration,size,bit_rate",
@@ -212,9 +206,12 @@ async fn probe_inner(ffprobe: &std::path::Path, path: &str) -> Result<VideoInfo,
 }
 
 fn resolve_out_dir(source: &std::path::Path, output: &OutputLocation) -> PathBuf {
-    match output.mode.as_str() {
-        "custom" => output.custom.as_ref().map(PathBuf::from)
-            .unwrap_or_else(|| source.parent().map(PathBuf::from).unwrap_or_default()),
-        _ => source.parent().map(PathBuf::from).unwrap_or_default(),
+    let source_parent = || source.parent().map(PathBuf::from).unwrap_or_default();
+    match output {
+        OutputLocation::NextToSource => source_parent(),
+        OutputLocation::Custom { custom } => custom
+            .as_ref()
+            .map(PathBuf::from)
+            .unwrap_or_else(source_parent),
     }
 }

@@ -23,3 +23,8 @@ impl JobState {
         self.cancelled.store(true, std::sync::atomic::Ordering::Relaxed);
     }
 }
+
+/// Emits per-file progress events (step, total_steps, label) back to the UI.
+pub struct ProgressReporter<'a> {
+    pub emit: &'a (dyn Fn(u32, u32, &str) + Send + Sync),
+}

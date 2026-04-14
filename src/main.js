@@ -2,13 +2,14 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
 import { Store } from '@tauri-apps/plugin-store';
-import { createQueue, isVideo } from './queue.js';
+import { createQueue, isVideo, VIDEO_EXTS } from './queue.js';
 import { readSheetOpts, readShotsOpts, readOutput, applyOpts } from './options.js';
 import { wireDropzone } from './dropzone.js';
 
 const queue = createQueue(document.getElementById('queue'));
 let activeTab = 'sheet';
 let store;
+let saveTimer = null;
 
 async function init() {
   store = await Store.load('settings.json');
@@ -31,7 +32,7 @@ async function init() {
 
 function wireButtons() {
   document.getElementById('btn-add-files').onclick = async () => {
-    const picked = await open({ multiple: true, filters: [{ name: 'Videos', extensions: ['mp4','mkv','mov','avi','webm','wmv','flv','m4v','mpg','mpeg','ts','m2ts'] }] });
+    const picked = await open({ multiple: true, filters: [{ name: 'Videos', extensions: VIDEO_EXTS }] });
     if (!picked) return;
     addPaths(Array.isArray(picked) ? picked : [picked]);
   };
@@ -66,7 +67,13 @@ function switchTab(name) {
   saveSettings();
 }
 
-async function saveSettings() {
+function saveSettings() {
+  if (!store) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(doSave, 250);
+}
+
+async function doSave() {
   if (!store) return;
   await store.set('sheet', readSheetOpts());
   await store.set('shots', readShotsOpts());
@@ -78,10 +85,10 @@ async function saveSettings() {
 async function addPaths(paths) {
   const vids = paths.filter(isVideo);
   const added = queue.add(vids);
-  if (!added) return;
-  // Probe asynchronously to fill in duration/resolution (not strictly needed for generation).
-  for (const it of queue.values()) {
-    if (it.status !== 'Pending' || it.probed) continue;
+  if (!added.length) return;
+  // Probe only the newly-added items to fill in duration/resolution
+  // (not strictly needed for generation).
+  for (const it of added) {
     try {
       const info = await invoke('probe_video', { path: it.path });
       queue.update(it.id, { probed: true, info });

@@ -1,28 +1,51 @@
+#[cfg(any(test, feature = "test-api"))]
 pub mod video_info;
+#[cfg(not(any(test, feature = "test-api")))]
+mod video_info;
+
 mod drawtext;
 mod layout;
+
+#[cfg(any(test, feature = "test-api"))]
 pub mod output_path;
+#[cfg(not(any(test, feature = "test-api")))]
+mod output_path;
+
 mod header;
+
+#[cfg(any(test, feature = "test-api"))]
 pub mod ffmpeg;
+#[cfg(not(any(test, feature = "test-api")))]
+mod ffmpeg;
+
+#[cfg(any(test, feature = "test-api"))]
 pub mod contact_sheet;
+#[cfg(not(any(test, feature = "test-api")))]
+mod contact_sheet;
+
+#[cfg(any(test, feature = "test-api"))]
 pub mod screenshots;
+#[cfg(not(any(test, feature = "test-api")))]
+mod screenshots;
+
+#[cfg(any(test, feature = "test-api"))]
+pub mod jobs;
+#[cfg(not(any(test, feature = "test-api")))]
 mod jobs;
+
 mod commands;
 
+#[cfg(any(test, feature = "test-api"))]
 pub fn ffmpeg_test_hook_locate() -> Result<ffmpeg::Tools, ffmpeg::ToolsError> {
     ffmpeg::locate_tools()
 }
 
-pub async fn ffmpeg_test_hook_probe(exe: &std::path::Path, path: &str) -> Result<String, String> {
-    let args = [
-        "-v", "error",
-        "-show_entries", "format=filename,duration,size,bit_rate",
-        "-show_entries", "stream=codec_name,codec_type,width,height,r_frame_rate,sample_rate,channels,bit_rate,profile",
-        "-of", "json", path,
-    ];
-    ffmpeg::run_capture(exe, &args).await.map_err(|e| e.to_string())
+#[cfg(any(test, feature = "test-api"))]
+pub async fn ffmpeg_test_hook_probe(exe: &std::path::Path, path: &str) -> Result<video_info::VideoInfo, String> {
+    commands::probe(exe, path).await
 }
 
+#[cfg(any(test, feature = "test-api"))]
 pub fn video_info_test_hook_parse(json: &str) -> Result<video_info::VideoInfo, video_info::ProbeParseError> {
     video_info::parse(json)
 }
