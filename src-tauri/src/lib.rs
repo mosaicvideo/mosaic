@@ -59,6 +59,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::probe_video,
             commands::check_tools,
+            commands::reveal_in_finder,
+            commands::scan_folder,
             commands::generate_contact_sheets,
             commands::generate_screenshots,
             commands::cancel_job,

@@ -29,6 +29,7 @@ async fn end_to_end_contact_sheet_and_screenshots() {
         thumb_font_size: 14, header_font_size: 16,
         show_timestamps: true, show_header: true,
         format: mosaic_lib::output_path::OutputFormat::Png, jpeg_quality: 92,
+        suffix: String::new(),
     };
     mosaic_lib::contact_sheet::generate(
         &fixture, &info, &out, &opts, &tools.ffmpeg, &font,
@@ -40,8 +41,9 @@ async fn end_to_end_contact_sheet_and_screenshots() {
     // Screenshots
     let shots_dir = tmp.path().join("shots");
     let shots_opts = mosaic_lib::screenshots::ScreenshotsOptions {
-        count: 3, width: 320,
+        count: 3,
         format: mosaic_lib::output_path::OutputFormat::Png, jpeg_quality: 92,
+        suffix: String::new(),
     };
     let outs = mosaic_lib::screenshots::generate(
         &fixture, &info, &shots_dir, &shots_opts, &tools.ffmpeg,

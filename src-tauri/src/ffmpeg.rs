@@ -15,6 +15,13 @@ pub enum ToolsError {
 }
 
 pub fn locate_tools() -> Result<Tools, ToolsError> {
+    // ffmpeg-full (brew keg-only) first on macOS — it has drawtext/libfreetype,
+    // which the default brew ffmpeg bottle lacks.
+    let priority_paths: &[&str] = if cfg!(target_os = "macos") {
+        &["/opt/homebrew/opt/ffmpeg-full/bin", "/usr/local/opt/ffmpeg-full/bin"]
+    } else {
+        &[]
+    };
     let extra_paths: &[&str] = if cfg!(target_os = "macos") {
         &["/opt/homebrew/bin", "/usr/local/bin"]
     } else {
@@ -22,6 +29,10 @@ pub fn locate_tools() -> Result<Tools, ToolsError> {
     };
 
     let find = |name: &str| -> Option<PathBuf> {
+        for ep in priority_paths {
+            let candidate = std::path::Path::new(ep).join(name);
+            if candidate.is_file() { return Some(candidate); }
+        }
         if let Ok(p) = which::which(name) { return Some(p); }
         for ep in extra_paths {
             let candidate = std::path::Path::new(ep).join(name);

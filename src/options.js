@@ -10,20 +10,34 @@ export function readSheetOpts() {
     show_header: checked('sheet-header'),
     format: select('sheet-format'),
     jpeg_quality: int('sheet-quality'),
+    suffix: text('sheet-suffix'),
   };
 }
 export function readShotsOpts() {
   return {
     count: int('shots-count'),
-    width: int('shots-width'),
     format: select('shots-format'),
     jpeg_quality: int('shots-quality'),
+    suffix: text('shots-suffix'),
   };
 }
 export function readOutput() {
   const mode = document.querySelector('input[name="out"]:checked').value;
   const custom = document.getElementById('custom-folder-path').textContent || null;
   return { mode, custom };
+}
+export function readProduce() {
+  return {
+    shots: document.getElementById('prod-shots').checked,
+    sheet: document.getElementById('prod-sheet').checked,
+  };
+}
+export function applyProduce(produce) {
+  if (!produce) return;
+  const s = document.getElementById('prod-shots');
+  const c = document.getElementById('prod-sheet');
+  if (s && typeof produce.shots === 'boolean') s.checked = produce.shots;
+  if (c && typeof produce.sheet === 'boolean') c.checked = produce.sheet;
 }
 export function applyOpts(sheet, shots, out) {
   if (sheet) for (const [k, v] of Object.entries(sheet)) setField(`sheet-${mapKey(k)}`, v);
@@ -40,6 +54,10 @@ function mapKey(k) {
 function int(id) { return parseInt(document.getElementById(id).value, 10); }
 function checked(id) { return document.getElementById(id).checked; }
 function select(id) { return document.getElementById(id).value; }
+function text(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : '';
+}
 function setField(id, v) {
   const el = document.getElementById(id);
   if (!el) return;

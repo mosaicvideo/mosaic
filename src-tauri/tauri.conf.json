@@ -4,7 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.mosaic.app",
   "build": {
-    "frontendDist": "../src"
+    "beforeDevCommand": "pnpm dev:web",
+    "beforeBuildCommand": "pnpm build:web",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
   },
   "app": {
     "windows": [
@@ -24,7 +27,13 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": [],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
     "resources": ["assets/fonts/DejaVuSans.ttf"]
   }
 }
