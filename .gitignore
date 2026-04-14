@@ -3,3 +3,6 @@ src-tauri/target/
 dist/
 .DS_Store
 *.log
+.vite/
+.claude/
+icon-source.png

@@ -19,6 +19,71 @@ pub fn check_tools() -> Result<(), String> {
     locate_tools().map(|_| ()).map_err(|e| e.to_string())
 }
 
+const VIDEO_EXTS: &[&str] = &[
+    "mp4", "mkv", "mov", "avi", "webm", "wmv", "flv", "m4v", "mpg", "mpeg", "ts", "m2ts",
+];
+
+#[tauri::command]
+pub fn scan_folder(path: String, recursive: bool) -> Result<Vec<String>, String> {
+    let root = std::path::PathBuf::from(&path);
+    if !root.is_dir() {
+        return Err(format!("not a directory: {}", path));
+    }
+    let mut out = Vec::new();
+    walk(&root, recursive, 0, &mut out);
+    out.sort();
+    Ok(out.into_iter().map(|p| p.to_string_lossy().into_owned()).collect())
+}
+
+fn walk(dir: &std::path::Path, recursive: bool, depth: u32, out: &mut Vec<std::path::PathBuf>) {
+    if depth > 16 { return; }
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let Ok(ft) = entry.file_type() else { continue };
+        let p = entry.path();
+        if ft.is_dir() {
+            if recursive { walk(&p, recursive, depth + 1, out); }
+        } else if ft.is_file() {
+            let ext_ok = p.extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.to_ascii_lowercase())
+                .map(|e| VIDEO_EXTS.contains(&e.as_str()))
+                .unwrap_or(false);
+            if ext_ok { out.push(p); }
+        }
+    }
+}
+
+#[tauri::command]
+pub fn reveal_in_finder(path: String) -> Result<(), String> {
+    use std::process::Command;
+    let p = std::path::PathBuf::from(&path);
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .args(["-R", p.to_str().ok_or("non-utf8 path")?])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("explorer")
+            .arg(format!("/select,{}", p.display()))
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let target = if p.is_file() { p.parent().map(|x| x.to_path_buf()).unwrap_or(p.clone()) } else { p.clone() };
+        Command::new("xdg-open")
+            .arg(target)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[derive(serde::Deserialize)]
 pub struct QueueItem {
     pub id: String,
@@ -70,7 +135,7 @@ pub async fn generate_contact_sheets(
             }
         };
 
-        let out = contact_sheet_path(&source, &out_dir, opts.format, &|p| p.exists());
+        let out = contact_sheet_path(&source, &out_dir, opts.format, &opts.suffix, &|p| p.exists());
         let id = item.id.clone();
         let app2 = app.clone();
         let reporter = ProgressReporter {

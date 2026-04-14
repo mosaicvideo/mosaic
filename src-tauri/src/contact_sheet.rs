@@ -22,6 +22,8 @@ pub struct SheetOptions {
     pub show_header: bool,
     pub format: OutputFormat,
     pub jpeg_quality: u32,
+    #[serde(default)]
+    pub suffix: String,
 }
 
 pub async fn generate(
@@ -45,7 +47,7 @@ pub async fn generate(
     // 1. Extract thumbnails
     for (i, ts) in timestamps.iter().enumerate() {
         let idx = (i as u32) + 1;
-        (reporter.emit)(idx, total_steps, &format!("Extracting thumb {}/{}", idx, layout.total));
+        (reporter.emit)(idx, total_steps, &format!("Thumb {}/{}", idx, layout.total));
 
         let thumb = tmp.path().join(format!("thumb_{:0width$}.png", idx, width = width_digits));
         let mut vf = format!("scale={}:-2", layout.thumb_w);
@@ -68,7 +70,7 @@ pub async fn generate(
     }
 
     // 2. Tile
-    (reporter.emit)(layout.total + 1, total_steps, "Building grid");
+    (reporter.emit)(layout.total + 1, total_steps, "Tiling grid");
     let grid = tmp.path().join("grid.png");
     let tile_input = tmp.path().join(format!("thumb_%0{}d.png", width_digits));
     let args: Vec<String> = vec![
@@ -89,7 +91,7 @@ pub async fn generate(
     // path on disk (`final_src`) that we then rename/copy into `output_path`.
     let final_src: PathBuf;
     if opts.show_header {
-        (reporter.emit)(layout.total + 2, total_steps, "Rendering header");
+        (reporter.emit)(layout.total + 2, total_steps, "Header");
         let display = source.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
         let (l1, l2) = build_header_lines(info, &display);
         let h = header_height(opts.header_font_size, opts.gap);
@@ -110,7 +112,7 @@ pub async fn generate(
         ];
         run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
 
-        (reporter.emit)(total_steps, total_steps, "Composing final image");
+        (reporter.emit)(total_steps, total_steps, "Composing");
         let final_tmp = tmp.path().join(format!("final.{}", opts.format.ext()));
         let mut args: Vec<String> = vec![
             "-hide_banner".into(), "-loglevel".into(), "error".into(), "-y".into(),

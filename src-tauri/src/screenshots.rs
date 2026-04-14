@@ -10,9 +10,10 @@ use std::sync::atomic::AtomicBool;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ScreenshotsOptions {
     pub count: u32,
-    pub width: u32, // 0 = keep source
     pub format: OutputFormat,
     pub jpeg_quality: u32,
+    #[serde(default)]
+    pub suffix: String,
 }
 
 pub async fn generate(
@@ -31,18 +32,15 @@ pub async fn generate(
 
     for (i, ts) in timestamps.iter().enumerate() {
         let idx = (i as u32) + 1;
-        (reporter.emit)(idx, total, &format!("Screenshot {}/{}", idx, total));
+        (reporter.emit)(idx, total, &format!("Shot {}/{}", idx, total));
 
-        let out = screenshot_path(source, out_dir, opts.format, idx, opts.count);
+        let out = screenshot_path(source, out_dir, opts.format, &opts.suffix, idx, opts.count);
         let mut args: Vec<String> = vec![
             "-hide_banner".into(), "-loglevel".into(), "error".into(), "-y".into(),
             "-ss".into(), format!("{}", ts),
             "-i".into(), source.to_string_lossy().into_owned(),
             "-vframes".into(), "1".into(),
         ];
-        if opts.width > 0 {
-            args.extend(["-vf".into(), format!("scale={}:-2", opts.width)]);
-        }
         if matches!(opts.format, OutputFormat::Jpeg) {
             args.extend(["-q:v".into(), format!("{}", jpeg_qv(opts.jpeg_quality))]);
         }

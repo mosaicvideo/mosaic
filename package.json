@@ -6,10 +6,13 @@
   "scripts": {
     "tauri": "tauri",
     "dev": "tauri dev",
-    "build": "tauri build"
+    "build": "tauri build",
+    "dev:web": "vite",
+    "build:web": "vite build"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "latest"
+    "@tauri-apps/cli": "latest",
+    "vite": "^8.0.8"
   },
   "dependencies": {
     "@tauri-apps/api": "latest",

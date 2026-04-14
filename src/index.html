@@ -8,70 +8,136 @@
   </head>
   <body>
     <div id="banner" class="banner hidden" role="alert"></div>
+
     <main id="app">
-      <section id="input-zone">
-        <div id="dropzone">
-          <p>Drop videos or folders here</p>
-          <div class="btn-row">
-            <button id="btn-add-files">Add Files…</button>
-            <button id="btn-add-folder">Add Folder…</button>
-            <button id="btn-clear" class="subtle">Clear Queue</button>
-          </div>
+      <header id="brand">
+        <div class="brand-text">
+          <div class="wordmark">Mosaic</div>
+          <div class="sub">Video screenshots &amp; contact sheets</div>
         </div>
-        <ul id="queue"></ul>
-      </section>
+        <button id="btn-settings" class="icon-btn" title="Settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+      </header>
 
-      <section id="options">
-        <div class="tabs">
-          <button class="tab active" data-tab="sheet">Contact Sheet</button>
-          <button class="tab" data-tab="shots">Screenshots</button>
-        </div>
-
-        <div class="tab-panel active" data-panel="sheet">
-          <div class="grid">
-            <label>Columns <input type="number" id="sheet-cols" min="1" max="10" value="3" /></label>
-            <label>Rows <input type="number" id="sheet-rows" min="1" max="20" value="7" /></label>
-            <label>Width (px) <input type="number" id="sheet-width" min="320" max="4096" value="1920" /></label>
-            <label>Gap (px) <input type="number" id="sheet-gap" min="0" max="50" value="10" /></label>
-            <label>Thumb font <input type="number" id="sheet-thumb-font" min="8" max="72" value="18" /></label>
-            <label>Header font <input type="number" id="sheet-header-font" min="8" max="72" value="20" /></label>
-            <label class="check"><input type="checkbox" id="sheet-timestamps" checked /> Show timestamps</label>
-            <label class="check"><input type="checkbox" id="sheet-header" checked /> Show info header</label>
-            <label>Format
-              <select id="sheet-format"><option value="Png">PNG</option><option value="Jpeg">JPEG</option></select>
-            </label>
-            <label>JPEG quality <input type="number" id="sheet-quality" min="50" max="100" value="92" /></label>
+      <div id="main-view">
+        <section id="input-zone">
+          <div id="dropzone">
+            <svg class="dz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <span class="dz-label">Drop videos here</span>
+            <div class="btn-row">
+              <button id="btn-add-files" class="secondary">Add Files</button>
+              <button id="btn-add-folder" class="secondary">Add Folder</button>
+            </div>
           </div>
-        </div>
 
-        <div class="tab-panel" data-panel="shots">
-          <div class="grid">
-            <label>Count <input type="number" id="shots-count" min="1" max="100" value="10" /></label>
-            <label>Width (px) <input type="number" id="shots-width" min="0" max="4096" value="1920" /></label>
-            <label>Format
-              <select id="shots-format"><option value="Png">PNG</option><option value="Jpeg">JPEG</option></select>
-            </label>
-            <label>JPEG quality <input type="number" id="shots-quality" min="50" max="100" value="92" /></label>
+          <div class="queue-wrap">
+            <div class="queue-head">
+              <span>Queue</span>
+              <button id="btn-clear" class="link">Clear</button>
+            </div>
+            <ul id="queue"></ul>
+            <div id="tools-error" class="hidden">
+              <div class="te-header">
+                <svg class="te-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <path d="M12 9v4" />
+                  <path d="M12 17h.01" />
+                  <path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0z" />
+                </svg>
+                <div>
+                  <h3>ffmpeg / ffprobe not found</h3>
+                  <p>Mosaic needs them on your <code>PATH</code>. Install and click Retry.</p>
+                </div>
+              </div>
+              <div class="te-installs">
+                <div class="te-install"><span class="te-os">macOS</span><code>brew install ffmpeg-full</code></div>
+                <div class="te-install"><span class="te-os">Windows</span><code>winget install ffmpeg</code></div>
+                <div class="te-install"><span class="te-os">Linux</span><code>apt install ffmpeg</code></div>
+              </div>
+              <button id="btn-retry-tools" class="secondary small">Retry</button>
+            </div>
           </div>
-        </div>
+        </section>
 
-        <fieldset class="output">
-          <legend>Output location</legend>
-          <label class="check"><input type="radio" name="out" value="next_to_source" checked /> Next to source</label>
-          <label class="check"><input type="radio" name="out" value="custom" /> Custom folder</label>
-          <div id="custom-folder-row" class="hidden">
-            <button id="btn-pick-folder">Choose folder…</button>
-            <span id="custom-folder-path"></span>
+        <section id="run-options">
+          <div class="ro-row">
+            <span class="ro-label">Generate</span>
+            <label class="check"><input type="checkbox" id="prod-shots" checked /><span>Screenshots</span></label>
+            <label class="check"><input type="checkbox" id="prod-sheet" checked /><span>Contact Sheet</span></label>
           </div>
-        </fieldset>
-      </section>
+          <div class="ro-row">
+            <span class="ro-label">Output</span>
+            <label class="radio"><input type="radio" name="out" value="next_to_source" checked /><span>Next to source</span></label>
+            <label class="radio"><input type="radio" name="out" value="custom" /><span>Custom folder</span></label>
+            <div id="custom-folder-row" class="hidden">
+              <button id="btn-pick-folder" class="secondary small">Choose…</button>
+              <span id="custom-folder-path"></span>
+            </div>
+          </div>
+        </section>
 
-      <footer id="action-bar">
-        <button id="btn-generate">Generate Contact Sheets</button>
-        <button id="btn-cancel" disabled>Cancel</button>
-        <progress id="progress" value="0" max="1"></progress>
-        <span id="status"></span>
-      </footer>
+        <footer id="action-bar">
+          <div class="progress-wrap">
+            <progress id="progress" value="0" max="1"></progress>
+            <div class="status-line">
+              <span id="output-preview" class="hidden"></span>
+              <span id="status"></span>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="btn-cancel" class="secondary" disabled>Cancel</button>
+            <button id="btn-generate" class="primary">
+              <span class="gen-label">Generate</span>
+            </button>
+          </div>
+        </footer>
+      </div>
+
+      <div id="settings-view" class="hidden">
+        <div class="settings-header">
+          <h2>Settings</h2>
+          <button id="btn-settings-close" class="secondary">Done</button>
+        </div>
+        <div class="settings-body">
+          <section class="settings-section">
+            <h3>Screenshots</h3>
+            <div class="grid">
+              <label><span class="lbl">Count</span><input type="number" id="shots-count" min="1" max="100" value="10" /></label>
+              <label><span class="lbl">Format</span>
+                <select id="shots-format"><option value="Png">PNG</option><option value="Jpeg">JPEG</option></select>
+              </label>
+              <label><span class="lbl">JPEG quality</span><input type="number" id="shots-quality" min="50" max="100" value="92" /></label>
+              <label class="wide"><span class="lbl">Filename suffix</span><input type="text" id="shots-suffix" value="_screenshot_" spellcheck="false" /></label>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <h3>Contact Sheet</h3>
+            <div class="grid">
+              <label><span class="lbl">Columns</span><input type="number" id="sheet-cols" min="1" max="10" value="3" /></label>
+              <label><span class="lbl">Rows</span><input type="number" id="sheet-rows" min="1" max="20" value="7" /></label>
+              <label><span class="lbl">Width</span><input type="number" id="sheet-width" min="320" max="4096" value="1920" /></label>
+              <label><span class="lbl">Gap</span><input type="number" id="sheet-gap" min="0" max="50" value="10" /></label>
+              <label><span class="lbl">Thumb font</span><input type="number" id="sheet-thumb-font" min="8" max="72" value="18" /></label>
+              <label><span class="lbl">Header font</span><input type="number" id="sheet-header-font" min="8" max="72" value="20" /></label>
+              <label><span class="lbl">Format</span>
+                <select id="sheet-format"><option value="Png">PNG</option><option value="Jpeg">JPEG</option></select>
+              </label>
+              <label><span class="lbl">JPEG quality</span><input type="number" id="sheet-quality" min="50" max="100" value="92" /></label>
+              <label class="wide"><span class="lbl">Filename suffix</span><input type="text" id="sheet-suffix" value="_contact_sheet" spellcheck="false" /></label>
+              <label class="check"><input type="checkbox" id="sheet-timestamps" checked /><span>Timestamps</span></label>
+              <label class="check"><input type="checkbox" id="sheet-header" checked /><span>Info header</span></label>
+            </div>
+          </section>
+        </div>
+      </div>
     </main>
     <script type="module" src="main.js"></script>
   </body>
