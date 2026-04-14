@@ -1,0 +1,4 @@
+{
+  "streams": [{ "codec_type": "video", "codec_name": "h264", "width": 640, "height": 480, "r_frame_rate": "25/1" }],
+  "format": { "filename": "/tmp/broken.mp4", "size": "1000" }
+}

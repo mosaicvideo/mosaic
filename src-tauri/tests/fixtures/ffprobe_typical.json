@@ -1,0 +1,12 @@
+{
+  "streams": [
+    { "codec_type": "video", "codec_name": "h264", "profile": "High", "width": 1920, "height": 1080, "r_frame_rate": "24000/1001", "bit_rate": "5000000" },
+    { "codec_type": "audio", "codec_name": "aac", "profile": "LC", "sample_rate": "48000", "channels": 2, "bit_rate": "128000" }
+  ],
+  "format": {
+    "filename": "/tmp/movie.mkv",
+    "duration": "7234.5",
+    "size": "5368709120",
+    "bit_rate": "5200000"
+  }
+}
