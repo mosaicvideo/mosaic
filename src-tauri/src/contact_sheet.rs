@@ -1,8 +1,9 @@
 use crate::drawtext::format_hms_escaped;
 use crate::ffmpeg::{run_cancellable, RunError};
 use crate::header::build_header_lines;
-use crate::layout::{compute_sheet_layout, header_height, sample_timestamps};
-use crate::output_path::OutputFormat;
+use crate::jobs::ProgressReporter;
+use crate::layout::{compute_sheet_layout, header_height, line_height, sample_timestamps};
+use crate::output_path::{jpeg_qv, OutputFormat};
 use crate::video_info::VideoInfo;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -21,10 +22,6 @@ pub struct SheetOptions {
     pub show_header: bool,
     pub format: OutputFormat,
     pub jpeg_quality: u32,
-}
-
-pub struct ProgressReporter<'a> {
-    pub emit: &'a (dyn Fn(u32, u32, &str) + Send + Sync),
 }
 
 pub async fn generate(
@@ -88,14 +85,15 @@ pub async fn generate(
     ];
     run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
 
-    // 3. Header (optional)
-    let final_tmp: PathBuf;
+    // 3. Header (optional) + 4. Finalize. The result of this block is a source
+    // path on disk (`final_src`) that we then rename/copy into `output_path`.
+    let final_src: PathBuf;
     if opts.show_header {
         (reporter.emit)(layout.total + 2, total_steps, "Rendering header");
         let display = source.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
         let (l1, l2) = build_header_lines(info, &display);
         let h = header_height(opts.header_font_size, opts.gap);
-        let line_h = ((opts.header_font_size as f64) * 1.3).round() as u32;
+        let line_h = line_height(opts.header_font_size);
         let vf = format!(
             "drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor=white:x={}:y={},drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor=white:x={}:y={}",
             l1, font_path, opts.header_font_size, opts.gap, opts.gap,
@@ -113,7 +111,7 @@ pub async fn generate(
         run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
 
         (reporter.emit)(total_steps, total_steps, "Composing final image");
-        final_tmp = tmp.path().join(format!("final.{}", opts.format.ext()));
+        let final_tmp = tmp.path().join(format!("final.{}", opts.format.ext()));
         let mut args: Vec<String> = vec![
             "-hide_banner".into(), "-loglevel".into(), "error".into(), "-y".into(),
             "-i".into(), header.to_string_lossy().into_owned(),
@@ -126,32 +124,34 @@ pub async fn generate(
         }
         args.push(final_tmp.to_string_lossy().into_owned());
         run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
+        final_src = final_tmp;
     } else {
         (reporter.emit)(total_steps, total_steps, "Finalizing");
-        // No header: re-encode grid to the target format so extension matches content.
-        final_tmp = tmp.path().join(format!("final.{}", opts.format.ext()));
-        let mut args: Vec<String> = vec![
-            "-hide_banner".into(), "-loglevel".into(), "error".into(), "-y".into(),
-            "-i".into(), grid.to_string_lossy().into_owned(),
-            "-frames:v".into(), "1".into(),
-        ];
-        if matches!(opts.format, OutputFormat::Jpeg) {
-            args.extend(["-q:v".into(), format!("{}", jpeg_qv(opts.jpeg_quality))]);
+        match opts.format {
+            OutputFormat::Png => {
+                // Grid is already PNG; no re-encode needed. Reuse it as-is.
+                final_src = grid;
+            }
+            OutputFormat::Jpeg => {
+                // Convert PNG grid to JPEG with the requested quality.
+                let final_tmp = tmp.path().join(format!("final.{}", opts.format.ext()));
+                let args: Vec<String> = vec![
+                    "-hide_banner".into(), "-loglevel".into(), "error".into(), "-y".into(),
+                    "-i".into(), grid.to_string_lossy().into_owned(),
+                    "-frames:v".into(), "1".into(),
+                    "-q:v".into(), format!("{}", jpeg_qv(opts.jpeg_quality)),
+                    final_tmp.to_string_lossy().into_owned(),
+                ];
+                run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
+                final_src = final_tmp;
+            }
         }
-        args.push(final_tmp.to_string_lossy().into_owned());
-        run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
     }
 
-    // 4. Move final into place
+    // 5. Move final into place
     std::fs::create_dir_all(output_path.parent().unwrap_or(Path::new(".")))?;
-    std::fs::rename(&final_tmp, output_path).or_else(|_| std::fs::copy(&final_tmp, output_path).map(|_| ()))?;
+    std::fs::rename(&final_src, output_path).or_else(|_| std::fs::copy(&final_src, output_path).map(|_| ()))?;
     Ok(())
-}
-
-pub fn jpeg_qv(q: u32) -> u32 {
-    // libmjpeg: 2 (best) .. 31 (worst). Map 100→2, 50→15.
-    let q = q.clamp(50, 100) as i64;
-    (2 + ((100 - q) * 13 / 50)).max(2) as u32
 }
 
 fn font_for_ffmpeg(p: &Path) -> String {

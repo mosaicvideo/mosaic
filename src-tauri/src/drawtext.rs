@@ -21,13 +21,18 @@ pub fn escape_drawtext(s: &str) -> String {
     out
 }
 
-/// Format a duration in seconds as `HH\:MM\:SS` (already escaped for drawtext).
-pub fn format_hms_escaped(seconds: f64) -> String {
+/// Format a duration in seconds as `HH:MM:SS` (plain, unescaped).
+pub fn format_hms_plain(seconds: f64) -> String {
     let total = seconds as u64;
     let h = total / 3600;
     let m = (total % 3600) / 60;
     let s = total % 60;
-    format!(r"{:02}\:{:02}\:{:02}", h, m, s)
+    format!("{:02}:{:02}:{:02}", h, m, s)
+}
+
+/// Format a duration in seconds as `HH\:MM\:SS` (escaped for drawtext `text='…'`).
+pub fn format_hms_escaped(seconds: f64) -> String {
+    format_hms_plain(seconds).replace(':', r"\:")
 }
 
 #[cfg(test)]

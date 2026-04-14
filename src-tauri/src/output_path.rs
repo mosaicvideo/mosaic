@@ -43,6 +43,13 @@ pub fn screenshot_path(
     out_dir.join(format!("{}_screenshot_{}.{}", stem(source), num, fmt.ext()))
 }
 
+/// Map a user-facing JPEG quality (50..=100, higher = better) to libmjpeg's
+/// `-q:v` scale (2 best .. 31 worst). 100 → 2, 50 → 15.
+pub fn jpeg_qv(q: u32) -> u32 {
+    let q = q.clamp(50, 100) as i64;
+    (2 + ((100 - q) * 13 / 50)).max(2) as u32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

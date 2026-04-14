@@ -24,9 +24,13 @@ pub fn sample_timestamps(duration_secs: f64, n: u32) -> Vec<f64> {
     (1..=n).map(|i| i as f64 * interval).collect()
 }
 
+/// Line height (in pixels) used to stack drawtext lines: 1.3× font size, rounded.
+pub fn line_height(font: u32) -> u32 {
+    ((font as f64) * 1.3).round() as u32
+}
+
 pub fn header_height(header_font_size: u32, gap: u32) -> u32 {
-    let line_h = ((header_font_size as f64) * 1.3).round() as u32;
-    2 * line_h + 2 * gap
+    2 * line_height(header_font_size) + 2 * gap
 }
 
 #[cfg(test)]

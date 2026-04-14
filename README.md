@@ -27,8 +27,12 @@ pnpm tauri build
 ## Tests
 
 ```
-cd src-tauri && cargo test
+cd src-tauri && cargo test --features test-api
 ```
+
+The `test-api` feature exposes internal modules (and a couple of test hooks) so
+the end-to-end integration test can drive them. Without the feature only the
+34 unit tests run; the integration test is gated via `required-features`.
 
 ## Design
 

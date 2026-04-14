@@ -1,4 +1,4 @@
-use crate::drawtext::escape_drawtext;
+use crate::drawtext::{escape_drawtext, format_hms_plain};
 use crate::video_info::VideoInfo;
 
 fn format_gib(bytes: u64) -> String {
@@ -16,10 +16,7 @@ fn format_kbps(bps: u64) -> String {
 pub fn build_header_lines(info: &VideoInfo, display_filename: &str) -> (String, String) {
     let line1 = escape_drawtext(display_filename);
 
-    let hms = {
-        let t = info.duration_secs as u64;
-        format!("{:02}:{:02}:{:02}", t / 3600, (t % 3600) / 60, t % 60)
-    };
+    let hms = format_hms_plain(info.duration_secs);
 
     let mut parts: Vec<String> = Vec::new();
     if let Some(sz) = info.size_bytes { parts.push(format!("Size: {}", format_gib(sz))); }

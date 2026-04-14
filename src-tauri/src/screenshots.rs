@@ -1,7 +1,7 @@
-use crate::contact_sheet::ProgressReporter;
 use crate::ffmpeg::{run_cancellable, RunError};
+use crate::jobs::ProgressReporter;
 use crate::layout::sample_timestamps;
-use crate::output_path::{screenshot_path, OutputFormat};
+use crate::output_path::{jpeg_qv, screenshot_path, OutputFormat};
 use crate::video_info::VideoInfo;
 use std::path::Path;
 use std::sync::Arc;
@@ -44,7 +44,7 @@ pub async fn generate(
             args.extend(["-vf".into(), format!("scale={}:-2", opts.width)]);
         }
         if matches!(opts.format, OutputFormat::Jpeg) {
-            args.extend(["-q:v".into(), format!("{}", crate::contact_sheet::jpeg_qv(opts.jpeg_quality))]);
+            args.extend(["-q:v".into(), format!("{}", jpeg_qv(opts.jpeg_quality))]);
         }
         args.push(out.to_string_lossy().into_owned());
 
