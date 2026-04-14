@@ -1,3 +1,40 @@
 * { box-sizing: border-box; }
-body { margin: 0; font-family: system-ui, sans-serif; background: #1a1a1a; color: #eee; }
-#app { padding: 16px; }
+html, body { height: 100%; }
+body { margin: 0; font: 13px/1.4 system-ui, sans-serif; background: #141414; color: #e8e8e8; }
+#app { display: grid; grid-template-rows: 1fr auto auto; height: 100vh; }
+
+.banner { padding: 10px 16px; background: #5a1f1f; color: #ffd6d6; }
+.banner.hidden { display: none; }
+
+#input-zone { padding: 12px; overflow: auto; display: grid; grid-template-rows: auto 1fr; gap: 12px; }
+#dropzone { border: 2px dashed #555; border-radius: 8px; padding: 16px; text-align: center; }
+#dropzone.drag { border-color: #6cf; background: #1f2a36; }
+.btn-row { margin-top: 8px; display: flex; gap: 8px; justify-content: center; }
+
+#queue { list-style: none; margin: 0; padding: 0; border: 1px solid #2a2a2a; border-radius: 6px; overflow: auto; max-height: 240px; }
+#queue li { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center; padding: 6px 10px; border-top: 1px solid #222; }
+#queue li:first-child { border-top: 0; }
+.status { font-size: 11px; padding: 2px 6px; border-radius: 10px; background: #333; }
+.status.Done { background: #1f3d1f; color: #aef0ae; }
+.status.Failed { background: #3d1f1f; color: #ffb0b0; }
+.status.Running { background: #1f2f3d; color: #aee0ff; }
+.status.Cancelled { background: #2f2f2f; color: #ccc; }
+
+#options { padding: 12px; border-top: 1px solid #2a2a2a; background: #181818; }
+.tabs { display: flex; gap: 2px; }
+.tab { background: #222; color: #aaa; border: 0; padding: 6px 12px; cursor: pointer; }
+.tab.active { background: #333; color: #fff; }
+.tab-panel { display: none; padding: 12px; background: #1c1c1c; border-radius: 0 0 6px 6px; }
+.tab-panel.active { display: block; }
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 16px; }
+.grid label { display: flex; flex-direction: column; font-size: 11px; color: #aaa; }
+.grid input, .grid select { margin-top: 2px; background: #0f0f0f; color: #eee; border: 1px solid #333; border-radius: 4px; padding: 4px; }
+.check { flex-direction: row !important; align-items: center; gap: 6px; color: #ddd; }
+.output { margin-top: 12px; border: 1px solid #2a2a2a; border-radius: 6px; padding: 8px 12px; }
+
+#action-bar { display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; gap: 12px; padding: 10px 12px; background: #101010; border-top: 1px solid #2a2a2a; }
+#action-bar progress { width: 100%; height: 10px; }
+button { background: #2f6fd4; border: 0; color: #fff; padding: 6px 14px; border-radius: 4px; cursor: pointer; }
+button:disabled { opacity: 0.4; cursor: default; }
+button.subtle { background: #333; }
+.hidden { display: none; }
