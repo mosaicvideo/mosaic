@@ -122,7 +122,7 @@ pub async fn generate(
             "-frames:v".into(), "1".into(),
         ];
         if matches!(opts.format, OutputFormat::Jpeg) {
-            args.extend(["-q:v".into(), format!("{}", quality_to_qv(opts.jpeg_quality))]);
+            args.extend(["-q:v".into(), format!("{}", jpeg_qv(opts.jpeg_quality))]);
         }
         args.push(final_tmp.to_string_lossy().into_owned());
         run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
@@ -136,7 +136,7 @@ pub async fn generate(
             "-frames:v".into(), "1".into(),
         ];
         if matches!(opts.format, OutputFormat::Jpeg) {
-            args.extend(["-q:v".into(), format!("{}", quality_to_qv(opts.jpeg_quality))]);
+            args.extend(["-q:v".into(), format!("{}", jpeg_qv(opts.jpeg_quality))]);
         }
         args.push(final_tmp.to_string_lossy().into_owned());
         run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
@@ -148,7 +148,7 @@ pub async fn generate(
     Ok(())
 }
 
-fn quality_to_qv(q: u32) -> u32 {
+pub fn jpeg_qv(q: u32) -> u32 {
     // libmjpeg: 2 (best) .. 31 (worst). Map 100→2, 50→15.
     let q = q.clamp(50, 100) as i64;
     (2 + ((100 - q) * 13 / 50)).max(2) as u32
