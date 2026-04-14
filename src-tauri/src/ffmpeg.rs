@@ -83,3 +83,58 @@ pub async fn run_capture(exe: &std::path::Path, args: &[&str]) -> Result<String,
     }
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
+
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+pub async fn run_cancellable(
+    exe: &std::path::Path,
+    args: &[String],
+    cancelled: Arc<AtomicBool>,
+) -> Result<(), RunError> {
+    if cancelled.load(Ordering::Relaxed) { return Err(RunError::Killed); }
+
+    let mut child = Command::new(exe)
+        .args(args.iter().map(|s| s.as_str()))
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()?;
+
+    let id = child.id();
+    let flag = cancelled.clone();
+    let watch = tokio::spawn(async move {
+        loop {
+            if flag.load(Ordering::Relaxed) { return true; }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+    });
+
+    tokio::select! {
+        status = child.wait() => {
+            watch.abort();
+            let status = status?;
+            if !status.success() {
+                // Best-effort grab of stderr
+                let mut buf = String::new();
+                if let Some(mut err) = child.stderr.take() {
+                    use tokio::io::AsyncReadExt;
+                    let _ = err.read_to_string(&mut buf).await;
+                }
+                return Err(RunError::NonZero { code: status.code().unwrap_or(-1), stderr: buf });
+            }
+            Ok(())
+        }
+        _ = async {
+            while !cancelled.load(Ordering::Relaxed) {
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
+        } => {
+            let _ = child.kill().await;
+            watch.abort();
+            let _ = id; // suppress unused
+            Err(RunError::Killed)
+        }
+    }
+}
