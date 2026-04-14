@@ -4,6 +4,7 @@ mod layout;
 mod output_path;
 mod header;
 mod ffmpeg;
+mod contact_sheet;
 mod commands;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
