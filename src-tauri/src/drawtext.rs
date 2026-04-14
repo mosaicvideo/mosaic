@@ -1,5 +1,8 @@
 /// Escape a string so it can appear inside a drawtext `text='...'` argument.
-/// Handles backslash, colon, single-quote, and percent.
+/// Handles backslash, colon, single-quote, and percent. Additionally escapes
+/// filter-graph separators (`,` `[` `]` `;`) as defense-in-depth so that a
+/// malicious filename cannot break out and inject filters if quoting is ever
+/// bypassed in a future refactor.
 pub fn escape_drawtext(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 4);
     for ch in s.chars() {
@@ -8,6 +11,10 @@ pub fn escape_drawtext(s: &str) -> String {
             ':' => out.push_str(r"\:"),
             '\'' => out.push_str(r"\'"),
             '%' => out.push_str("%%"),
+            ',' => out.push_str(r"\,"),
+            '[' => out.push_str(r"\["),
+            ']' => out.push_str(r"\]"),
+            ';' => out.push_str(r"\;"),
             c => out.push(c),
         }
     }
@@ -51,6 +58,36 @@ mod tests {
     fn escapes_combined() {
         // order matters: backslash first so earlier escapes aren't re-escaped
         assert_eq!(escape_drawtext(r"C:\a'b%"), r"C\:\\a\'b%%");
+    }
+
+    #[test]
+    fn escapes_comma() {
+        assert_eq!(escape_drawtext("a,b"), r"a\,b");
+    }
+
+    #[test]
+    fn escapes_open_bracket() {
+        assert_eq!(escape_drawtext("a[b"), r"a\[b");
+    }
+
+    #[test]
+    fn escapes_close_bracket() {
+        assert_eq!(escape_drawtext("a]b"), r"a\]b");
+    }
+
+    #[test]
+    fn escapes_semicolon() {
+        assert_eq!(escape_drawtext("a;b"), r"a\;b");
+    }
+
+    #[test]
+    fn escapes_combined_graph_separators() {
+        // a malicious filename attempting to break out of quoting and inject
+        // a new filter node should have all separators neutralised.
+        assert_eq!(
+            escape_drawtext("evil',[x];y:z%"),
+            r"evil\'\,\[x\]\;y\:z%%"
+        );
     }
 
     #[test]

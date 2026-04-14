@@ -1,7 +1,7 @@
 use crate::contact_sheet::{self, SheetOptions, ProgressReporter};
 use crate::ffmpeg::{locate_tools, run_capture};
 use crate::jobs::JobState;
-use crate::output_path::{contact_sheet_path, OutputFormat};
+use crate::output_path::contact_sheet_path;
 use crate::screenshots::{self, ScreenshotsOptions};
 use crate::video_info::{parse, VideoInfo};
 use std::path::PathBuf;

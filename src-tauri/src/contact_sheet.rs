@@ -1,4 +1,4 @@
-use crate::drawtext::{escape_drawtext, format_hms_escaped};
+use crate::drawtext::format_hms_escaped;
 use crate::ffmpeg::{run_cancellable, RunError};
 use crate::header::build_header_lines;
 use crate::layout::{compute_sheet_layout, header_height, sample_timestamps};
