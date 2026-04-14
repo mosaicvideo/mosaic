@@ -102,27 +102,28 @@ pub async fn run_cancellable(
         .kill_on_drop(true)
         .spawn()?;
 
-    let id = child.id();
-    let flag = cancelled.clone();
-    let watch = tokio::spawn(async move {
-        loop {
-            if flag.load(Ordering::Relaxed) { return true; }
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        }
+    // Drain stderr concurrently so ffmpeg never blocks on a full pipe buffer
+    // (~64 KiB on macOS/Linux). With `-loglevel error` stderr is usually tiny,
+    // but an unexpected panic can flood it and deadlock `child.wait()`.
+    let stderr_task = child.stderr.take().map(|mut err| {
+        tokio::spawn(async move {
+            use tokio::io::AsyncReadExt;
+            let mut buf = Vec::new();
+            let _ = err.read_to_end(&mut buf).await;
+            buf
+        })
     });
 
     tokio::select! {
         status = child.wait() => {
-            watch.abort();
             let status = status?;
+            let stderr_bytes = match stderr_task {
+                Some(h) => h.await.unwrap_or_default(),
+                None => Vec::new(),
+            };
             if !status.success() {
-                // Best-effort grab of stderr
-                let mut buf = String::new();
-                if let Some(mut err) = child.stderr.take() {
-                    use tokio::io::AsyncReadExt;
-                    let _ = err.read_to_string(&mut buf).await;
-                }
-                return Err(RunError::NonZero { code: status.code().unwrap_or(-1), stderr: buf });
+                let stderr = String::from_utf8_lossy(&stderr_bytes).into_owned();
+                return Err(RunError::NonZero { code: status.code().unwrap_or(-1), stderr });
             }
             Ok(())
         }
@@ -132,8 +133,7 @@ pub async fn run_cancellable(
             }
         } => {
             let _ = child.kill().await;
-            watch.abort();
-            let _ = id; // suppress unused
+            if let Some(h) = stderr_task { h.abort(); }
             Err(RunError::Killed)
         }
     }
