@@ -52,3 +52,34 @@ mod tests {
         assert!(t.ffprobe.exists());
     }
 }
+
+use std::process::Stdio;
+use tokio::process::Command;
+
+#[derive(Debug, thiserror::Error)]
+pub enum RunError {
+    #[error("io: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("process exited with code {code}: {stderr}")]
+    NonZero { code: i32, stderr: String },
+    #[error("process killed")]
+    Killed,
+}
+
+pub async fn run_capture(exe: &std::path::Path, args: &[&str]) -> Result<String, RunError> {
+    let output = Command::new(exe)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .await?;
+    if !output.status.success() {
+        let code = output.status.code().unwrap_or(-1);
+        return Err(RunError::NonZero {
+            code,
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        });
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
