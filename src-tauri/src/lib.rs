@@ -3,6 +3,7 @@ mod drawtext;
 mod layout;
 mod output_path;
 mod header;
+mod ffmpeg;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
