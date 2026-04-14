@@ -1,5 +1,6 @@
 mod video_info;
 mod drawtext;
+mod layout;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
