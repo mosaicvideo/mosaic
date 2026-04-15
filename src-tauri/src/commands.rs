@@ -27,6 +27,9 @@ const VIDEO_EXTS: &[&str] = &[
     "mp4", "mkv", "mov", "avi", "webm", "wmv", "flv", "m4v", "mpg", "mpeg", "ts", "m2ts",
 ];
 
+/// Cap folder-scan recursion depth so a pathological symlink loop can't hang the UI.
+const MAX_SCAN_DEPTH: u32 = 16;
+
 #[tauri::command]
 pub fn scan_folder(path: String, recursive: bool) -> Result<Vec<String>, String> {
     let root = std::path::PathBuf::from(&path);
@@ -40,7 +43,7 @@ pub fn scan_folder(path: String, recursive: bool) -> Result<Vec<String>, String>
 }
 
 fn walk(dir: &std::path::Path, recursive: bool, depth: u32, out: &mut Vec<std::path::PathBuf>) {
-    if depth > 16 { return; }
+    if depth > MAX_SCAN_DEPTH { return; }
     let Ok(entries) = std::fs::read_dir(dir) else { return };
     for entry in entries.flatten() {
         let Ok(ft) = entry.file_type() else { continue };
