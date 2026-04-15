@@ -17,7 +17,7 @@ const OUTPUT_TYPES = [
   },
   {
     key: 'preview', pretty: 'Animated Previews', invokeCmd: 'generate_preview_reels', read: readPreviewOpts,
-    preview: s => `${(s.suffix || ' - reel')}.webp`,
+    preview: s => `${(s.suffix || ' - reel')}.${ {Webp:'webp', Webm:'webm', Gif:'gif'}[s.format] ?? 'webp' }`,
   },
 ];
 
@@ -183,6 +183,12 @@ function updateQualityVisibility() {
     if (!label) continue;
     const isJpeg = fmt.value === 'Jpeg';
     label.classList.toggle('hidden', !isJpeg);
+  }
+  const previewFmt = document.getElementById('preview-format');
+  const isGif = previewFmt?.value === 'Gif';
+  for (const id of ['preview-quality', 'preview-fps']) {
+    const label = document.getElementById(id)?.closest('label');
+    if (label) label.classList.toggle('hidden', isGif);
   }
 }
 

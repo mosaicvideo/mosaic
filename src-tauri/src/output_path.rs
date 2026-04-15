@@ -13,6 +13,19 @@ impl OutputFormat {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ReelFormat { Webp, Webm, Gif }
+
+impl ReelFormat {
+    pub fn ext(self) -> &'static str {
+        match self { Self::Webp => "webp", Self::Webm => "webm", Self::Gif => "gif" }
+    }
+}
+
+impl Default for ReelFormat {
+    fn default() -> Self { Self::Webp }
+}
+
 fn stem(p: &Path) -> String {
     p.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default()
 }
@@ -70,11 +83,12 @@ pub fn screenshot_path(
 pub fn preview_reel_path(
     source: &Path,
     out_dir: &Path,
+    fmt: ReelFormat,
     suffix: &str,
     exists_fn: &dyn Fn(&Path) -> bool,
 ) -> PathBuf {
     let base = format!("{}{}", stem(source), resolved(suffix, DEFAULT_PREVIEW_SUFFIX));
-    collision_free_path(out_dir, &base, "webp", exists_fn)
+    collision_free_path(out_dir, &base, fmt.ext(), exists_fn)
 }
 
 /// Map a user-facing JPEG quality (50..=100, higher = better) to libmjpeg's
@@ -82,6 +96,14 @@ pub fn preview_reel_path(
 pub fn jpeg_qv(q: u32) -> u32 {
     let q = q.clamp(50, 100) as i64;
     (2 + ((100 - q) * 13 / 50)).max(2) as u32
+}
+
+/// Map user-facing quality (0..=100) → libvpx-vp9 CRF (0 best .. 63 worst),
+/// clamped to a usable band `[4, 50]`. q=100 → 4, q=50 → 32, q=0 → 50.
+pub fn vp9_crf(q: u32) -> u32 {
+    let q = q.min(100) as i64;
+    let raw = 63 - (q * 63 / 100);
+    raw.clamp(4, 50) as u32
 }
 
 #[cfg(test)]
@@ -183,6 +205,7 @@ mod tests {
         let p = preview_reel_path(
             Path::new("/videos/movie.mkv"),
             Path::new("/videos"),
+            ReelFormat::Webp,
             "",
             &|_| false,
         );
@@ -194,6 +217,7 @@ mod tests {
         let p = preview_reel_path(
             Path::new("/videos/movie.mkv"),
             Path::new("/videos"),
+            ReelFormat::Webp,
             "_preview",
             &|_| false,
         );
@@ -207,9 +231,46 @@ mod tests {
         let p = preview_reel_path(
             Path::new("/videos/movie.mkv"),
             Path::new("/out"),
+            ReelFormat::Webp,
             "",
             &|p| taken.contains(p),
         );
         assert_eq!(p, PathBuf::from("/out/movie - reel (2).webp"));
+    }
+
+    #[test]
+    fn preview_reel_webm_extension() {
+        let p = preview_reel_path(
+            Path::new("/v/movie.mkv"),
+            Path::new("/v"),
+            ReelFormat::Webm,
+            "",
+            &|_| false,
+        );
+        assert_eq!(p, PathBuf::from("/v/movie - reel.webm"));
+    }
+
+    #[test]
+    fn preview_reel_gif_extension() {
+        let p = preview_reel_path(
+            Path::new("/v/movie.mkv"),
+            Path::new("/v"),
+            ReelFormat::Gif,
+            "",
+            &|_| false,
+        );
+        assert_eq!(p, PathBuf::from("/v/movie - reel.gif"));
+    }
+
+    #[test]
+    fn reel_format_default_is_webp() {
+        assert_eq!(ReelFormat::default(), ReelFormat::Webp);
+    }
+
+    #[test]
+    fn vp9_crf_mapping_endpoints_and_midpoint() {
+        assert_eq!(vp9_crf(100), 4);
+        assert_eq!(vp9_crf(0), 50);
+        assert_eq!(vp9_crf(50), 32);
     }
 }

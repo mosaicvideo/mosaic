@@ -1,5 +1,6 @@
 use crate::ffmpeg::RunError;
 use crate::jobs::ProgressReporter;
+use crate::output_path::{vp9_crf, ReelFormat};
 use crate::video_info::VideoInfo;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -14,6 +15,8 @@ pub struct PreviewOptions {
     pub quality: u32,
     #[serde(default)]
     pub suffix: String,
+    #[serde(default)]
+    pub format: ReelFormat,
 }
 
 pub fn build_extract_args(
@@ -49,10 +52,27 @@ pub fn build_extract_args(
     args
 }
 
+/// Hard cap on GIF frame rate. GIF has no inter-frame compression so output
+/// size scales roughly linearly with frame count; capping avoids absurd files.
+const GIF_FPS_CAP: u32 = 12;
+/// Palette size cap for GIF. 128 colors looks nearly identical to 256 on
+/// typical footage while meaningfully shrinking each frame's LZW dictionary.
+const GIF_MAX_COLORS: u32 = 128;
+
+/// Build the final stitch/encode invocation for the selected reel format.
+///
+/// - **WebP** (`libwebp`): `quality` maps directly to `-quality`; `-loop 0`.
+/// - **WebM** (`libvpx-vp9`): `quality` maps to CRF via [`crate::output_path::vp9_crf`].
+///   VP9 loops natively in browsers, so no `-loop` flag. `-b:v 0` enables pure CRF mode.
+/// - **GIF**: palette-based, single pass via `-filter_complex` (required
+///   because `split` emits labeled outputs). `quality` has no knob; ignored.
+///   Frame rate is hard-capped at [`GIF_FPS_CAP`] and palette at
+///   [`GIF_MAX_COLORS`] to keep output sizes reasonable.
 pub fn build_stitch_args(
     concat_list: &Path,
     fps: u32,
     quality: u32,
+    format: ReelFormat,
     output: &Path,
 ) -> Vec<String> {
     let mut args = crate::ffmpeg::base_args();
@@ -60,12 +80,38 @@ pub fn build_stitch_args(
         "-f".into(), "concat".into(),
         "-safe".into(), "0".into(),
         "-i".into(), concat_list.to_string_lossy().into_owned(),
-        "-vf".into(), format!("fps={}", fps),
-        "-c:v".into(), "libwebp".into(),
-        "-loop".into(), "0".into(),
-        "-quality".into(), format!("{}", quality),
-        output.to_string_lossy().into_owned(),
     ]);
+    match format {
+        ReelFormat::Webp => {
+            args.extend([
+                "-vf".into(), format!("fps={}", fps),
+                "-c:v".into(), "libwebp".into(),
+                "-loop".into(), "0".into(),
+                "-quality".into(), format!("{}", quality),
+            ]);
+        }
+        ReelFormat::Webm => {
+            args.extend([
+                "-vf".into(), format!("fps={}", fps),
+                "-c:v".into(), "libvpx-vp9".into(),
+                "-b:v".into(), "0".into(),
+                "-crf".into(), format!("{}", vp9_crf(quality)),
+                "-pix_fmt".into(), "yuv420p".into(),
+            ]);
+        }
+        ReelFormat::Gif => {
+            let gif_fps = fps.min(GIF_FPS_CAP);
+            args.extend([
+                "-filter_complex".into(),
+                format!(
+                    "fps={},split[a][b];[a]palettegen=stats_mode=diff:max_colors={}[p];[b][p]paletteuse=dither=sierra2_4a",
+                    gif_fps, GIF_MAX_COLORS
+                ),
+                "-loop".into(), "0".into(),
+            ]);
+        }
+    }
+    args.push(output.to_string_lossy().into_owned());
     args
 }
 
@@ -120,7 +166,7 @@ pub async fn generate(
     let concat_list = tmp.path().join("concat.txt");
     std::fs::write(&concat_list, render_concat_list(&clips))?;
 
-    let args = build_stitch_args(&concat_list, opts.fps, opts.quality, out);
+    let args = build_stitch_args(&concat_list, opts.fps, opts.quality, opts.format, out);
     crate::ffmpeg::run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
 
     Ok(())
@@ -203,6 +249,7 @@ mod tests {
             Path::new("/tmp/concat.txt"),
             24,
             75,
+            ReelFormat::Webp,
             Path::new("/out/movie - reel.webp"),
         );
         assert_eq!(args[0], "-hide_banner");
@@ -214,6 +261,83 @@ mod tests {
         assert!(args.windows(2).any(|w| w[0] == "-loop" && w[1] == "0"));
         assert!(args.windows(2).any(|w| w[0] == "-quality" && w[1] == "75"));
         assert_eq!(args.last().unwrap(), "/out/movie - reel.webp");
+    }
+
+    #[test]
+    fn stitch_args_webm_uses_libvpx_vp9_crf_mode() {
+        let args = build_stitch_args(
+            Path::new("/tmp/concat.txt"),
+            24,
+            75,
+            ReelFormat::Webm,
+            Path::new("/out/movie - reel.webm"),
+        );
+        assert!(args.windows(2).any(|w| w[0] == "-vf" && w[1] == "fps=24"));
+        assert!(args.windows(2).any(|w| w[0] == "-c:v" && w[1] == "libvpx-vp9"));
+        assert!(args.windows(2).any(|w| w[0] == "-b:v" && w[1] == "0"));
+        assert!(args.windows(2).any(|w| w[0] == "-crf"));
+        assert!(args.windows(2).any(|w| w[0] == "-pix_fmt" && w[1] == "yuv420p"));
+        // No -loop for VP9 — browsers loop WebM natively.
+        assert!(!args.iter().any(|a| a == "-loop"));
+        // Quality must NOT appear verbatim (webm uses CRF, not -quality).
+        assert!(!args.iter().any(|a| a == "-quality"));
+        assert_eq!(args.last().unwrap(), "/out/movie - reel.webm");
+    }
+
+    #[test]
+    fn stitch_args_gif_uses_filter_complex_palettegen() {
+        let args = build_stitch_args(
+            Path::new("/tmp/concat.txt"),
+            12,
+            75,
+            ReelFormat::Gif,
+            Path::new("/out/movie - reel.gif"),
+        );
+        // GIF path must use -filter_complex (not -vf) because `split` emits labels.
+        assert!(!args.iter().any(|a| a == "-vf"));
+        let fc_pos = args.iter().position(|a| a == "-filter_complex")
+            .expect("gif branch must use -filter_complex");
+        let graph = &args[fc_pos + 1];
+        assert!(graph.contains("fps=12"));
+        assert!(graph.contains("split"));
+        assert!(graph.contains("palettegen=stats_mode=diff"));
+        assert!(graph.contains("max_colors=128"));
+        assert!(graph.contains("paletteuse=dither=sierra2_4a"));
+        assert!(args.windows(2).any(|w| w[0] == "-loop" && w[1] == "0"));
+        // No codec selection flags — ffmpeg picks GIF encoder from the .gif extension.
+        assert!(!args.iter().any(|a| a == "-c:v"));
+        assert_eq!(args.last().unwrap(), "/out/movie - reel.gif");
+    }
+
+    #[test]
+    fn stitch_args_gif_caps_fps_at_12() {
+        // User requests 30 fps — GIF branch must clamp to the hard cap.
+        let args = build_stitch_args(
+            Path::new("/tmp/concat.txt"),
+            30,
+            75,
+            ReelFormat::Gif,
+            Path::new("/out/movie - reel.gif"),
+        );
+        let fc_pos = args.iter().position(|a| a == "-filter_complex").unwrap();
+        let graph = &args[fc_pos + 1];
+        assert!(graph.contains("fps=12"), "expected fps=12 cap, got graph: {}", graph);
+        assert!(!graph.contains("fps=30"), "requested 30fps must be clamped for GIF");
+    }
+
+    #[test]
+    fn stitch_args_gif_keeps_lower_requested_fps() {
+        // User requests 8 fps — below the cap, must pass through unchanged.
+        let args = build_stitch_args(
+            Path::new("/tmp/concat.txt"),
+            8,
+            75,
+            ReelFormat::Gif,
+            Path::new("/out/movie - reel.gif"),
+        );
+        let fc_pos = args.iter().position(|a| a == "-filter_complex").unwrap();
+        let graph = &args[fc_pos + 1];
+        assert!(graph.contains("fps=8"), "fps below cap must pass through; got: {}", graph);
     }
 
     #[test]
