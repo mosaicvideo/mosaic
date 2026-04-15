@@ -58,14 +58,14 @@ pub async fn generate(
                 hms, font_path, opts.thumb_font_size
             ));
         }
-        let args: Vec<String> = vec![
-            "-hide_banner".into(), "-loglevel".into(), "error".into(), "-y".into(),
+        let mut args = crate::ffmpeg::base_args();
+        args.extend([
             "-ss".into(), format!("{}", ts),
             "-i".into(), source.to_string_lossy().into_owned(),
             "-vframes".into(), "1".into(),
             "-vf".into(), vf,
             thumb.to_string_lossy().into_owned(),
-        ];
+        ]);
         run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
     }
 
@@ -73,8 +73,8 @@ pub async fn generate(
     (reporter.emit)(layout.total + 1, total_steps, "Tiling grid");
     let grid = tmp.path().join("grid.png");
     let tile_input = tmp.path().join(format!("thumb_%0{}d.png", width_digits));
-    let args: Vec<String> = vec![
-        "-hide_banner".into(), "-loglevel".into(), "error".into(), "-y".into(),
+    let mut args = crate::ffmpeg::base_args();
+    args.extend([
         "-framerate".into(), "1".into(),
         "-start_number".into(), "1".into(),
         "-i".into(), tile_input.to_string_lossy().into_owned(),
@@ -84,7 +84,7 @@ pub async fn generate(
         ),
         "-frames:v".into(), "1".into(),
         grid.to_string_lossy().into_owned(),
-    ];
+    ]);
     run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
 
     // 3. Header (optional) + 4. Finalize. The result of this block is a source
@@ -102,25 +102,25 @@ pub async fn generate(
             l2, font_path, opts.header_font_size, opts.gap, opts.gap + line_h
         );
         let header = tmp.path().join("header.png");
-        let args: Vec<String> = vec![
-            "-hide_banner".into(), "-loglevel".into(), "error".into(), "-y".into(),
+        let mut args = crate::ffmpeg::base_args();
+        args.extend([
             "-f".into(), "lavfi".into(),
             "-i".into(), format!("color=c=0x000000:s={}x{}:d=1", layout.grid_w, h),
             "-vf".into(), vf,
             "-frames:v".into(), "1".into(),
             header.to_string_lossy().into_owned(),
-        ];
+        ]);
         run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
 
         (reporter.emit)(total_steps, total_steps, "Composing");
         let final_tmp = tmp.path().join(format!("final.{}", opts.format.ext()));
-        let mut args: Vec<String> = vec![
-            "-hide_banner".into(), "-loglevel".into(), "error".into(), "-y".into(),
+        let mut args = crate::ffmpeg::base_args();
+        args.extend([
             "-i".into(), header.to_string_lossy().into_owned(),
             "-i".into(), grid.to_string_lossy().into_owned(),
             "-filter_complex".into(), "vstack".into(),
             "-frames:v".into(), "1".into(),
-        ];
+        ]);
         if matches!(opts.format, OutputFormat::Jpeg) {
             args.extend(["-q:v".into(), format!("{}", jpeg_qv(opts.jpeg_quality))]);
         }
@@ -137,13 +137,13 @@ pub async fn generate(
             OutputFormat::Jpeg => {
                 // Convert PNG grid to JPEG with the requested quality.
                 let final_tmp = tmp.path().join(format!("final.{}", opts.format.ext()));
-                let args: Vec<String> = vec![
-                    "-hide_banner".into(), "-loglevel".into(), "error".into(), "-y".into(),
+                let mut args = crate::ffmpeg::base_args();
+                args.extend([
                     "-i".into(), grid.to_string_lossy().into_owned(),
                     "-frames:v".into(), "1".into(),
                     "-q:v".into(), format!("{}", jpeg_qv(opts.jpeg_quality)),
                     final_tmp.to_string_lossy().into_owned(),
-                ];
+                ]);
                 run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
                 final_src = final_tmp;
             }
