@@ -4,14 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-```bash
-pnpm install                                      # first-time setup
-pnpm tauri dev                                    # launches Vite + Rust dev build + window
-pnpm tauri build                                  # production bundle
-cd src-tauri && cargo test                        # 34 unit tests only
-cd src-tauri && cargo test --features test-api    # unit + integration tests
-cd src-tauri && cargo test video_info             # run one module's unit tests
-```
+Use `pnpm tauri dev` for development and `pnpm tauri build` for production bundles. Rust tests live under `src-tauri/` — plain `cargo test` runs unit tests; add `--features test-api` for integration tests. Run `cargo` from `src-tauri/` (the `Cargo.toml` isn't at repo root). For frontend-only changes, `pnpm build:web` is a fast Vite build that catches syntax/import errors without launching Tauri.
 
 Vite (port 5173) serves `src/` and is spawned automatically by `tauri dev` via `beforeDevCommand`. Tauri's file watcher hot-rebuilds the Rust crate on `src-tauri/**` changes; Vite HMR handles `src/**`.
 
@@ -21,9 +14,13 @@ The integration test requires ffmpeg with the `drawtext` filter. On macOS the de
 
 Tauri 2 app. Rust backend orchestrates `ffmpeg`/`ffprobe` subprocesses; vanilla HTML/CSS/JS frontend talks to it via `invoke`/`listen`.
 
-**Pipeline separation — the core of the codebase.** Pure logic (`drawtext.rs`, `layout.rs`, `header.rs`, `output_path.rs`, `video_info.rs`) is fully unit-testable with no subprocess dependency. Orchestration modules (`contact_sheet.rs`, `screenshots.rs`) take pure-logic outputs and build ffmpeg arg vectors, delegating subprocess I/O to `ffmpeg.rs`. Commands (`commands.rs`) wrap everything with Tauri handlers and per-file job loops. Keep this layering intact when adding features: put new math/parsing in pure modules with tests, not inline in the orchestration layer.
+**Pipeline separation — the core of the codebase.** Pure logic (`drawtext.rs`, `layout.rs`, `header.rs`, `output_path.rs`, `video_info.rs`) is fully unit-testable with no subprocess dependency. Orchestration modules (`contact_sheet.rs`, `screenshots.rs`, `preview_reel.rs`) take pure-logic outputs and build ffmpeg arg vectors, delegating subprocess I/O to `ffmpeg.rs`. Commands (`commands.rs`) wrap everything with Tauri handlers and per-file job loops. Keep this layering intact when adding features: put new math/parsing in pure modules with tests, not inline in the orchestration layer.
+
+**Three output types.** Contact sheets (grid JPEG/PNG), screenshots (individual frames), and animated preview reels (WebP stitched from short clips). Each has its own orchestration module and its own `generate_*` Tauri command; `output_path` exposes a `*_path` builder per type with a configurable suffix.
 
 **`test-api` feature.** `lib.rs` uses `#[cfg(any(test, feature = "test-api"))] pub mod` to expose internal modules only during tests — they are `mod` (private) in production builds. The integration test (`tests/integration.rs`) declares `required-features = ["test-api"]` in `Cargo.toml` so a plain `cargo test` silently skips it instead of failing to link. Do NOT change these modules back to unconditional `pub mod`; it widens the public API surface of `mosaic_lib`.
+
+**ffmpeg argv prelude.** All pipelines begin with `ffmpeg::base_args()` (`-hide_banner -loglevel error -y`). Extend from that helper, don't inline the prelude.
 
 **Cancellation model.** `JobState` (in `jobs.rs`) holds a shared `Arc<AtomicBool>`. `ffmpeg::run_cancellable` spawns the child with `kill_on_drop(true)`, drains stderr in a concurrent task to prevent pipe-fill deadlock, and races `child.wait()` against a poll of the cancel flag in `tokio::select!`. New long-running ffmpeg calls must go through `run_cancellable`, not `run_capture`, or they won't respond to the Cancel button.
 

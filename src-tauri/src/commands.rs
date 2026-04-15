@@ -250,7 +250,7 @@ pub async fn generate_preview_reels(
 
     run_job_loop(app.clone(), state_inner, tools.ffprobe, items, output,
         move |source, info, out_dir, cancelled, reporter| {
-            let out = preview_reel_path(source, out_dir, &opts.suffix, &|p| p.exists());
+            let out = preview_reel_path(source, out_dir, opts.format, &opts.suffix, &|p| p.exists());
             let opts = opts.clone();
             let ffmpeg = ffmpeg.clone();
             Box::pin(async move {

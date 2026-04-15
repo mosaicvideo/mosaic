@@ -20,12 +20,13 @@ const SHOTS_FIELDS = [
 ];
 
 const PREVIEW_FIELDS = [
-  { key: 'count',            id: 'preview-count',       kind: 'int'  },
-  { key: 'clip_length_secs', id: 'preview-clip-length', kind: 'int'  },
-  { key: 'height',           id: 'preview-height',      kind: 'int'  },
-  { key: 'fps',              id: 'preview-fps',         kind: 'int'  },
-  { key: 'quality',          id: 'preview-quality',     kind: 'int'  },
-  { key: 'suffix',           id: 'preview-suffix',      kind: 'text' },
+  { key: 'count',            id: 'preview-count',       kind: 'int'    },
+  { key: 'clip_length_secs', id: 'preview-clip-length', kind: 'int'    },
+  { key: 'height',           id: 'preview-height',      kind: 'int'    },
+  { key: 'fps',              id: 'preview-fps',         kind: 'int'    },
+  { key: 'format',           id: 'preview-format',      kind: 'select' },
+  { key: 'quality',          id: 'preview-quality',     kind: 'int'    },
+  { key: 'suffix',           id: 'preview-suffix',      kind: 'text'   },
 ];
 
 function readField({ id, kind }) {
