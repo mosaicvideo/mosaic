@@ -1,36 +1,70 @@
-export function readSheetOpts() {
-  return {
-    cols: int('sheet-cols'),
-    rows: int('sheet-rows'),
-    width: int('sheet-width'),
-    gap: int('sheet-gap'),
-    thumb_font_size: int('sheet-thumb-font'),
-    header_font_size: int('sheet-header-font'),
-    show_timestamps: checked('sheet-timestamps'),
-    show_header: checked('sheet-header'),
-    format: select('sheet-format'),
-    jpeg_quality: int('sheet-quality'),
-    suffix: text('sheet-suffix'),
-  };
+// Canonical schemas. To add a new option: add one row here. Readers/writers derive from this.
+// Each row: { key: rustSerdeFieldName, id: htmlElementId, kind: 'int'|'bool'|'select'|'text' }
+
+const SHEET_FIELDS = [
+  { key: 'cols',             id: 'sheet-cols',        kind: 'int'    },
+  { key: 'rows',             id: 'sheet-rows',        kind: 'int'    },
+  { key: 'width',            id: 'sheet-width',       kind: 'int'    },
+  { key: 'gap',              id: 'sheet-gap',         kind: 'int'    },
+  { key: 'thumb_font_size',  id: 'sheet-thumb-font',  kind: 'int'    },
+  { key: 'header_font_size', id: 'sheet-header-font', kind: 'int'    },
+  { key: 'show_timestamps',  id: 'sheet-timestamps',  kind: 'bool'   },
+  { key: 'show_header',      id: 'sheet-header',      kind: 'bool'   },
+  { key: 'format',           id: 'sheet-format',      kind: 'select' },
+  { key: 'jpeg_quality',     id: 'sheet-quality',     kind: 'int'    },
+  { key: 'suffix',           id: 'sheet-suffix',      kind: 'text'   },
+];
+
+const SHOTS_FIELDS = [
+  { key: 'count',        id: 'shots-count',   kind: 'int'    },
+  { key: 'format',       id: 'shots-format',  kind: 'select' },
+  { key: 'jpeg_quality', id: 'shots-quality', kind: 'int'    },
+  { key: 'suffix',       id: 'shots-suffix',  kind: 'text'   },
+];
+
+const PREVIEW_FIELDS = [
+  { key: 'count',            id: 'preview-count',       kind: 'int'  },
+  { key: 'clip_length_secs', id: 'preview-clip-length', kind: 'int'  },
+  { key: 'height',           id: 'preview-height',      kind: 'int'  },
+  { key: 'fps',              id: 'preview-fps',         kind: 'int'  },
+  { key: 'quality',          id: 'preview-quality',     kind: 'int'  },
+  { key: 'suffix',           id: 'preview-suffix',      kind: 'text' },
+];
+
+function readField({ id, kind }) {
+  const el = document.getElementById(id);
+  if (!el) return undefined;
+  if (kind === 'int')    return parseInt(el.value, 10);
+  if (kind === 'bool')   return el.checked;
+  if (kind === 'select') return el.value;
+  if (kind === 'text')   return el.value || '';
+  throw new Error(`unknown kind: ${kind}`);
 }
-export function readShotsOpts() {
-  return {
-    count: int('shots-count'),
-    format: select('shots-format'),
-    jpeg_quality: int('shots-quality'),
-    suffix: text('shots-suffix'),
-  };
+
+function writeField({ id, kind }, v) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (kind === 'bool') el.checked = !!v;
+  else el.value = v;
 }
-export function readPreviewOpts() {
-  return {
-    count: int('preview-count'),
-    clip_length_secs: int('preview-clip-length'),
-    height: int('preview-height'),
-    fps: int('preview-fps'),
-    quality: int('preview-quality'),
-    suffix: text('preview-suffix'),
-  };
+
+function readAll(fields) {
+  const out = {};
+  for (const f of fields) out[f.key] = readField(f);
+  return out;
 }
+
+function writeAll(fields, data) {
+  if (!data) return;
+  for (const f of fields) {
+    if (Object.prototype.hasOwnProperty.call(data, f.key)) writeField(f, data[f.key]);
+  }
+}
+
+export function readSheetOpts()   { return readAll(SHEET_FIELDS); }
+export function readShotsOpts()   { return readAll(SHOTS_FIELDS); }
+export function readPreviewOpts() { return readAll(PREVIEW_FIELDS); }
+
 export function readOutput() {
   const mode = document.querySelector('input[name="out"]:checked').value;
   const custom = document.getElementById('custom-folder-path').textContent;
@@ -39,52 +73,31 @@ export function readOutput() {
   if (mode === 'custom' && custom) return { mode: 'custom', custom };
   return { mode: 'next_to_source' };
 }
+
 export function readProduce() {
   return {
-    shots: document.getElementById('prod-shots').checked,
-    sheet: document.getElementById('prod-sheet').checked,
+    shots:   document.getElementById('prod-shots').checked,
+    sheet:   document.getElementById('prod-sheet').checked,
     preview: document.getElementById('prod-preview').checked,
   };
 }
+
 export function applyProduce(produce) {
   if (!produce) return;
   const s = document.getElementById('prod-shots');
   const c = document.getElementById('prod-sheet');
   const p = document.getElementById('prod-preview');
-  if (s && typeof produce.shots === 'boolean') s.checked = produce.shots;
-  if (c && typeof produce.sheet === 'boolean') c.checked = produce.sheet;
+  if (s && typeof produce.shots === 'boolean')   s.checked = produce.shots;
+  if (c && typeof produce.sheet === 'boolean')   c.checked = produce.sheet;
   if (p && typeof produce.preview === 'boolean') p.checked = produce.preview;
 }
+
 export function applyOpts(sheet, shots, preview, out) {
-  if (sheet) for (const [k, v] of Object.entries(sheet)) setField(`sheet-${mapKey(k)}`, v);
-  if (shots) for (const [k, v] of Object.entries(shots)) setField(`shots-${mapKey(k)}`, v);
-  if (preview) for (const [k, v] of Object.entries(preview)) setField(`preview-${mapKey(k)}`, v);
+  writeAll(SHEET_FIELDS,   sheet);
+  writeAll(SHOTS_FIELDS,   shots);
+  writeAll(PREVIEW_FIELDS, preview);
   if (out) {
     document.querySelector(`input[name="out"][value="${out.mode}"]`)?.click();
     if (out.custom) document.getElementById('custom-folder-path').textContent = out.custom;
   }
-}
-
-function mapKey(k) {
-  return {
-    thumb_font_size: 'thumb-font',
-    header_font_size: 'header-font',
-    show_timestamps: 'timestamps',
-    show_header: 'header',
-    jpeg_quality: 'quality',
-    clip_length_secs: 'clip-length',
-  }[k] || k;
-}
-function int(id) { return parseInt(document.getElementById(id).value, 10); }
-function checked(id) { return document.getElementById(id).checked; }
-function select(id) { return document.getElementById(id).value; }
-function text(id) {
-  const el = document.getElementById(id);
-  return el ? el.value : '';
-}
-function setField(id, v) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  if (el.type === 'checkbox') el.checked = !!v;
-  else el.value = v;
 }
