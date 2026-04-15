@@ -10,6 +10,10 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use tempfile::TempDir;
 
+/// ffmpeg's tile filter consumes its inputs as a video stream; this is the input
+/// framerate for the per-thumbnail stills going into `tile`, not a user-facing knob.
+const TILE_INPUT_FPS: &str = "1";
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SheetOptions {
     pub cols: u32,
@@ -75,7 +79,7 @@ pub async fn generate(
     let tile_input = tmp.path().join(format!("thumb_%0{}d.png", width_digits));
     let mut args = crate::ffmpeg::base_args();
     args.extend([
-        "-framerate".into(), "1".into(),
+        "-framerate".into(), TILE_INPUT_FPS.into(),
         "-start_number".into(), "1".into(),
         "-i".into(), tile_input.to_string_lossy().into_owned(),
         "-vf".into(), format!(
