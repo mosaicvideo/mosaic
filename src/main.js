@@ -250,15 +250,41 @@ function updateOverall(done, total) {
   p.max = total; p.value = done;
 }
 
+function sweepRunningToCancelled() {
+  for (const it of queue.values()) {
+    if (it.status === 'Running') queue.update(it.id, { status: 'Cancelled', progress: null });
+  }
+}
+
+function passStatusText(i, total, pass) {
+  return total > 1
+    ? `Pass ${i + 1} of ${total} · ${pass.pretty}`
+    : `Generating ${pass.pretty.toLowerCase()}`;
+}
+
+async function runPasses(passes, candidates, output, statusEl) {
+  for (let i = 0; i < passes.length; i++) {
+    if (userCancelled) return;
+    const pass = passes[i];
+
+    for (const it of candidates) {
+      queue.update(it.id, { status: 'Pending', progress: null, error: null, outputPath: null });
+    }
+
+    statusEl.textContent = passStatusText(i, passes.length, pass);
+
+    const items = candidates.map(c => ({ id: c.id, path: c.path }));
+    await invoke(pass.invokeCmd, { items, opts: pass.read(), output });
+  }
+}
+
 async function onGenerate() {
   const produce = readProduce();
   const passes = OUTPUT_TYPES.filter(t => produce[t.key]);
   if (!passes.length) { showBanner('Pick at least one output type.'); return; }
 
-  // Sweep any rows stuck in Running from a previous cancel before building the candidate list
-  for (const it of queue.values()) {
-    if (it.status === 'Running') queue.update(it.id, { status: 'Cancelled' });
-  }
+  sweepRunningToCancelled(); // pre-sweep stuck rows from a previous cancel
+
   const candidates = queue.values();
   if (!candidates.length) { showBanner('No files to process.'); return; }
 
@@ -266,35 +292,18 @@ async function onGenerate() {
   userCancelled = false;
   refreshActionBar();
   document.getElementById('btn-cancel').disabled = false;
-  document.getElementById('status').textContent = '';
-  const out = readOutput();
+
   const statusEl = document.getElementById('status');
+  statusEl.textContent = '';
+  const output = readOutput();
 
   try {
-    for (let i = 0; i < passes.length; i++) {
-      if (userCancelled) break;
-      const pass = passes[i];
-
-      for (const it of candidates) {
-        queue.update(it.id, { status: 'Pending', progress: null, error: null, outputPath: null });
-      }
-
-      statusEl.textContent = passes.length > 1
-        ? `Pass ${i + 1} of ${passes.length} · ${pass.pretty}`
-        : `Generating ${pass.pretty.toLowerCase()}`;
-
-      const items = candidates.map(c => ({ id: c.id, path: c.path }));
-      await invoke(pass.invokeCmd, { items, opts: pass.read(), output: out });
-    }
-    if (userCancelled) {
-      statusEl.textContent = 'Cancelled';
-    } else {
-      statusEl.textContent = passes.length > 1 ? 'All passes complete' : 'Done';
-    }
+    await runPasses(passes, candidates, output, statusEl);
+    statusEl.textContent = userCancelled
+      ? 'Cancelled'
+      : (passes.length > 1 ? 'All passes complete' : 'Done');
   } finally {
-    for (const it of queue.values()) {
-      if (it.status === 'Running') queue.update(it.id, { status: 'Cancelled', progress: null });
-    }
+    sweepRunningToCancelled(); // post-sweep anything still Running after cancel
     running = false;
     document.getElementById('btn-cancel').disabled = true;
     refreshActionBar();
