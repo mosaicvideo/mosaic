@@ -3,6 +3,7 @@ use crate::ffmpeg::{run_cancellable, RunError};
 use crate::header::build_header_lines;
 use crate::jobs::ProgressReporter;
 use crate::layout::{compute_sheet_layout, header_height, line_height, sample_timestamps, xstack_layout, SheetLayout};
+use crate::output_path::SheetTheme;
 use crate::video_info::VideoInfo;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -29,6 +30,8 @@ pub struct AnimatedSheetOptions {
     pub show_header: bool,
     #[serde(default)]
     pub suffix: String,
+    #[serde(default)]
+    pub theme: SheetTheme,
 }
 
 /// Derive a thumb height from source aspect ratio, rounded down to an even
@@ -60,6 +63,7 @@ pub fn build_extract_args(
     clip_length_secs: u32,
     show_timestamps: bool,
     thumb_font_size: u32,
+    theme: SheetTheme,
     font: &Path,
     output: &Path,
 ) -> Vec<String> {
@@ -70,11 +74,13 @@ pub fn build_extract_args(
             &format_hms_escaped(timestamp),
             &font_for_ffmpeg(font),
             thumb_font_size,
+            theme.fontcolor(),
+            theme.shadowcolor(),
         ));
     }
     vf.push_str(&format!(
-        ",pad={}:{}:{}:{}:black",
-        thumb_w + gap, thumb_h + gap, gap / 2, gap / 2
+        ",pad={}:{}:{}:{}:{}",
+        thumb_w + gap, thumb_h + gap, gap / 2, gap / 2, theme.bg()
     ));
 
     let mut args = crate::ffmpeg::base_args();
@@ -103,6 +109,7 @@ pub(crate) fn build_stitch_args(
     layout: &SheetLayout,
     thumb_h: u32,
     gap: u32,
+    theme: SheetTheme,
     header: Option<&HeaderParams>,
     clip_length_secs: u32,
     fps: u32,
@@ -114,6 +121,7 @@ pub(crate) fn build_stitch_args(
     let step_h = thumb_h + gap;
     let grid_w = layout.grid_w;
     let grid_h = layout.rows * step_h + gap;
+    let bg = theme.bg();
 
     let mut args = crate::ffmpeg::base_args();
     for clip in clips {
@@ -124,15 +132,15 @@ pub(crate) fn build_stitch_args(
     let layout_expr = xstack_layout(layout.cols, layout.rows, step_w, step_h);
 
     let mut graph = format!(
-        "{}xstack=inputs={}:layout={}[xs];[xs]pad={}:{}:{}:{}:black[grid]",
-        inputs_tag, n, layout_expr, grid_w, grid_h, gap / 2, gap / 2
+        "{}xstack=inputs={}:layout={}[xs];[xs]pad={}:{}:{}:{}:{}[grid]",
+        inputs_tag, n, layout_expr, grid_w, grid_h, gap / 2, gap / 2, bg
     );
 
     let final_label = if let Some(h) = header {
-        let hdr_draw = header_overlay(&h.line1, &h.line2, &h.font_ffmpeg, h.font_size, gap, h.line_h);
+        let hdr_draw = header_overlay(&h.line1, &h.line2, &h.font_ffmpeg, h.font_size, theme.fontcolor(), gap, h.line_h);
         graph.push_str(&format!(
-            ";color=c=0x000000:s={}x{}:d={}:r={},{}[hdr];[hdr][grid]vstack[out]",
-            grid_w, h.height, clip_length_secs, fps, hdr_draw
+            ";color=c={}:s={}x{}:d={}:r={},{}[hdr];[hdr][grid]vstack[out]",
+            bg, grid_w, h.height, clip_length_secs, fps, hdr_draw
         ));
         "[out]"
     } else {
@@ -197,7 +205,7 @@ pub async fn generate(
         let args = build_extract_args(
             source, *ts, layout.thumb_w, thumb_h, opts.gap, opts.fps,
             opts.clip_length_secs, opts.show_timestamps, opts.thumb_font_size,
-            font, &cell,
+            opts.theme, font, &cell,
         );
         run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
         clips.push(cell);
@@ -221,7 +229,7 @@ pub async fn generate(
     };
 
     let args = build_stitch_args(
-        &clips, &layout, thumb_h, opts.gap, header_params.as_ref(),
+        &clips, &layout, thumb_h, opts.gap, opts.theme, header_params.as_ref(),
         opts.clip_length_secs, opts.fps, opts.quality, out,
     );
     run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
@@ -278,7 +286,7 @@ mod tests {
             Path::new("/v/movie.mkv"),
             12.5,
             320, 180, 10, 12, 2,
-            true, 18,
+            true, 18, SheetTheme::Dark,
             Path::new("/f/font.ttf"),
             Path::new("/tmp/cell.mp4"),
         );
@@ -294,8 +302,24 @@ mod tests {
         let vf = &args[vf_pos + 1];
         assert!(vf.contains("scale=320:180"));
         assert!(vf.contains("drawtext="));
-        assert!(vf.contains("pad=330:190:5:5:black"));
+        assert!(vf.contains("pad=330:190:5:5:0x000000"));
         assert_eq!(args.last().unwrap(), "/tmp/cell.mp4");
+    }
+
+    #[test]
+    fn extract_args_light_theme_uses_white_bg_and_black_text() {
+        let args = build_extract_args(
+            Path::new("/v/movie.mkv"),
+            5.0,
+            320, 180, 10, 12, 2,
+            true, 18, SheetTheme::Light,
+            Path::new("/f/font.ttf"),
+            Path::new("/tmp/cell.mp4"),
+        );
+        let vf = args.iter().position(|a| a == "-vf").map(|i| &args[i + 1]).unwrap();
+        assert!(vf.contains("pad=330:190:5:5:0xFFFFFF"));
+        assert!(vf.contains("fontcolor=black"));
+        assert!(vf.contains("shadowcolor=white"));
     }
 
     #[test]
@@ -304,14 +328,14 @@ mod tests {
             Path::new("/v/movie.mkv"),
             5.0,
             320, 180, 10, 12, 2,
-            false, 18,
+            false, 18, SheetTheme::Dark,
             Path::new("/f/font.ttf"),
             Path::new("/tmp/cell.mp4"),
         );
         let vf = args.iter().position(|a| a == "-vf").map(|i| &args[i + 1]).unwrap();
         assert!(!vf.contains("drawtext"));
         assert!(vf.contains("scale=320:180"));
-        assert!(vf.contains("pad=330:190:5:5:black"));
+        assert!(vf.contains("pad=330:190:5:5:0x000000"));
     }
 
     #[test]
@@ -319,7 +343,7 @@ mod tests {
         let layout = compute_sheet_layout(2, 2, 800, 10);
         let clips: Vec<PathBuf> = (0..4).map(|i| PathBuf::from(format!("/tmp/c{}.mp4", i))).collect();
         let args = build_stitch_args(
-            &clips, &layout, 200, 10, None, 3, 12, 75,
+            &clips, &layout, 200, 10, SheetTheme::Dark, None, 3, 12, 75,
             Path::new("/out/sheet.webp"),
         );
         // 4 inputs
@@ -349,7 +373,7 @@ mod tests {
             font_ffmpeg: "/f/font.ttf".into(),
         };
         let args = build_stitch_args(
-            &clips, &layout, 200, 10, Some(&header), 3, 12, 75,
+            &clips, &layout, 200, 10, SheetTheme::Dark, Some(&header), 3, 12, 75,
             Path::new("/out/sheet.webp"),
         );
         let fc = args.iter().position(|a| a == "-filter_complex").unwrap();
@@ -363,11 +387,31 @@ mod tests {
     }
 
     #[test]
+    fn stitch_args_light_theme_uses_white_bg() {
+        let layout = compute_sheet_layout(2, 2, 800, 10);
+        let clips: Vec<PathBuf> = (0..4).map(|i| PathBuf::from(format!("/tmp/c{}.mp4", i))).collect();
+        let header = HeaderParams {
+            line1: "m.mkv".into(), line2: "x".into(),
+            height: 50, line_h: 20, font_size: 16,
+            font_ffmpeg: "/f.ttf".into(),
+        };
+        let args = build_stitch_args(
+            &clips, &layout, 200, 10, SheetTheme::Light, Some(&header), 3, 12, 75,
+            Path::new("/out/sheet.webp"),
+        );
+        let fc = args.iter().position(|a| a == "-filter_complex").unwrap();
+        let graph = &args[fc + 1];
+        assert!(graph.contains("color=c=0xFFFFFF"));
+        assert!(graph.contains("pad=798:430:5:5:0xFFFFFF"));
+        assert!(graph.contains("fontcolor=black"));
+    }
+
+    #[test]
     fn stitch_args_includes_all_cells_as_xstack_inputs() {
         let layout = compute_sheet_layout(3, 2, 900, 10);
         let clips: Vec<PathBuf> = (0..6).map(|i| PathBuf::from(format!("/tmp/c{}.mp4", i))).collect();
         let args = build_stitch_args(
-            &clips, &layout, 150, 10, None, 2, 10, 75,
+            &clips, &layout, 150, 10, SheetTheme::Dark, None, 2, 10, 75,
             Path::new("/out/sheet.webp"),
         );
         let fc = args.iter().position(|a| a == "-filter_complex").unwrap();
@@ -383,6 +427,7 @@ mod tests {
             thumb_font_size: 14, header_font_size: 18,
             show_timestamps: false, show_header: false,
             suffix: String::new(),
+            theme: SheetTheme::Dark,
         };
         let out = PathBuf::from("/tmp/_never_written.webp");
         let ffmpeg = Path::new("/bin/false");

@@ -3,7 +3,7 @@ use crate::ffmpeg::{run_cancellable, RunError};
 use crate::header::build_header_lines;
 use crate::jobs::ProgressReporter;
 use crate::layout::{compute_sheet_layout, header_height, line_height, sample_timestamps};
-use crate::output_path::{jpeg_qv, OutputFormat};
+use crate::output_path::{jpeg_qv, OutputFormat, SheetTheme};
 use crate::video_info::VideoInfo;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -28,6 +28,8 @@ pub struct SheetOptions {
     pub jpeg_quality: u32,
     #[serde(default)]
     pub suffix: String,
+    #[serde(default)]
+    pub theme: SheetTheme,
 }
 
 pub async fn generate(
@@ -57,7 +59,13 @@ pub async fn generate(
         let mut vf = format!("scale={}:-2", layout.thumb_w);
         if opts.show_timestamps {
             vf.push(',');
-            vf.push_str(&timestamp_overlay(&format_hms_escaped(*ts), &font_path, opts.thumb_font_size));
+            vf.push_str(&timestamp_overlay(
+                &format_hms_escaped(*ts),
+                &font_path,
+                opts.thumb_font_size,
+                opts.theme.fontcolor(),
+                opts.theme.shadowcolor(),
+            ));
         }
         let mut args = crate::ffmpeg::base_args();
         args.extend([
@@ -80,8 +88,8 @@ pub async fn generate(
         "-start_number".into(), "1".into(),
         "-i".into(), tile_input.to_string_lossy().into_owned(),
         "-vf".into(), format!(
-            "tile={}x{}:margin={}:padding={}:color=0x000000",
-            opts.cols, opts.rows, opts.gap, opts.gap
+            "tile={}x{}:margin={}:padding={}:color={}",
+            opts.cols, opts.rows, opts.gap, opts.gap, opts.theme.bg()
         ),
         "-frames:v".into(), "1".into(),
         grid.to_string_lossy().into_owned(),
@@ -97,12 +105,12 @@ pub async fn generate(
         let (l1, l2) = build_header_lines(info, &display);
         let h = header_height(opts.header_font_size, opts.gap);
         let line_h = line_height(opts.header_font_size);
-        let vf = header_overlay(&l1, &l2, &font_path, opts.header_font_size, opts.gap, line_h);
+        let vf = header_overlay(&l1, &l2, &font_path, opts.header_font_size, opts.theme.fontcolor(), opts.gap, line_h);
         let header = tmp.path().join("header.png");
         let mut args = crate::ffmpeg::base_args();
         args.extend([
             "-f".into(), "lavfi".into(),
-            "-i".into(), format!("color=c=0x000000:s={}x{}:d=1", layout.grid_w, h),
+            "-i".into(), format!("color=c={}:s={}x{}:d=1", opts.theme.bg(), layout.grid_w, h),
             "-vf".into(), vf,
             "-frames:v".into(), "1".into(),
             header.to_string_lossy().into_owned(),

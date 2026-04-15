@@ -42,6 +42,7 @@ async fn end_to_end_contact_sheet_and_screenshots() {
         show_timestamps: true, show_header: true,
         format: mosaic_lib::output_path::OutputFormat::Png, jpeg_quality: 92,
         suffix: String::new(),
+        theme: mosaic_lib::output_path::SheetTheme::Dark,
     };
     mosaic_lib::contact_sheet::generate(
         &fixture, &info, &out, &opts, &tools.ffmpeg, &font,
@@ -169,6 +170,7 @@ async fn end_to_end_animated_contact_sheet() {
         show_timestamps: true,
         show_header: true,
         suffix: String::new(),
+        theme: mosaic_lib::output_path::SheetTheme::Dark,
     };
 
     mosaic_lib::animated_sheet::generate(
@@ -202,6 +204,7 @@ async fn end_to_end_animated_contact_sheet_no_header() {
         show_timestamps: false,
         show_header: false,
         suffix: String::new(),
+        theme: mosaic_lib::output_path::SheetTheme::Light,
     };
 
     mosaic_lib::animated_sheet::generate(

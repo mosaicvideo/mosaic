@@ -14,17 +14,40 @@ impl OutputFormat {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum ReelFormat { Webp, Webm, Gif }
+#[derive(Debug, Default, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum SheetTheme {
+    #[default]
+    Dark,
+    Light,
+}
+
+impl SheetTheme {
+    /// ffmpeg-compatible `0xRRGGBB` for pad/tile/color-source backgrounds.
+    pub fn bg(self) -> &'static str {
+        match self { Self::Dark => "0x000000", Self::Light => "0xFFFFFF" }
+    }
+    pub fn fontcolor(self) -> &'static str {
+        match self { Self::Dark => "white", Self::Light => "black" }
+    }
+    /// drawtext `shadowcolor=` — inverse of text so timestamp halos against
+    /// varied video content stay legible in either theme.
+    pub fn shadowcolor(self) -> &'static str {
+        match self { Self::Dark => "black", Self::Light => "white" }
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ReelFormat {
+    #[default]
+    Webp,
+    Webm,
+    Gif,
+}
 
 impl ReelFormat {
     pub fn ext(self) -> &'static str {
         match self { Self::Webp => "webp", Self::Webm => "webm", Self::Gif => "gif" }
     }
-}
-
-impl Default for ReelFormat {
-    fn default() -> Self { Self::Webp }
 }
 
 fn stem(p: &Path) -> String {
