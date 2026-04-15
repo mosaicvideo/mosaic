@@ -39,7 +39,7 @@ pub async fn generate(
     let layout = compute_sheet_layout(opts.cols, opts.rows, opts.width, opts.gap);
     let timestamps = sample_timestamps(info.duration_secs, layout.total);
     let tmp = TempDir::new()?;
-    let width_digits = layout.total.to_string().len().max(2);
+    let width_digits = crate::layout::pad_width_for_count(layout.total);
 
     let font_path = font_for_ffmpeg(font);
     let total_steps = layout.total + 2 + u32::from(opts.show_header); // extracts + tile + stack + header

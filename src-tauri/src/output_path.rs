@@ -56,7 +56,7 @@ pub fn screenshot_path(
     index: u32,
     count: u32,
 ) -> PathBuf {
-    let width = count.to_string().len().max(2);
+    let width = crate::layout::pad_width_for_count(count);
     let num = format!("{:0width$}", index, width = width);
     out_dir.join(format!(
         "{}{}{}.{}",
