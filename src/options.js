@@ -33,8 +33,11 @@ export function readPreviewOpts() {
 }
 export function readOutput() {
   const mode = document.querySelector('input[name="out"]:checked').value;
-  const custom = document.getElementById('custom-folder-path').textContent || null;
-  return { mode, custom };
+  const custom = document.getElementById('custom-folder-path').textContent;
+  // If "custom" radio is selected but no folder was picked, fall back to NextToSource.
+  // Preserves prior silent-fallback UX that the backend used to handle.
+  if (mode === 'custom' && custom) return { mode: 'custom', custom };
+  return { mode: 'next_to_source' };
 }
 export function readProduce() {
   return {
