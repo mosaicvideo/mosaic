@@ -95,6 +95,7 @@ export function createQueue(root, { onReveal, onChange } = {}) {
     return { el, idxEl, nameEl, metaEl, progEl, statusCell, statusLabel, removeBtn, errorEl: null };
   }
 
+  // Caller must pre-filter to videos; `add` only dedupes against the existing queue.
   function add(paths) {
     const existing = new Set([...items.values()].map(i => i.path));
     const added = [];

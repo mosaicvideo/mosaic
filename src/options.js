@@ -1,6 +1,3 @@
-// Canonical schemas. To add a new option: add one row here. Readers/writers derive from this.
-// Each row: { key: rustSerdeFieldName, id: htmlElementId, kind: 'int'|'bool'|'select'|'text' }
-
 const SHEET_FIELDS = [
   { key: 'cols',             id: 'sheet-cols',        kind: 'int'    },
   { key: 'rows',             id: 'sheet-rows',        kind: 'int'    },
