@@ -101,7 +101,7 @@ pub struct QueueItem {
 #[serde(tag = "mode", rename_all = "snake_case")]
 pub enum OutputLocation {
     NextToSource,
-    Custom { custom: Option<String> },
+    Custom { custom: String },
 }
 
 type PerFileFut<'a> =
@@ -274,12 +274,8 @@ pub(crate) async fn probe(ffprobe: &std::path::Path, path: &str) -> Result<Video
 }
 
 fn resolve_out_dir(source: &std::path::Path, output: &OutputLocation) -> PathBuf {
-    let source_parent = || source.parent().map(PathBuf::from).unwrap_or_default();
     match output {
-        OutputLocation::NextToSource => source_parent(),
-        OutputLocation::Custom { custom } => custom
-            .as_ref()
-            .map(PathBuf::from)
-            .unwrap_or_else(source_parent),
+        OutputLocation::NextToSource => source.parent().map(PathBuf::from).unwrap_or_default(),
+        OutputLocation::Custom { custom } => PathBuf::from(custom),
     }
 }
