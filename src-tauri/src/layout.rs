@@ -33,6 +33,10 @@ pub fn header_height(header_font_size: u32, gap: u32) -> u32 {
     2 * line_height(header_font_size) + 2 * gap
 }
 
+pub fn pad_width_for_count(n: u32) -> usize {
+    n.to_string().len().max(2)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -73,5 +77,14 @@ mod tests {
     fn header_height_default() {
         // font=20 → line_h=26; 2*26 + 2*10 = 72
         assert_eq!(header_height(20, 10), 72);
+    }
+
+    #[test]
+    fn pad_width_for_count_floors_at_two() {
+        assert_eq!(pad_width_for_count(1), 2);
+        assert_eq!(pad_width_for_count(9), 2);
+        assert_eq!(pad_width_for_count(99), 2);
+        assert_eq!(pad_width_for_count(100), 3);
+        assert_eq!(pad_width_for_count(9999), 4);
     }
 }
