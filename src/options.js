@@ -29,6 +29,21 @@ const PREVIEW_FIELDS = [
   { key: 'suffix',           id: 'preview-suffix',      kind: 'text'   },
 ];
 
+const ASHEET_FIELDS = [
+  { key: 'cols',             id: 'asheet-cols',         kind: 'int'  },
+  { key: 'rows',             id: 'asheet-rows',         kind: 'int'  },
+  { key: 'width',            id: 'asheet-width',        kind: 'int'  },
+  { key: 'gap',              id: 'asheet-gap',          kind: 'int'  },
+  { key: 'clip_length_secs', id: 'asheet-clip-length',  kind: 'int'  },
+  { key: 'fps',              id: 'asheet-fps',          kind: 'int'  },
+  { key: 'quality',          id: 'asheet-quality',      kind: 'int'  },
+  { key: 'thumb_font_size',  id: 'asheet-thumb-font',   kind: 'int'  },
+  { key: 'header_font_size', id: 'asheet-header-font',  kind: 'int'  },
+  { key: 'show_timestamps',  id: 'asheet-timestamps',   kind: 'bool' },
+  { key: 'show_header',      id: 'asheet-header',       kind: 'bool' },
+  { key: 'suffix',           id: 'asheet-suffix',       kind: 'text' },
+];
+
 function readField({ id, kind }) {
   const el = document.getElementById(id);
   if (!el) return undefined;
@@ -62,6 +77,7 @@ function writeAll(fields, data) {
 export function readSheetOpts()   { return readAll(SHEET_FIELDS); }
 export function readShotsOpts()   { return readAll(SHOTS_FIELDS); }
 export function readPreviewOpts() { return readAll(PREVIEW_FIELDS); }
+export function readASheetOpts()  { return readAll(ASHEET_FIELDS); }
 
 export function readOutput() {
   const mode = document.querySelector('input[name="out"]:checked').value;
@@ -77,6 +93,7 @@ export function readProduce() {
     shots:   document.getElementById('prod-shots').checked,
     sheet:   document.getElementById('prod-sheet').checked,
     preview: document.getElementById('prod-preview').checked,
+    asheet:  document.getElementById('prod-asheet').checked,
   };
 }
 
@@ -85,15 +102,18 @@ export function applyProduce(produce) {
   const s = document.getElementById('prod-shots');
   const c = document.getElementById('prod-sheet');
   const p = document.getElementById('prod-preview');
+  const a = document.getElementById('prod-asheet');
   if (s && typeof produce.shots === 'boolean')   s.checked = produce.shots;
   if (c && typeof produce.sheet === 'boolean')   c.checked = produce.sheet;
   if (p && typeof produce.preview === 'boolean') p.checked = produce.preview;
+  if (a && typeof produce.asheet === 'boolean')  a.checked = produce.asheet;
 }
 
-export function applyOpts(sheet, shots, preview, out) {
+export function applyOpts({ sheet, shots, preview, asheet, out } = {}) {
   writeAll(SHEET_FIELDS,   sheet);
   writeAll(SHOTS_FIELDS,   shots);
   writeAll(PREVIEW_FIELDS, preview);
+  writeAll(ASHEET_FIELDS,  asheet);
   if (out) {
     document.querySelector(`input[name="out"][value="${out.mode}"]`)?.click();
     if (out.custom) document.getElementById('custom-folder-path').textContent = out.custom;

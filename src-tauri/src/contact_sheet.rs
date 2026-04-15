@@ -1,4 +1,4 @@
-use crate::drawtext::format_hms_escaped;
+use crate::drawtext::{font_for_ffmpeg, format_hms_escaped, header_overlay, timestamp_overlay};
 use crate::ffmpeg::{run_cancellable, RunError};
 use crate::header::build_header_lines;
 use crate::jobs::ProgressReporter;
@@ -56,11 +56,8 @@ pub async fn generate(
         let thumb = tmp.path().join(format!("thumb_{:0width$}.png", idx, width = width_digits));
         let mut vf = format!("scale={}:-2", layout.thumb_w);
         if opts.show_timestamps {
-            let hms = format_hms_escaped(*ts);
-            vf.push_str(&format!(
-                ",drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor=white:shadowcolor=black:shadowx=1:shadowy=1:x=5:y=h-th-5",
-                hms, font_path, opts.thumb_font_size
-            ));
+            vf.push(',');
+            vf.push_str(&timestamp_overlay(&format_hms_escaped(*ts), &font_path, opts.thumb_font_size));
         }
         let mut args = crate::ffmpeg::base_args();
         args.extend([
@@ -100,11 +97,7 @@ pub async fn generate(
         let (l1, l2) = build_header_lines(info, &display);
         let h = header_height(opts.header_font_size, opts.gap);
         let line_h = line_height(opts.header_font_size);
-        let vf = format!(
-            "drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor=white:x={}:y={},drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor=white:x={}:y={}",
-            l1, font_path, opts.header_font_size, opts.gap, opts.gap,
-            l2, font_path, opts.header_font_size, opts.gap, opts.gap + line_h
-        );
+        let vf = header_overlay(&l1, &l2, &font_path, opts.header_font_size, opts.gap, line_h);
         let header = tmp.path().join("header.png");
         let mut args = crate::ffmpeg::base_args();
         args.extend([
@@ -160,14 +153,3 @@ pub async fn generate(
     Ok(())
 }
 
-fn font_for_ffmpeg(p: &Path) -> String {
-    let mut s = p.to_string_lossy().into_owned();
-    if cfg!(windows) {
-        // Escape drive colon and normalise slashes for drawtext
-        s = s.replace('\\', "/");
-        if let Some(idx) = s.find(':') {
-            s.replace_range(idx..idx + 1, r"\:");
-        }
-    }
-    s
-}

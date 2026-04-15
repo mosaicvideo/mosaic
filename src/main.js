@@ -3,7 +3,7 @@ import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
 import { Store } from '@tauri-apps/plugin-store';
 import { createQueue, isVideo, getVideoExts } from './queue.js';
-import { readSheetOpts, readShotsOpts, readPreviewOpts, readOutput, readProduce, applyOpts, applyProduce } from './options.js';
+import { readSheetOpts, readShotsOpts, readPreviewOpts, readASheetOpts, readOutput, readProduce, applyOpts, applyProduce } from './options.js';
 import { wireDropzone } from './dropzone.js';
 
 const OUTPUT_TYPES = [
@@ -18,6 +18,10 @@ const OUTPUT_TYPES = [
   {
     key: 'preview', pretty: 'Animated Previews', invokeCmd: 'generate_preview_reels', read: readPreviewOpts,
     preview: s => `${(s.suffix || ' - reel')}.${ {Webp:'webp', Webm:'webm', Gif:'gif'}[s.format] ?? 'webp' }`,
+  },
+  {
+    key: 'asheet', pretty: 'Animated Contact Sheets', invokeCmd: 'generate_animated_sheets', read: readASheetOpts,
+    preview: s => `${(s.suffix || '_animated_sheet')}.webp`,
   },
 ];
 
@@ -57,10 +61,11 @@ async function loadSettings() {
       sheet: await store.get('sheet'),
       shots: await store.get('shots'),
       preview: await store.get('preview'),
+      asheet: await store.get('asheet'),
       out: await store.get('out'),
       produce: await store.get('produce'),
     };
-    applyOpts(saved.sheet, saved.shots, saved.preview, saved.out);
+    applyOpts(saved);
     applyProduce(saved.produce);
     updateQualityVisibility();
     refreshActionBar();
@@ -147,6 +152,7 @@ function wireButtons() {
     'shots-suffix': '_screenshot_',
     'sheet-suffix': '_contact_sheet',
     'preview-suffix': ' - reel',
+    'asheet-suffix': '_animated_sheet',
   };
   for (const [id, def] of Object.entries(suffixDefaults)) {
     const el = document.getElementById(id);
@@ -203,6 +209,7 @@ async function doSave() {
   await store.set('sheet', readSheetOpts());
   await store.set('shots', readShotsOpts());
   await store.set('preview', readPreviewOpts());
+  await store.set('asheet', readASheetOpts());
   await store.set('out', readOutput());
   await store.set('produce', readProduce());
   await store.save();
@@ -248,7 +255,8 @@ function enforceProduceAtLeastOne() {
   const shots = document.getElementById('prod-shots');
   const sheet = document.getElementById('prod-sheet');
   const preview = document.getElementById('prod-preview');
-  if (!shots.checked && !sheet.checked && !preview.checked) shots.checked = true;
+  const asheet = document.getElementById('prod-asheet');
+  if (!shots.checked && !sheet.checked && !preview.checked && !asheet.checked) shots.checked = true;
 }
 
 function updateOverall(done, total) {

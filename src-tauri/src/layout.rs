@@ -37,6 +37,18 @@ pub fn pad_width_for_count(n: u32) -> usize {
     n.to_string().len().max(2)
 }
 
+/// xstack `layout=` expression for a uniform grid where every input has
+/// identical padded size `step_w × step_h`. Cells fill row-by-row.
+pub fn xstack_layout(cols: u32, rows: u32, step_w: u32, step_h: u32) -> String {
+    let mut parts: Vec<String> = Vec::with_capacity((cols * rows) as usize);
+    for r in 0..rows {
+        for c in 0..cols {
+            parts.push(format!("{}_{}", c * step_w, r * step_h));
+        }
+    }
+    parts.join("|")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -86,5 +98,26 @@ mod tests {
         assert_eq!(pad_width_for_count(99), 2);
         assert_eq!(pad_width_for_count(100), 3);
         assert_eq!(pad_width_for_count(9999), 4);
+    }
+
+    #[test]
+    fn xstack_layout_1x1() {
+        assert_eq!(xstack_layout(1, 1, 100, 50), "0_0");
+    }
+
+    #[test]
+    fn xstack_layout_3x2_fills_row_by_row() {
+        assert_eq!(
+            xstack_layout(3, 2, 110, 60),
+            "0_0|110_0|220_0|0_60|110_60|220_60"
+        );
+    }
+
+    #[test]
+    fn xstack_layout_4x4_has_16_positions() {
+        let s = xstack_layout(4, 4, 100, 80);
+        assert_eq!(s.split('|').count(), 16);
+        assert!(s.starts_with("0_0|100_0|200_0|300_0|"));
+        assert!(s.ends_with("|300_240"));
     }
 }

@@ -35,6 +35,50 @@ pub fn format_hms_escaped(seconds: f64) -> String {
     format_hms_plain(seconds).replace(':', r"\:")
 }
 
+/// Render a filesystem path for use as `drawtext` `fontfile=`. On Windows the
+/// drive-letter colon would otherwise be interpreted as an ffmpeg option
+/// separator, so we normalise slashes and escape the colon.
+pub fn font_for_ffmpeg(p: &std::path::Path) -> String {
+    let mut s = p.to_string_lossy().into_owned();
+    if cfg!(windows) {
+        s = s.replace('\\', "/");
+        if let Some(idx) = s.find(':') {
+            s.replace_range(idx..idx + 1, r"\:");
+        }
+    }
+    s
+}
+
+/// Per-cell timestamp overlay for contact-sheet thumbnails. `hms_escaped` must
+/// already be drawtext-safe (use [`format_hms_escaped`]); `font_ffmpeg` must
+/// come from [`font_for_ffmpeg`]. Positions the stamp at the bottom-left of
+/// the cell with a subtle black shadow for legibility on mixed backgrounds.
+pub fn timestamp_overlay(hms_escaped: &str, font_ffmpeg: &str, font_size: u32) -> String {
+    format!(
+        "drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor=white:shadowcolor=black:shadowx=1:shadowy=1:x=5:y=h-th-5",
+        hms_escaped, font_ffmpeg, font_size
+    )
+}
+
+/// Two-line header drawtext chain (line1 above line2), padded `gap` from the
+/// left/top edge with `line_h` between the two lines. Both lines must already
+/// be drawtext-escaped ([`build_header_lines`][crate::header::build_header_lines]
+/// returns them escaped); `font_ffmpeg` must come from [`font_for_ffmpeg`].
+pub fn header_overlay(
+    line1_escaped: &str,
+    line2_escaped: &str,
+    font_ffmpeg: &str,
+    font_size: u32,
+    gap: u32,
+    line_h: u32,
+) -> String {
+    format!(
+        "drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor=white:x={}:y={},drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor=white:x={}:y={}",
+        line1_escaped, font_ffmpeg, font_size, gap, gap,
+        line2_escaped, font_ffmpeg, font_size, gap, gap + line_h
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

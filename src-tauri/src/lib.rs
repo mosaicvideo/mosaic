@@ -34,6 +34,11 @@ pub mod preview_reel;
 mod preview_reel;
 
 #[cfg(any(test, feature = "test-api"))]
+pub mod animated_sheet;
+#[cfg(not(any(test, feature = "test-api")))]
+mod animated_sheet;
+
+#[cfg(any(test, feature = "test-api"))]
 pub mod jobs;
 #[cfg(not(any(test, feature = "test-api")))]
 mod jobs;
@@ -70,6 +75,7 @@ pub fn run() {
             commands::generate_contact_sheets,
             commands::generate_screenshots,
             commands::generate_preview_reels,
+            commands::generate_animated_sheets,
             commands::cancel_job,
         ])
         .run(tauri::generate_context!())

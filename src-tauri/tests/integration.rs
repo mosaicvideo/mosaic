@@ -2,6 +2,18 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
+/// Assert bytes are a valid animated WebP: RIFF/WEBP container + VP8X chunk
+/// with the animation flag (bit 0x02 of the flags byte) set.
+fn assert_animated_webp(bytes: &[u8]) {
+    assert!(bytes.len() > 100, "webp suspiciously small: {} bytes", bytes.len());
+    assert_eq!(&bytes[0..4], b"RIFF", "missing RIFF magic");
+    assert_eq!(&bytes[8..12], b"WEBP", "missing WEBP marker");
+    let vp8x_pos = bytes.windows(4).position(|w| w == b"VP8X")
+        .expect("missing VP8X chunk — not an animated WebP");
+    let flags_byte = bytes[vp8x_pos + 8];
+    assert!(flags_byte & 0x02 != 0, "animation flag not set in VP8X flags byte: {:#04x}", flags_byte);
+}
+
 #[tokio::test]
 async fn end_to_end_contact_sheet_and_screenshots() {
     if which::which("ffmpeg").is_err() || which::which("ffprobe").is_err() {
@@ -86,19 +98,7 @@ async fn end_to_end_animated_preview_reel() {
     ).await.unwrap();
 
     assert!(out.exists(), "reel not written");
-    let bytes = std::fs::read(&out).unwrap();
-    assert!(bytes.len() > 100, "reel suspiciously small: {} bytes", bytes.len());
-
-    // WebP container: "RIFF"....WEBP (bytes 0-3 = RIFF, bytes 8-11 = WEBP).
-    assert_eq!(&bytes[0..4], b"RIFF");
-    assert_eq!(&bytes[8..12], b"WEBP");
-
-    // Animated WebP must include a VP8X chunk with the animation flag (0x02) set.
-    // VP8X layout: "VP8X" (4) + chunk_size=10 (4) + flags byte + ...
-    let vp8x_pos = bytes.windows(4).position(|w| w == b"VP8X")
-        .expect("missing VP8X chunk — not an animated WebP");
-    let flags_byte = bytes[vp8x_pos + 8];
-    assert!(flags_byte & 0x02 != 0, "animation flag not set in VP8X flags byte: {:#04x}", flags_byte);
+    assert_animated_webp(&std::fs::read(&out).unwrap());
 }
 
 #[tokio::test]
@@ -137,6 +137,80 @@ async fn end_to_end_animated_preview_reel_webm() {
 
     // WebM is a Matroska subset; first four bytes are the EBML header magic.
     assert_eq!(&bytes[0..4], &[0x1A, 0x45, 0xDF, 0xA3], "missing EBML magic");
+}
+
+#[tokio::test]
+async fn end_to_end_animated_contact_sheet() {
+    if which::which("ffmpeg").is_err() || which::which("ffprobe").is_err() {
+        eprintln!("skipping: ffmpeg/ffprobe not installed");
+        return;
+    }
+    let tools = mosaic_lib::ffmpeg_test_hook_locate().expect("locate tools");
+    let fixture: PathBuf = [env!("CARGO_MANIFEST_DIR"), "tests", "fixtures", "sample.mp4"].iter().collect();
+    let font: PathBuf = [env!("CARGO_MANIFEST_DIR"), "assets", "fonts", "DejaVuSans.ttf"].iter().collect();
+    assert!(fixture.exists(), "missing test fixture {}", fixture.display());
+    assert!(font.exists(), "missing bundled font");
+
+    let info = mosaic_lib::ffmpeg_test_hook_probe(&tools.ffprobe, &fixture.to_string_lossy()).await.unwrap();
+    let tmp = tempfile::tempdir().unwrap();
+    let out = tmp.path().join("sample_animated_sheet.webp");
+
+    let reporter = mosaic_lib::jobs::ProgressReporter { emit: &|_, _, _| {} };
+    let opts = mosaic_lib::animated_sheet::AnimatedSheetOptions {
+        cols: 2,
+        rows: 2,
+        width: 640,
+        gap: 8,
+        clip_length_secs: 1,
+        fps: 8,
+        quality: 60,
+        thumb_font_size: 12,
+        header_font_size: 14,
+        show_timestamps: true,
+        show_header: true,
+        suffix: String::new(),
+    };
+
+    mosaic_lib::animated_sheet::generate(
+        &fixture, &info, &out, &opts, &tools.ffmpeg, &font,
+        Arc::new(AtomicBool::new(false)), &reporter,
+    ).await.unwrap();
+
+    assert!(out.exists(), "animated sheet not written");
+    assert_animated_webp(&std::fs::read(&out).unwrap());
+}
+
+#[tokio::test]
+async fn end_to_end_animated_contact_sheet_no_header() {
+    if which::which("ffmpeg").is_err() || which::which("ffprobe").is_err() {
+        eprintln!("skipping: ffmpeg/ffprobe not installed");
+        return;
+    }
+    let tools = mosaic_lib::ffmpeg_test_hook_locate().expect("locate tools");
+    let fixture: PathBuf = [env!("CARGO_MANIFEST_DIR"), "tests", "fixtures", "sample.mp4"].iter().collect();
+    let font: PathBuf = [env!("CARGO_MANIFEST_DIR"), "assets", "fonts", "DejaVuSans.ttf"].iter().collect();
+
+    let info = mosaic_lib::ffmpeg_test_hook_probe(&tools.ffprobe, &fixture.to_string_lossy()).await.unwrap();
+    let tmp = tempfile::tempdir().unwrap();
+    let out = tmp.path().join("sample_bare.webp");
+
+    let reporter = mosaic_lib::jobs::ProgressReporter { emit: &|_, _, _| {} };
+    let opts = mosaic_lib::animated_sheet::AnimatedSheetOptions {
+        cols: 2, rows: 2, width: 480, gap: 0,
+        clip_length_secs: 1, fps: 6, quality: 60,
+        thumb_font_size: 12, header_font_size: 14,
+        show_timestamps: false,
+        show_header: false,
+        suffix: String::new(),
+    };
+
+    mosaic_lib::animated_sheet::generate(
+        &fixture, &info, &out, &opts, &tools.ffmpeg, &font,
+        Arc::new(AtomicBool::new(false)), &reporter,
+    ).await.unwrap();
+
+    assert!(out.exists(), "bare animated sheet not written");
+    assert_animated_webp(&std::fs::read(&out).unwrap());
 }
 
 #[tokio::test]
