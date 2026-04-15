@@ -51,12 +51,18 @@ pub fn font_for_ffmpeg(p: &std::path::Path) -> String {
 
 /// Per-cell timestamp overlay for contact-sheet thumbnails. `hms_escaped` must
 /// already be drawtext-safe (use [`format_hms_escaped`]); `font_ffmpeg` must
-/// come from [`font_for_ffmpeg`]. Positions the stamp at the bottom-left of
-/// the cell with a subtle black shadow for legibility on mixed backgrounds.
-pub fn timestamp_overlay(hms_escaped: &str, font_ffmpeg: &str, font_size: u32) -> String {
+/// come from [`font_for_ffmpeg`]. `shadowcolor` is typically the inverse of
+/// `fontcolor` to keep the stamp readable against varied video content.
+pub fn timestamp_overlay(
+    hms_escaped: &str,
+    font_ffmpeg: &str,
+    font_size: u32,
+    fontcolor: &str,
+    shadowcolor: &str,
+) -> String {
     format!(
-        "drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor=white:shadowcolor=black:shadowx=1:shadowy=1:x=5:y=h-th-5",
-        hms_escaped, font_ffmpeg, font_size
+        "drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor={}:shadowcolor={}:shadowx=1:shadowy=1:x=5:y=h-th-5",
+        hms_escaped, font_ffmpeg, font_size, fontcolor, shadowcolor
     )
 }
 
@@ -69,13 +75,14 @@ pub fn header_overlay(
     line2_escaped: &str,
     font_ffmpeg: &str,
     font_size: u32,
+    fontcolor: &str,
     gap: u32,
     line_h: u32,
 ) -> String {
     format!(
-        "drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor=white:x={}:y={},drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor=white:x={}:y={}",
-        line1_escaped, font_ffmpeg, font_size, gap, gap,
-        line2_escaped, font_ffmpeg, font_size, gap, gap + line_h
+        "drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor={}:x={}:y={},drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor={}:x={}:y={}",
+        line1_escaped, font_ffmpeg, font_size, fontcolor, gap, gap,
+        line2_escaped, font_ffmpeg, font_size, fontcolor, gap, gap + line_h
     )
 }
 

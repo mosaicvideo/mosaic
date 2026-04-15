@@ -8,6 +8,7 @@ const SHEET_FIELDS = [
   { key: 'show_timestamps',  id: 'sheet-timestamps',  kind: 'bool'   },
   { key: 'show_header',      id: 'sheet-header',      kind: 'bool'   },
   { key: 'format',           id: 'sheet-format',      kind: 'select' },
+  { key: 'theme',            id: 'sheet-theme',       kind: 'select' },
   { key: 'jpeg_quality',     id: 'sheet-quality',     kind: 'int'    },
   { key: 'suffix',           id: 'sheet-suffix',      kind: 'text'   },
 ];
@@ -37,11 +38,12 @@ const ASHEET_FIELDS = [
   { key: 'clip_length_secs', id: 'asheet-clip-length',  kind: 'int'  },
   { key: 'fps',              id: 'asheet-fps',          kind: 'int'  },
   { key: 'quality',          id: 'asheet-quality',      kind: 'int'  },
-  { key: 'thumb_font_size',  id: 'asheet-thumb-font',   kind: 'int'  },
-  { key: 'header_font_size', id: 'asheet-header-font',  kind: 'int'  },
-  { key: 'show_timestamps',  id: 'asheet-timestamps',   kind: 'bool' },
-  { key: 'show_header',      id: 'asheet-header',       kind: 'bool' },
-  { key: 'suffix',           id: 'asheet-suffix',       kind: 'text' },
+  { key: 'thumb_font_size',  id: 'asheet-thumb-font',   kind: 'int'    },
+  { key: 'header_font_size', id: 'asheet-header-font',  kind: 'int'    },
+  { key: 'show_timestamps',  id: 'asheet-timestamps',   kind: 'bool'   },
+  { key: 'show_header',      id: 'asheet-header',       kind: 'bool'   },
+  { key: 'theme',            id: 'asheet-theme',        kind: 'select' },
+  { key: 'suffix',           id: 'asheet-suffix',       kind: 'text'   },
 ];
 
 function readField({ id, kind }) {
