@@ -1,11 +1,15 @@
 use crate::contact_sheet::{self, SheetOptions};
-use crate::ffmpeg::{locate_tools, run_capture};
+use crate::ffmpeg::{locate_tools, run_capture, RunError};
 use crate::jobs::{JobState, ProgressReporter};
-use crate::output_path::contact_sheet_path;
+use crate::output_path::{contact_sheet_path, preview_reel_path};
+use crate::preview_reel::{self, PreviewOptions};
 use crate::screenshots::{self, ScreenshotsOptions};
 use crate::video_info::{parse, VideoInfo};
-use std::path::PathBuf;
+use std::future::Future;
+use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 #[tauri::command]
@@ -97,19 +101,21 @@ pub enum OutputLocation {
     Custom { custom: Option<String> },
 }
 
-#[tauri::command]
-pub async fn generate_contact_sheets(
-    app: AppHandle,
-    state: State<'_, Arc<JobState>>,
-    items: Vec<QueueItem>,
-    opts: SheetOptions,
-    output: OutputLocation,
-) -> Result<(), String> {
-    state.begin()?;
-    let tools = locate_tools().map_err(|e| e.to_string())?;
-    let font = app.path().resolve("assets/fonts/DejaVuSans.ttf", tauri::path::BaseDirectory::Resource)
-        .map_err(|e| e.to_string())?;
+type PerFileFut<'a> =
+    Pin<Box<dyn Future<Output = Result<Option<PathBuf>, RunError>> + Send + 'a>>;
 
+async fn run_job_loop<F>(
+    app: AppHandle,
+    state: Arc<JobState>,
+    ffprobe: PathBuf,
+    items: Vec<QueueItem>,
+    output: OutputLocation,
+    per_file: F,
+) -> Result<(), String>
+where
+    F: for<'a> Fn(&'a Path, &'a VideoInfo, &'a Path, Arc<AtomicBool>, &'a ProgressReporter<'a>) -> PerFileFut<'a>,
+{
+    state.begin()?;
     let total = items.len();
     let mut completed = 0u32;
     let mut failed = 0u32;
@@ -126,7 +132,7 @@ pub async fn generate_contact_sheets(
 
         let source = PathBuf::from(&item.path);
         let out_dir = resolve_out_dir(&source, &output);
-        let info = match probe(&tools.ffprobe, &item.path).await {
+        let info = match probe(&ffprobe, &item.path).await {
             Ok(i) => i,
             Err(e) => {
                 failed += 1;
@@ -135,28 +141,24 @@ pub async fn generate_contact_sheets(
             }
         };
 
-        let out = contact_sheet_path(&source, &out_dir, opts.format, &opts.suffix, &|p| p.exists());
         let id = item.id.clone();
         let app2 = app.clone();
-        let reporter = ProgressReporter {
-            emit: &move |step, total_steps, label| {
-                let _ = app2.emit("job:step", serde_json::json!({
-                    "fileId": id, "step": step, "totalSteps": total_steps, "label": label
-                }));
-            },
+        let step_fn = move |step: u32, total_steps: u32, label: &str| {
+            let _ = app2.emit("job:step", serde_json::json!({
+                "fileId": id, "step": step, "totalSteps": total_steps, "label": label
+            }));
         };
+        let reporter = ProgressReporter { emit: &step_fn };
 
-        match contact_sheet::generate(
-            &source, &info, &out, &opts, &tools.ffmpeg, &font,
-            state.cancelled.clone(), &reporter
-        ).await {
-            Ok(()) => {
+        match per_file(&source, &info, &out_dir, state.cancelled.clone(), &reporter).await {
+            Ok(out) => {
                 completed += 1;
                 let _ = app.emit("job:file-done", serde_json::json!({
-                    "fileId": item.id, "outputPath": out.to_string_lossy()
+                    "fileId": item.id,
+                    "outputPath": out.map(|p| p.to_string_lossy().into_owned()),
                 }));
             }
-            Err(crate::ffmpeg::RunError::Killed) => {
+            Err(RunError::Killed) => {
                 cancelled_count += 1;
                 break;
             }
@@ -177,6 +179,33 @@ pub async fn generate_contact_sheets(
 }
 
 #[tauri::command]
+pub async fn generate_contact_sheets(
+    app: AppHandle,
+    state: State<'_, Arc<JobState>>,
+    items: Vec<QueueItem>,
+    opts: SheetOptions,
+    output: OutputLocation,
+) -> Result<(), String> {
+    let tools = locate_tools().map_err(|e| e.to_string())?;
+    let font = app.path().resolve("assets/fonts/DejaVuSans.ttf", tauri::path::BaseDirectory::Resource)
+        .map_err(|e| e.to_string())?;
+    let state_inner = Arc::clone(state.inner());
+    let ffmpeg = tools.ffmpeg.clone();
+
+    run_job_loop(app.clone(), state_inner, tools.ffprobe, items, output,
+        move |source, info, out_dir, cancelled, reporter| {
+            let out = contact_sheet_path(source, out_dir, opts.format, &opts.suffix, &|p| p.exists());
+            let opts = opts.clone();
+            let ffmpeg = ffmpeg.clone();
+            let font = font.clone();
+            Box::pin(async move {
+                contact_sheet::generate(source, info, &out, &opts, &ffmpeg, &font, cancelled, reporter).await?;
+                Ok(Some(out))
+            })
+        }).await
+}
+
+#[tauri::command]
 pub async fn generate_screenshots(
     app: AppHandle,
     state: State<'_, Arc<JobState>>,
@@ -184,72 +213,43 @@ pub async fn generate_screenshots(
     opts: ScreenshotsOptions,
     output: OutputLocation,
 ) -> Result<(), String> {
-    state.begin()?;
     let tools = locate_tools().map_err(|e| e.to_string())?;
-    let total = items.len();
-    let mut completed = 0u32;
-    let mut failed = 0u32;
-    let mut cancelled_count = 0u32;
+    let state_inner = Arc::clone(state.inner());
+    let ffmpeg = tools.ffmpeg.clone();
 
-    for (i, item) in items.iter().enumerate() {
-        if state.cancelled.load(std::sync::atomic::Ordering::Relaxed) {
-            cancelled_count = (total - i) as u32;
-            break;
-        }
-        let _ = app.emit("job:file-start", serde_json::json!({
-            "fileId": item.id, "index": i + 1, "total": total
-        }));
+    run_job_loop(app.clone(), state_inner, tools.ffprobe, items, output,
+        move |source, info, out_dir, cancelled, reporter| {
+            let opts = opts.clone();
+            let ffmpeg = ffmpeg.clone();
+            Box::pin(async move {
+                let paths = screenshots::generate(source, info, out_dir, &opts, &ffmpeg, cancelled, reporter).await?;
+                Ok(paths.into_iter().next())
+            })
+        }).await
+}
 
-        let source = PathBuf::from(&item.path);
-        let out_dir = resolve_out_dir(&source, &output);
-        let info = match probe(&tools.ffprobe, &item.path).await {
-            Ok(i) => i,
-            Err(e) => {
-                failed += 1;
-                let _ = app.emit("job:file-failed", serde_json::json!({ "fileId": item.id, "error": e }));
-                continue;
-            }
-        };
+#[tauri::command]
+pub async fn generate_preview_reels(
+    app: AppHandle,
+    state: State<'_, Arc<JobState>>,
+    items: Vec<QueueItem>,
+    opts: PreviewOptions,
+    output: OutputLocation,
+) -> Result<(), String> {
+    let tools = locate_tools().map_err(|e| e.to_string())?;
+    let state_inner = Arc::clone(state.inner());
+    let ffmpeg = tools.ffmpeg.clone();
 
-        let id = item.id.clone();
-        let app2 = app.clone();
-        let reporter = ProgressReporter {
-            emit: &move |step, total_steps, label| {
-                let _ = app2.emit("job:step", serde_json::json!({
-                    "fileId": id, "step": step, "totalSteps": total_steps, "label": label
-                }));
-            },
-        };
-
-        match screenshots::generate(
-            &source, &info, &out_dir, &opts, &tools.ffmpeg,
-            state.cancelled.clone(), &reporter
-        ).await {
-            Ok(paths) => {
-                completed += 1;
-                let _ = app.emit("job:file-done", serde_json::json!({
-                    "fileId": item.id,
-                    "outputPath": paths.first().map(|p| p.to_string_lossy().into_owned())
-                }));
-            }
-            Err(crate::ffmpeg::RunError::Killed) => {
-                cancelled_count += 1;
-                break;
-            }
-            Err(e) => {
-                failed += 1;
-                let _ = app.emit("job:file-failed", serde_json::json!({
-                    "fileId": item.id, "error": e.to_string()
-                }));
-            }
-        }
-    }
-
-    state.end();
-    let _ = app.emit("job:finished", serde_json::json!({
-        "completed": completed, "failed": failed, "cancelled": cancelled_count
-    }));
-    Ok(())
+    run_job_loop(app.clone(), state_inner, tools.ffprobe, items, output,
+        move |source, info, out_dir, cancelled, reporter| {
+            let out = preview_reel_path(source, out_dir, &opts.suffix, &|p| p.exists());
+            let opts = opts.clone();
+            let ffmpeg = ffmpeg.clone();
+            Box::pin(async move {
+                preview_reel::generate(source, info, &out, &opts, &ffmpeg, cancelled, reporter).await?;
+                Ok(Some(out))
+            })
+        }).await
 }
 
 #[tauri::command]

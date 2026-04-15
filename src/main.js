@@ -3,8 +3,23 @@ import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
 import { Store } from '@tauri-apps/plugin-store';
 import { createQueue, isVideo, VIDEO_EXTS } from './queue.js';
-import { readSheetOpts, readShotsOpts, readOutput, readProduce, applyOpts, applyProduce } from './options.js';
+import { readSheetOpts, readShotsOpts, readPreviewOpts, readOutput, readProduce, applyOpts, applyProduce } from './options.js';
 import { wireDropzone } from './dropzone.js';
+
+const OUTPUT_TYPES = [
+  {
+    key: 'shots', pretty: 'Screenshots', invokeCmd: 'generate_screenshots', read: readShotsOpts,
+    preview: s => `${(s.suffix || '_screenshot_')}01.${s.format === 'Jpeg' ? 'jpg' : 'png'}`,
+  },
+  {
+    key: 'sheet', pretty: 'Contact Sheets', invokeCmd: 'generate_contact_sheets', read: readSheetOpts,
+    preview: s => `${(s.suffix || '_contact_sheet')}.${s.format === 'Jpeg' ? 'jpg' : 'png'}`,
+  },
+  {
+    key: 'preview', pretty: 'Animated Previews', invokeCmd: 'generate_preview_reels', read: readPreviewOpts,
+    preview: s => `${(s.suffix || ' - reel')}.webp`,
+  },
+];
 
 const queue = createQueue(document.getElementById('queue'), {
   onReveal: (path) => invoke('reveal_in_finder', { path }).catch(console.error),
@@ -40,10 +55,11 @@ async function loadSettings() {
     const saved = {
       sheet: await store.get('sheet'),
       shots: await store.get('shots'),
+      preview: await store.get('preview'),
       out: await store.get('out'),
       produce: await store.get('produce'),
     };
-    applyOpts(saved.sheet, saved.shots, saved.out);
+    applyOpts(saved.sheet, saved.shots, saved.preview, saved.out);
     applyProduce(saved.produce);
     updateQualityVisibility();
     refreshActionBar();
@@ -126,7 +142,11 @@ function wireButtons() {
     });
   });
 
-  const suffixDefaults = { 'shots-suffix': '_screenshot_', 'sheet-suffix': '_contact_sheet' };
+  const suffixDefaults = {
+    'shots-suffix': '_screenshot_',
+    'sheet-suffix': '_contact_sheet',
+    'preview-suffix': ' - reel',
+  };
   for (const [id, def] of Object.entries(suffixDefaults)) {
     const el = document.getElementById(id);
     if (!el) continue;
@@ -175,6 +195,7 @@ async function doSave() {
   if (!store) return;
   await store.set('sheet', readSheetOpts());
   await store.set('shots', readShotsOpts());
+  await store.set('preview', readPreviewOpts());
   await store.set('out', readOutput());
   await store.set('produce', readProduce());
   await store.save();
@@ -218,7 +239,8 @@ function wireEvents() {
 function enforceProduceAtLeastOne() {
   const shots = document.getElementById('prod-shots');
   const sheet = document.getElementById('prod-sheet');
-  if (!shots.checked && !sheet.checked) shots.checked = true;
+  const preview = document.getElementById('prod-preview');
+  if (!shots.checked && !sheet.checked && !preview.checked) shots.checked = true;
 }
 
 function updateOverall(done, total) {
@@ -228,10 +250,8 @@ function updateOverall(done, total) {
 
 async function onGenerate() {
   const produce = readProduce();
-  const types = [];
-  if (produce.shots) types.push('shots');
-  if (produce.sheet) types.push('sheet');
-  if (!types.length) { showBanner('Pick at least one output type.'); return; }
+  const passes = OUTPUT_TYPES.filter(t => produce[t.key]);
+  if (!passes.length) { showBanner('Pick at least one output type.'); return; }
 
   // Sweep any rows stuck in Running from a previous cancel before building the candidate list
   for (const it of queue.values()) {
@@ -249,33 +269,27 @@ async function onGenerate() {
   const statusEl = document.getElementById('status');
 
   try {
-    for (let i = 0; i < types.length; i++) {
+    for (let i = 0; i < passes.length; i++) {
       if (userCancelled) break;
-      const type = types[i];
-      const pretty = type === 'shots' ? 'Screenshots' : 'Contact Sheets';
+      const pass = passes[i];
 
       for (const it of candidates) {
         queue.update(it.id, { status: 'Pending', progress: null, error: null, outputPath: null });
       }
 
-      statusEl.textContent = types.length > 1
-        ? `Pass ${i + 1} of ${types.length} · ${pretty}`
-        : `Generating ${pretty.toLowerCase()}`;
+      statusEl.textContent = passes.length > 1
+        ? `Pass ${i + 1} of ${passes.length} · ${pass.pretty}`
+        : `Generating ${pass.pretty.toLowerCase()}`;
 
       const items = candidates.map(c => ({ id: c.id, path: c.path }));
-      if (type === 'shots') {
-        await invoke('generate_screenshots', { items, opts: readShotsOpts(), output: out });
-      } else {
-        await invoke('generate_contact_sheets', { items, opts: readSheetOpts(), output: out });
-      }
+      await invoke(pass.invokeCmd, { items, opts: pass.read(), output: out });
     }
     if (userCancelled) {
       statusEl.textContent = 'Cancelled';
     } else {
-      statusEl.textContent = types.length > 1 ? 'All passes complete' : 'Done';
+      statusEl.textContent = passes.length > 1 ? 'All passes complete' : 'Done';
     }
   } finally {
-    // Any row still marked Running must have been interrupted; mark it Cancelled
     for (const it of queue.values()) {
       if (it.status === 'Running') queue.update(it.id, { status: 'Cancelled', progress: null });
     }
@@ -294,16 +308,13 @@ function showBanner(msg) {
 function refreshActionBar() {
   const runnable = queue.values().filter(i => i.status !== 'Running');
   const produce = readProduce();
+  const active = OUTPUT_TYPES.filter(t => produce[t.key]);
   const gen = document.getElementById('btn-generate');
   const label = gen.querySelector('.gen-label');
-  let base;
-  if (produce.shots && produce.sheet) base = 'Generate';
-  else if (produce.shots) base = 'Generate Screenshots';
-  else if (produce.sheet) base = 'Generate Contact Sheets';
-  else base = 'Generate';
+  const base = active.length === 1 ? `Generate ${active[0].pretty}` : 'Generate';
   label.textContent = runnable.length > 0 ? `${base} (${runnable.length})` : base;
-  gen.disabled = running || runnable.length === 0 || (!produce.shots && !produce.sheet) || !toolsOk;
-  renderOutputPreview();
+  gen.disabled = running || runnable.length === 0 || active.length === 0 || !toolsOk;
+  if (!running) renderOutputPreview();
 }
 
 function renderOutputPreview() {
@@ -311,7 +322,8 @@ function renderOutputPreview() {
   if (!preview) return;
   const first = queue.values()[0];
   const produce = readProduce();
-  if (!first || (!produce.shots && !produce.sheet)) {
+  const active = OUTPUT_TYPES.filter(t => produce[t.key]);
+  if (!first || !active.length) {
     preview.classList.add('hidden');
     preview.textContent = '';
     return;
@@ -319,24 +331,12 @@ function renderOutputPreview() {
   const out = readOutput();
   const dir = out.mode === 'custom' && out.custom ? out.custom : dirname(first.path);
   const stem = basename(first.path).replace(/\.[^./\\]+$/, '');
-  const parts = [];
-  if (produce.shots) {
-    const s = readShotsOpts();
-    const ext = s.format === 'Jpeg' ? 'jpg' : 'png';
-    const suffix = s.suffix || '_screenshot_';
-    parts.push(`${stem}${suffix}01.${ext}`);
-  }
-  if (produce.sheet) {
-    const s = readSheetOpts();
-    const ext = s.format === 'Jpeg' ? 'jpg' : 'png';
-    const suffix = s.suffix || '_contact_sheet';
-    parts.push(`${stem}${suffix}.${ext}`);
-  }
+  const parts = active.map(t => `${stem}${t.preview(t.read())}`);
   const count = queue.size();
   const firstPath = joinPath(dir, parts[0]);
-  const alsoSheet = parts.length > 1 ? ' +' : '';
+  const also = parts.length > 1 ? ' +' : '';
   const moreFiles = count > 1 ? ` (+${count - 1} more)` : '';
-  preview.textContent = `→ ${firstPath}${alsoSheet}${moreFiles}`;
+  preview.textContent = `→ ${firstPath}${also}${moreFiles}`;
   preview.classList.remove('hidden');
 }
 

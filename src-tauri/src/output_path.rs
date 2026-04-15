@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 pub const DEFAULT_SHEET_SUFFIX: &str = "_contact_sheet";
 pub const DEFAULT_SHOTS_SUFFIX: &str = "_screenshot_";
+pub const DEFAULT_PREVIEW_SUFFIX: &str = " - reel";
 
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum OutputFormat { Png, Jpeg }
@@ -20,15 +21,12 @@ fn resolved<'a>(s: &'a str, default: &'a str) -> &'a str {
     if s.is_empty() { default } else { s }
 }
 
-pub fn contact_sheet_path(
-    source: &Path,
+fn collision_free_path(
     out_dir: &Path,
-    fmt: OutputFormat,
-    suffix: &str,
+    base: &str,
+    ext: &str,
     exists_fn: &dyn Fn(&Path) -> bool,
 ) -> PathBuf {
-    let base = format!("{}{}", stem(source), resolved(suffix, DEFAULT_SHEET_SUFFIX));
-    let ext = fmt.ext();
     let candidate = out_dir.join(format!("{}.{}", base, ext));
     if !exists_fn(&candidate) { return candidate; }
     let mut n = 1;
@@ -37,6 +35,17 @@ pub fn contact_sheet_path(
         if !exists_fn(&c) { return c; }
         n += 1;
     }
+}
+
+pub fn contact_sheet_path(
+    source: &Path,
+    out_dir: &Path,
+    fmt: OutputFormat,
+    suffix: &str,
+    exists_fn: &dyn Fn(&Path) -> bool,
+) -> PathBuf {
+    let base = format!("{}{}", stem(source), resolved(suffix, DEFAULT_SHEET_SUFFIX));
+    collision_free_path(out_dir, &base, fmt.ext(), exists_fn)
 }
 
 pub fn screenshot_path(
@@ -56,6 +65,16 @@ pub fn screenshot_path(
         num,
         fmt.ext()
     ))
+}
+
+pub fn preview_reel_path(
+    source: &Path,
+    out_dir: &Path,
+    suffix: &str,
+    exists_fn: &dyn Fn(&Path) -> bool,
+) -> PathBuf {
+    let base = format!("{}{}", stem(source), resolved(suffix, DEFAULT_PREVIEW_SUFFIX));
+    collision_free_path(out_dir, &base, "webp", exists_fn)
 }
 
 /// Map a user-facing JPEG quality (50..=100, higher = better) to libmjpeg's
@@ -157,5 +176,40 @@ mod tests {
             5,
         );
         assert_eq!(p, PathBuf::from("/v/clip-shot-03.png"));
+    }
+
+    #[test]
+    fn preview_reel_simple_case() {
+        let p = preview_reel_path(
+            Path::new("/videos/movie.mkv"),
+            Path::new("/videos"),
+            "",
+            &|_| false,
+        );
+        assert_eq!(p, PathBuf::from("/videos/movie - reel.webp"));
+    }
+
+    #[test]
+    fn preview_reel_custom_suffix() {
+        let p = preview_reel_path(
+            Path::new("/videos/movie.mkv"),
+            Path::new("/videos"),
+            "_preview",
+            &|_| false,
+        );
+        assert_eq!(p, PathBuf::from("/videos/movie_preview.webp"));
+    }
+
+    #[test]
+    fn preview_reel_appends_suffix_when_file_exists() {
+        let taken: HashSet<PathBuf> = ["/out/movie - reel.webp", "/out/movie - reel (1).webp"]
+            .into_iter().map(PathBuf::from).collect();
+        let p = preview_reel_path(
+            Path::new("/videos/movie.mkv"),
+            Path::new("/out"),
+            "",
+            &|p| taken.contains(p),
+        );
+        assert_eq!(p, PathBuf::from("/out/movie - reel (2).webp"));
     }
 }

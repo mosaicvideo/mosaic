@@ -21,6 +21,16 @@ export function readShotsOpts() {
     suffix: text('shots-suffix'),
   };
 }
+export function readPreviewOpts() {
+  return {
+    count: int('preview-count'),
+    clip_length_secs: int('preview-clip-length'),
+    height: int('preview-height'),
+    fps: int('preview-fps'),
+    quality: int('preview-quality'),
+    suffix: text('preview-suffix'),
+  };
+}
 export function readOutput() {
   const mode = document.querySelector('input[name="out"]:checked').value;
   const custom = document.getElementById('custom-folder-path').textContent || null;
@@ -30,18 +40,22 @@ export function readProduce() {
   return {
     shots: document.getElementById('prod-shots').checked,
     sheet: document.getElementById('prod-sheet').checked,
+    preview: document.getElementById('prod-preview').checked,
   };
 }
 export function applyProduce(produce) {
   if (!produce) return;
   const s = document.getElementById('prod-shots');
   const c = document.getElementById('prod-sheet');
+  const p = document.getElementById('prod-preview');
   if (s && typeof produce.shots === 'boolean') s.checked = produce.shots;
   if (c && typeof produce.sheet === 'boolean') c.checked = produce.sheet;
+  if (p && typeof produce.preview === 'boolean') p.checked = produce.preview;
 }
-export function applyOpts(sheet, shots, out) {
+export function applyOpts(sheet, shots, preview, out) {
   if (sheet) for (const [k, v] of Object.entries(sheet)) setField(`sheet-${mapKey(k)}`, v);
   if (shots) for (const [k, v] of Object.entries(shots)) setField(`shots-${mapKey(k)}`, v);
+  if (preview) for (const [k, v] of Object.entries(preview)) setField(`preview-${mapKey(k)}`, v);
   if (out) {
     document.querySelector(`input[name="out"][value="${out.mode}"]`)?.click();
     if (out.custom) document.getElementById('custom-folder-path').textContent = out.custom;
@@ -49,7 +63,14 @@ export function applyOpts(sheet, shots, out) {
 }
 
 function mapKey(k) {
-  return { thumb_font_size: 'thumb-font', header_font_size: 'header-font', show_timestamps: 'timestamps', show_header: 'header', jpeg_quality: 'quality' }[k] || k;
+  return {
+    thumb_font_size: 'thumb-font',
+    header_font_size: 'header-font',
+    show_timestamps: 'timestamps',
+    show_header: 'header',
+    jpeg_quality: 'quality',
+    clip_length_secs: 'clip-length',
+  }[k] || k;
 }
 function int(id) { return parseInt(document.getElementById(id).value, 10); }
 function checked(id) { return document.getElementById(id).checked; }
