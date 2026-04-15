@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
 import { Store } from '@tauri-apps/plugin-store';
-import { createQueue, isVideo, VIDEO_EXTS } from './queue.js';
+import { createQueue, isVideo, getVideoExts } from './queue.js';
 import { readSheetOpts, readShotsOpts, readPreviewOpts, readOutput, readProduce, applyOpts, applyProduce } from './options.js';
 import { wireDropzone } from './dropzone.js';
 
@@ -40,6 +40,7 @@ function init() {
   refreshActionBar();
   loadSettings();
   checkTools();
+  getVideoExts(); // fire-and-forget prime so first drop doesn't pay a round-trip
 }
 
 function guard(fn) {
@@ -94,7 +95,7 @@ async function checkTools() {
 
 function wireButtons() {
   document.getElementById('btn-add-files').onclick = guard(async () => {
-    const picked = await open({ multiple: true, filters: [{ name: 'Videos', extensions: VIDEO_EXTS }] });
+    const picked = await open({ multiple: true, filters: [{ name: 'Videos', extensions: await getVideoExts() }] });
     if (!picked) return;
     addPaths(Array.isArray(picked) ? picked : [picked]);
   });
@@ -202,7 +203,8 @@ async function doSave() {
 }
 
 async function addPaths(paths) {
-  const vids = paths.filter(isVideo);
+  const checks = await Promise.all(paths.map(isVideo));
+  const vids = paths.filter((_, i) => checks[i]);
   const added = queue.add(vids);
   if (!added.length) return;
   for (const it of added) {

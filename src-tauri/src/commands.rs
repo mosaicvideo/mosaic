@@ -31,6 +31,11 @@ const VIDEO_EXTS: &[&str] = &[
 const MAX_SCAN_DEPTH: u32 = 16;
 
 #[tauri::command]
+pub fn get_video_exts() -> Vec<String> {
+    VIDEO_EXTS.iter().map(|s| s.to_string()).collect()
+}
+
+#[tauri::command]
 pub fn scan_folder(path: String, recursive: bool) -> Result<Vec<String>, String> {
     let root = std::path::PathBuf::from(&path);
     if !root.is_dir() {

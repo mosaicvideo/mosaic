@@ -1,8 +1,16 @@
-export const VIDEO_EXTS = ['mp4','mkv','mov','avi','webm','wmv','flv','m4v','mpg','mpeg','ts','m2ts'];
+import { invoke } from '@tauri-apps/api/core';
 
-export function isVideo(path) {
+// Resolved once on first access; backend owns the canonical list.
+let videoExtsPromise = null;
+export function getVideoExts() {
+  if (!videoExtsPromise) videoExtsPromise = invoke('get_video_exts');
+  return videoExtsPromise;
+}
+
+export async function isVideo(path) {
+  const exts = await getVideoExts();
   const m = path.toLowerCase().match(/\.([^./\\]+)$/);
-  return !!m && VIDEO_EXTS.includes(m[1]);
+  return !!m && exts.includes(m[1]);
 }
 
 export function createQueue(root, { onReveal, onChange } = {}) {
@@ -91,7 +99,6 @@ export function createQueue(root, { onReveal, onChange } = {}) {
     const existing = new Set([...items.values()].map(i => i.path));
     const added = [];
     for (const p of paths) {
-      if (!isVideo(p)) continue;
       if (existing.has(p)) continue;
       const id = crypto.randomUUID();
       const it = { id, path: p, status: 'Pending' };
