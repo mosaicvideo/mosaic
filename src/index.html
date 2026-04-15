@@ -71,6 +71,7 @@
             <span class="ro-label">Generate</span>
             <label class="check"><input type="checkbox" id="prod-shots" checked /><span>Screenshots</span></label>
             <label class="check"><input type="checkbox" id="prod-sheet" checked /><span>Contact Sheet</span></label>
+            <label class="check"><input type="checkbox" id="prod-preview" /><span>Animated Preview</span></label>
           </div>
           <div class="ro-row">
             <span class="ro-label">Output</span>
@@ -134,6 +135,18 @@
               <label class="wide"><span class="lbl">Filename suffix</span><input type="text" id="sheet-suffix" value="_contact_sheet" spellcheck="false" /></label>
               <label class="check"><input type="checkbox" id="sheet-timestamps" checked /><span>Timestamps</span></label>
               <label class="check"><input type="checkbox" id="sheet-header" checked /><span>Info header</span></label>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <h3>Animated Preview</h3>
+            <div class="grid">
+              <label><span class="lbl">Clips</span><input type="number" id="preview-count" min="1" max="20" value="6" /></label>
+              <label><span class="lbl">Clip length (s)</span><input type="number" id="preview-clip-length" min="1" max="30" value="5" /></label>
+              <label><span class="lbl">Height (px)</span><input type="number" id="preview-height" min="120" max="2160" value="480" /></label>
+              <label><span class="lbl">FPS cap</span><input type="number" id="preview-fps" min="5" max="60" value="24" /></label>
+              <label><span class="lbl">Quality</span><input type="number" id="preview-quality" min="0" max="100" value="75" /></label>
+              <label class="wide"><span class="lbl">Filename suffix</span><input type="text" id="preview-suffix" value=" - reel" spellcheck="false" /></label>
             </div>
           </section>
         </div>
