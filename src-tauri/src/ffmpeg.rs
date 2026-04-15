@@ -1,5 +1,11 @@
 use std::path::PathBuf;
 
+pub(crate) const BASE_ARGS: &[&str] = &["-hide_banner", "-loglevel", "error", "-y"];
+
+pub(crate) fn base_args() -> Vec<String> {
+    BASE_ARGS.iter().map(|s| s.to_string()).collect()
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Tools {
     pub ffmpeg: PathBuf,
@@ -49,6 +55,12 @@ pub fn locate_tools() -> Result<Tools, ToolsError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn base_args_returns_standard_ffmpeg_prelude() {
+        let args = base_args();
+        assert_eq!(args, vec!["-hide_banner", "-loglevel", "error", "-y"]);
+    }
 
     #[test]
     fn returns_ok_when_tools_present() {

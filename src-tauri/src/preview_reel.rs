@@ -28,13 +28,13 @@ pub fn build_extract_args(
     let remaining = (info.duration_secs - timestamp).max(0.0);
     let duration = desired.min(remaining);
 
-    let mut args: Vec<String> = vec![
-        "-hide_banner".into(), "-loglevel".into(), "error".into(), "-y".into(),
+    let mut args = crate::ffmpeg::base_args();
+    args.extend([
         "-ss".into(), format!("{:.3}", timestamp),
         "-i".into(), source.to_string_lossy().into_owned(),
         "-t".into(), format!("{:.3}", duration),
         "-an".into(),
-    ];
+    ]);
     if info.video.height > target_height {
         args.push("-vf".into());
         args.push(format!("scale=-2:{}", target_height));
@@ -55,8 +55,8 @@ pub fn build_stitch_args(
     quality: u32,
     output: &Path,
 ) -> Vec<String> {
-    vec![
-        "-hide_banner".into(), "-loglevel".into(), "error".into(), "-y".into(),
+    let mut args = crate::ffmpeg::base_args();
+    args.extend([
         "-f".into(), "concat".into(),
         "-safe".into(), "0".into(),
         "-i".into(), concat_list.to_string_lossy().into_owned(),
@@ -65,7 +65,8 @@ pub fn build_stitch_args(
         "-loop".into(), "0".into(),
         "-quality".into(), format!("{}", quality),
         output.to_string_lossy().into_owned(),
-    ]
+    ]);
+    args
 }
 
 pub fn render_concat_list(paths: &[PathBuf]) -> String {

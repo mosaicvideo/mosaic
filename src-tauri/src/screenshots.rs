@@ -35,12 +35,12 @@ pub async fn generate(
         (reporter.emit)(idx, total, &format!("Shot {}/{}", idx, total));
 
         let out = screenshot_path(source, out_dir, opts.format, &opts.suffix, idx, opts.count);
-        let mut args: Vec<String> = vec![
-            "-hide_banner".into(), "-loglevel".into(), "error".into(), "-y".into(),
+        let mut args = crate::ffmpeg::base_args();
+        args.extend([
             "-ss".into(), format!("{}", ts),
             "-i".into(), source.to_string_lossy().into_owned(),
             "-vframes".into(), "1".into(),
-        ];
+        ]);
         if matches!(opts.format, OutputFormat::Jpeg) {
             args.extend(["-q:v".into(), format!("{}", jpeg_qv(opts.jpeg_quality))]);
         }
