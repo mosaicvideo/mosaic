@@ -42,12 +42,7 @@ pub fn build_extract_args(
         args.push("-vf".into());
         args.push(format!("scale=-2:{}", target_height));
     }
-    args.extend([
-        "-c:v".into(), "libx264".into(),
-        "-preset".into(), "veryfast".into(),
-        "-crf".into(), "23".into(),
-        "-pix_fmt".into(), "yuv420p".into(),
-    ]);
+    args.extend(crate::ffmpeg::h264_clip_encoder());
     args.push(output.to_string_lossy().into_owned());
     args
 }

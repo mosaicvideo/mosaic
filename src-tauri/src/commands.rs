@@ -1,7 +1,8 @@
+use crate::animated_sheet::{self, AnimatedSheetOptions};
 use crate::contact_sheet::{self, SheetOptions};
 use crate::ffmpeg::{locate_tools, run_capture, RunError};
 use crate::jobs::{JobState, ProgressReporter};
-use crate::output_path::{contact_sheet_path, preview_reel_path};
+use crate::output_path::{animated_sheet_path, contact_sheet_path, preview_reel_path};
 use crate::preview_reel::{self, PreviewOptions};
 use crate::screenshots::{self, ScreenshotsOptions};
 use crate::video_info::{parse, VideoInfo};
@@ -255,6 +256,33 @@ pub async fn generate_preview_reels(
             let ffmpeg = ffmpeg.clone();
             Box::pin(async move {
                 preview_reel::generate(source, info, &out, &opts, &ffmpeg, cancelled, reporter).await?;
+                Ok(Some(out))
+            })
+        }).await
+}
+
+#[tauri::command]
+pub async fn generate_animated_sheets(
+    app: AppHandle,
+    state: State<'_, Arc<JobState>>,
+    items: Vec<QueueItem>,
+    opts: AnimatedSheetOptions,
+    output: OutputLocation,
+) -> Result<(), String> {
+    let tools = locate_tools().map_err(|e| e.to_string())?;
+    let font = app.path().resolve("assets/fonts/DejaVuSans.ttf", tauri::path::BaseDirectory::Resource)
+        .map_err(|e| e.to_string())?;
+    let state_inner = Arc::clone(state.inner());
+    let ffmpeg = tools.ffmpeg.clone();
+
+    run_job_loop(app.clone(), state_inner, tools.ffprobe, items, output,
+        move |source, info, out_dir, cancelled, reporter| {
+            let out = animated_sheet_path(source, out_dir, &opts.suffix, &|p| p.exists());
+            let opts = opts.clone();
+            let ffmpeg = ffmpeg.clone();
+            let font = font.clone();
+            Box::pin(async move {
+                animated_sheet::generate(source, info, &out, &opts, &ffmpeg, &font, cancelled, reporter).await?;
                 Ok(Some(out))
             })
         }).await

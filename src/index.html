@@ -72,6 +72,7 @@
             <label class="check"><input type="checkbox" id="prod-shots" checked /><span>Screenshots</span></label>
             <label class="check"><input type="checkbox" id="prod-sheet" checked /><span>Contact Sheet</span></label>
             <label class="check"><input type="checkbox" id="prod-preview" /><span>Animated Preview</span></label>
+            <label class="check"><input type="checkbox" id="prod-asheet" /><span>Animated Contact Sheet</span></label>
           </div>
           <div class="ro-row">
             <span class="ro-label">Output</span>
@@ -150,6 +151,24 @@
               </label>
               <label><span class="lbl">Quality</span><input type="number" id="preview-quality" min="0" max="100" value="75" /></label>
               <label class="wide"><span class="lbl">Filename suffix</span><input type="text" id="preview-suffix" value=" - reel" spellcheck="false" /></label>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <h3>Animated Contact Sheet</h3>
+            <div class="grid">
+              <label><span class="lbl">Columns</span><input type="number" id="asheet-cols" min="1" max="8" value="3" /></label>
+              <label><span class="lbl">Rows</span><input type="number" id="asheet-rows" min="1" max="8" value="3" /></label>
+              <label><span class="lbl">Width</span><input type="number" id="asheet-width" min="320" max="4096" value="1280" /></label>
+              <label><span class="lbl">Gap</span><input type="number" id="asheet-gap" min="0" max="50" value="8" /></label>
+              <label><span class="lbl">Clip length (s)</span><input type="number" id="asheet-clip-length" min="1" max="10" value="2" /></label>
+              <label><span class="lbl">FPS</span><input type="number" id="asheet-fps" min="5" max="30" value="12" /></label>
+              <label><span class="lbl">Quality</span><input type="number" id="asheet-quality" min="0" max="100" value="75" /></label>
+              <label><span class="lbl">Thumb font</span><input type="number" id="asheet-thumb-font" min="8" max="72" value="14" /></label>
+              <label><span class="lbl">Header font</span><input type="number" id="asheet-header-font" min="8" max="72" value="18" /></label>
+              <label class="wide"><span class="lbl">Filename suffix</span><input type="text" id="asheet-suffix" value="_animated_sheet" spellcheck="false" /></label>
+              <label class="check"><input type="checkbox" id="asheet-timestamps" checked /><span>Timestamps</span></label>
+              <label class="check"><input type="checkbox" id="asheet-header" checked /><span>Info header</span></label>
             </div>
           </section>
         </div>

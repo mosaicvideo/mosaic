@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 pub const DEFAULT_SHEET_SUFFIX: &str = "_contact_sheet";
 pub const DEFAULT_SHOTS_SUFFIX: &str = "_screenshot_";
 pub const DEFAULT_PREVIEW_SUFFIX: &str = " - reel";
+pub const DEFAULT_ANIMATED_SHEET_SUFFIX: &str = "_animated_sheet";
 
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum OutputFormat { Png, Jpeg }
@@ -89,6 +90,16 @@ pub fn preview_reel_path(
 ) -> PathBuf {
     let base = format!("{}{}", stem(source), resolved(suffix, DEFAULT_PREVIEW_SUFFIX));
     collision_free_path(out_dir, &base, fmt.ext(), exists_fn)
+}
+
+pub fn animated_sheet_path(
+    source: &Path,
+    out_dir: &Path,
+    suffix: &str,
+    exists_fn: &dyn Fn(&Path) -> bool,
+) -> PathBuf {
+    let base = format!("{}{}", stem(source), resolved(suffix, DEFAULT_ANIMATED_SHEET_SUFFIX));
+    collision_free_path(out_dir, &base, "webp", exists_fn)
 }
 
 /// Map a user-facing JPEG quality (50..=100, higher = better) to libmjpeg's
@@ -272,5 +283,42 @@ mod tests {
         assert_eq!(vp9_crf(100), 4);
         assert_eq!(vp9_crf(0), 50);
         assert_eq!(vp9_crf(50), 32);
+    }
+
+    #[test]
+    fn animated_sheet_simple_case() {
+        let p = animated_sheet_path(
+            Path::new("/videos/movie.mkv"),
+            Path::new("/videos"),
+            "",
+            &|_| false,
+        );
+        assert_eq!(p, PathBuf::from("/videos/movie_animated_sheet.webp"));
+    }
+
+    #[test]
+    fn animated_sheet_custom_suffix() {
+        let p = animated_sheet_path(
+            Path::new("/videos/movie.mkv"),
+            Path::new("/videos"),
+            "-asheet",
+            &|_| false,
+        );
+        assert_eq!(p, PathBuf::from("/videos/movie-asheet.webp"));
+    }
+
+    #[test]
+    fn animated_sheet_appends_suffix_when_file_exists() {
+        let taken: HashSet<PathBuf> = [
+            "/out/movie_animated_sheet.webp",
+            "/out/movie_animated_sheet (1).webp",
+        ].into_iter().map(PathBuf::from).collect();
+        let p = animated_sheet_path(
+            Path::new("/videos/movie.mkv"),
+            Path::new("/out"),
+            "",
+            &|p| taken.contains(p),
+        );
+        assert_eq!(p, PathBuf::from("/out/movie_animated_sheet (2).webp"));
     }
 }

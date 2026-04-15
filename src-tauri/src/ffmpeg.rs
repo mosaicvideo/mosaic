@@ -6,6 +6,19 @@ pub(crate) fn base_args() -> Vec<String> {
     BASE_ARGS.iter().map(|s| s.to_string()).collect()
 }
 
+/// Encoder flags used by every intermediate H.264 clip we produce for later
+/// filter-graph consumption (preview reel, animated contact sheet). Chosen
+/// for cheap re-encode + filter-graph compatibility: `yuv420p` for universal
+/// decoder support, `veryfast` + CRF 23 for speed over size.
+pub(crate) fn h264_clip_encoder() -> [String; 8] {
+    [
+        "-c:v".into(), "libx264".into(),
+        "-preset".into(), "veryfast".into(),
+        "-crf".into(), "23".into(),
+        "-pix_fmt".into(), "yuv420p".into(),
+    ]
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Tools {
     pub ffmpeg: PathBuf,
