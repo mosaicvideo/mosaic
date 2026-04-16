@@ -39,6 +39,7 @@ let userCancelled = false;
 function init() {
   window.addEventListener('error', (e) => showBanner(`JS error: ${e.message}`));
   window.addEventListener('unhandledrejection', (e) => showBanner(`Promise rejection: ${e.reason?.message || e.reason}`));
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
   wireButtons();
   wireDropzone(document.getElementById('dropzone'), addPaths);
   wireEvents();

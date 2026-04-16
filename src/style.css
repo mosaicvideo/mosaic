@@ -79,6 +79,7 @@ body {
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "ss01", "cv11";
+  user-select: none;
 }
 
 ::selection { background: var(--accent-dim); color: var(--text); }
@@ -878,6 +879,7 @@ input[type=number] { appearance: textfield; }
   margin: 0;
   font-family: var(--f-mono);
   font-size: 12px;
+  user-select: text;
   line-height: 1.6;
   color: var(--text);
   white-space: pre;
