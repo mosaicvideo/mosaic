@@ -35,7 +35,7 @@ pub fn build_extract_args(
     args.extend([
         "-t".into(), format!("{:.3}", duration),
     ]);
-    let tonemap = crate::ffmpeg::tonemap_filter(has_zscale, info.video.color_transfer.as_deref());
+    let tonemap = crate::ffmpeg::tonemap_filter(has_zscale, info.video.color_transfer.as_deref(), info.video.dv_profile);
     if tonemap.is_some() || info.video.height > target_height {
         let mut vf = String::new();
         if let Some(tm) = tonemap {
@@ -195,6 +195,7 @@ mod tests {
                 bit_rate: None,
                 is_hdr: false,
                 color_transfer: None,
+                dv_profile: None,
             },
             audio: None,
         }

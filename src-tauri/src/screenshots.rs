@@ -25,7 +25,7 @@ pub async fn generate(
     let timestamps = sample_timestamps(info.duration_secs, opts.count);
     let total = opts.count;
 
-    let tonemap = crate::ffmpeg::tonemap_filter(ctx.has_zscale, info.video.color_transfer.as_deref());
+    let tonemap = crate::ffmpeg::tonemap_filter(ctx.has_zscale, info.video.color_transfer.as_deref(), info.video.dv_profile);
     let mut batch = Vec::with_capacity(timestamps.len());
     let mut outputs = Vec::with_capacity(timestamps.len());
     for (i, ts) in timestamps.iter().enumerate() {

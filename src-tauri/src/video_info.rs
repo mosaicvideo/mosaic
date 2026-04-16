@@ -16,6 +16,9 @@ pub struct VideoStream {
     /// Raw `color_transfer` tag from ffprobe (e.g. "smpte2084", "arib-std-b67").
     /// Passed to `tonemap_filter` so zscale gets explicit input transfer params.
     pub color_transfer: Option<String>,
+    /// Dolby Vision profile number from ffprobe side_data (e.g. 5, 7, 8).
+    /// Profile 5 requires IPT-PQ-C2 → BT.709 color correction.
+    pub dv_profile: Option<u8>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -50,6 +53,7 @@ pub enum ProbeParseError {
 #[derive(Deserialize)]
 struct RawSideData {
     side_data_type: Option<String>,
+    dv_profile: Option<u8>,
 }
 
 #[derive(Deserialize)]
@@ -109,10 +113,12 @@ pub fn parse(json: &str) -> Result<VideoInfo, ProbeParseError> {
         .find(|s| s.codec_type == "video")
         .ok_or(ProbeParseError::NoVideo)?;
 
+    let dovi_record = v.side_data_list.as_ref().and_then(|list|
+        list.iter().find(|sd| sd.side_data_type.as_deref() == Some("DOVI configuration record"))
+    );
+    let dv_profile = dovi_record.and_then(|sd| sd.dv_profile);
     let is_hdr = matches!(v.color_transfer.as_deref(), Some(PQ_TRANSFER) | Some(HLG_TRANSFER))
-        || v.side_data_list.as_ref().is_some_and(|list|
-            list.iter().any(|sd| sd.side_data_type.as_deref() == Some("DOVI configuration record"))
-        );
+        || dovi_record.is_some();
 
     let video = VideoStream {
         codec: v.codec_name.clone().unwrap_or_default(),
@@ -123,6 +129,7 @@ pub fn parse(json: &str) -> Result<VideoInfo, ProbeParseError> {
         bit_rate: v.bit_rate.as_deref().and_then(|s| s.parse().ok()),
         is_hdr,
         color_transfer: v.color_transfer.clone(),
+        dv_profile,
     };
 
     let audio = root.streams.iter().find(|s| s.codec_type == "audio").map(|a| AudioStream {
@@ -195,6 +202,22 @@ mod tests {
         }"#;
         let info = parse(json).unwrap();
         assert!(info.video.is_hdr);
+        assert_eq!(info.video.dv_profile, None); // no dv_profile field in JSON
+    }
+
+    #[test]
+    fn detects_dv_profile_5() {
+        let json = r#"{
+            "streams": [
+                { "codec_type": "video", "codec_name": "hevc", "width": 1920, "height": 1080,
+                  "r_frame_rate": "24/1",
+                  "side_data_list": [{ "side_data_type": "DOVI configuration record", "dv_profile": 5 }] }
+            ],
+            "format": { "duration": "100.0" }
+        }"#;
+        let info = parse(json).unwrap();
+        assert!(info.video.is_hdr);
+        assert_eq!(info.video.dv_profile, Some(5));
     }
 
     #[test]

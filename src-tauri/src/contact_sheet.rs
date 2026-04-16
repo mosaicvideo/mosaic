@@ -47,7 +47,7 @@ pub async fn generate(
     let total_steps = layout.total + 2 + u32::from(opts.show_header); // extracts + tile + stack + header
 
     // 1. Extract thumbnails (parallel)
-    let tonemap = crate::ffmpeg::tonemap_filter(ctx.has_zscale, info.video.color_transfer.as_deref());
+    let tonemap = crate::ffmpeg::tonemap_filter(ctx.has_zscale, info.video.color_transfer.as_deref(), info.video.dv_profile);
     let mut batch = Vec::with_capacity(timestamps.len());
     for (i, ts) in timestamps.iter().enumerate() {
         let idx = (i as u32) + 1;

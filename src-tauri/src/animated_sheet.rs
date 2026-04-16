@@ -64,12 +64,11 @@ pub fn build_extract_args(
     theme: SheetTheme,
     font: &Path,
     output: &Path,
-    has_zscale: bool,
-    color_transfer: Option<&str>,
+    hdr_filter: Option<&str>,
 ) -> Vec<String> {
     let mut vf = String::new();
-    if let Some(tm) = crate::ffmpeg::tonemap_filter(has_zscale, color_transfer) {
-        vf.push_str(&tm);
+    if let Some(tm) = hdr_filter {
+        vf.push_str(tm);
         vf.push(',');
     }
     vf.push_str(&format!("scale={}:{}", thumb_w, thumb_h));
@@ -196,6 +195,7 @@ pub async fn generate(
     let total_steps = layout.total + 1;
     let tmp = tempfile::TempDir::new()?;
 
+    let hdr_filter = crate::ffmpeg::tonemap_filter(ctx.has_zscale, info.video.color_transfer.as_deref(), info.video.dv_profile);
     let mut clips: Vec<PathBuf> = Vec::with_capacity(timestamps.len());
     let mut batch = Vec::with_capacity(timestamps.len());
     for (i, ts) in timestamps.iter().enumerate() {
@@ -204,8 +204,7 @@ pub async fn generate(
         let args = build_extract_args(
             source, *ts, layout.thumb_w, thumb_h, opts.gap, opts.fps,
             opts.clip_length_secs, opts.show_timestamps, opts.thumb_font_size,
-            opts.theme, font, &cell, ctx.has_zscale,
-            info.video.color_transfer.as_deref(),
+            opts.theme, font, &cell, hdr_filter.as_deref(),
         );
         batch.push(args);
         clips.push(cell);
@@ -285,6 +284,7 @@ mod tests {
                 bit_rate: None,
                 is_hdr: false,
                 color_transfer: None,
+                dv_profile: None,
             },
             audio: None,
         }
@@ -299,7 +299,7 @@ mod tests {
             true, 18, SheetTheme::Dark,
             Path::new("/f/font.ttf"),
             Path::new("/tmp/cell.mp4"),
-            false, None,
+            None,
         );
         assert_eq!(args[0], "-hide_banner");
         assert!(args.iter().any(|a| a == "-an"));
@@ -328,7 +328,7 @@ mod tests {
             true, 18, SheetTheme::Light,
             Path::new("/f/font.ttf"),
             Path::new("/tmp/cell.mp4"),
-            false, None,
+            None,
         );
         let vf = args.iter().position(|a| a == "-vf").map(|i| &args[i + 1]).unwrap();
         assert!(vf.contains("pad=330:190:5:5:0xFFFFFF"));
@@ -345,7 +345,7 @@ mod tests {
             false, 18, SheetTheme::Dark,
             Path::new("/f/font.ttf"),
             Path::new("/tmp/cell.mp4"),
-            false, None,
+            None,
         );
         let vf = args.iter().position(|a| a == "-vf").map(|i| &args[i + 1]).unwrap();
         assert!(!vf.contains("drawtext"));
