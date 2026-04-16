@@ -63,10 +63,16 @@ if (shouldTag) {
     (f) => relative(root, f)
   );
   execSync(`git add ${files.join(" ")}`, { cwd: root, stdio: "inherit" });
-  execSync(`git commit -m "chore: bump version to ${version}"`, {
-    cwd: root,
-    stdio: "inherit",
-  });
-  execSync(`git tag v${version}`, { cwd: root, stdio: "inherit" });
+  let hasStaged = false;
+  try { execSync("git diff --cached --quiet", { cwd: root, stdio: "ignore" }); } catch { hasStaged = true; }
+  if (hasStaged) {
+    execSync(`git commit -m "chore: bump version to ${version}"`, {
+      cwd: root,
+      stdio: "inherit",
+    });
+  } else {
+    console.log("  No changes to commit (version already current)");
+  }
+  execSync(`git tag -f v${version}`, { cwd: root, stdio: "inherit" });
   console.log(`Created tag v${version}`);
 }
