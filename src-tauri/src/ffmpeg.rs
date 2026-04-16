@@ -33,30 +33,32 @@ pub fn seek_input_args_clip(source: &std::path::Path, timestamp: f64) -> Vec<Str
 }
 
 /// Returns the zscale/tonemap filter chain for HDR→SDR conversion, or `None`
-/// for SDR content or when the ffmpeg build lacks zscale (libzimg).
+/// for SDR content, when the ffmpeg build lacks zscale, or when the stream
+/// has no confirmed HDR transfer function.
 ///
-/// `color_transfer` is the raw ffprobe `color_transfer` tag (e.g. "smpte2084",
-/// "arib-std-b67"). It is used to set explicit `tin`/`min`/`pin` on the first
-/// zscale invocation so that zscale never has to guess the input colorspace —
-/// without these, videos with missing or inconsistent metadata (common in
-/// Dolby Vision) fail with "no path between colorspaces".
+/// Only tonemaps when `color_transfer` is an explicit HDR transfer (`smpte2084`
+/// for HDR10/DV, `arib-std-b67` for HLG). Streams with `"unknown"` or absent
+/// transfer — common in DV Profile 5 where the base layer is SDR-compatible —
+/// are left untouched; applying PQ tonemapping to non-PQ pixels produces
+/// garbage or triggers zscale "no path between colorspaces" errors.
 pub fn tonemap_filter(is_hdr: bool, has_zscale: bool, color_transfer: Option<&str>) -> Option<String> {
-    if is_hdr && has_zscale {
-        // HLG uses arib-std-b67; HDR10 and Dolby Vision use smpte2084 (PQ).
-        // Default to PQ when the tag is absent (DV detected via side data).
-        let tin = match color_transfer {
-            Some("arib-std-b67") => "arib-std-b67",
-            _ => "smpte2084",
-        };
-        Some(format!(
-            "zscale=tin={tin}:min=bt2020nc:pin=bt2020:t=linear:npl=100,\
-             format=gbrpf32le,zscale=p=bt709,\
-             tonemap=hable:desat=0,\
-             zscale=t=bt709:m=bt709:r=tv,format=yuv420p"
-        ))
-    } else {
-        None
-    }
+    if !is_hdr || !has_zscale { return None; }
+
+    let tin = match color_transfer {
+        Some("smpte2084") => "smpte2084",
+        Some("arib-std-b67") => "arib-std-b67",
+        // "unknown", absent, or any other value: the stream lacks a confirmed
+        // HDR transfer function. Skip tonemapping — the content is either
+        // SDR-compatible (DV Profile 5 base layer) or has metadata too broken
+        // for zscale to work with.
+        _ => return None,
+    };
+    Some(format!(
+        "zscale=tin={tin}:min=bt2020nc:pin=bt2020:t=linear:npl=100,\
+         format=gbrpf32le,zscale=p=bt709,\
+         tonemap=hable:desat=0,\
+         zscale=t=bt709:m=bt709:r=tv,format=yuv420p"
+    ))
 }
 
 /// Encoder flags used by every intermediate H.264 clip we produce for later
@@ -205,10 +207,17 @@ mod tests {
     }
 
     #[test]
-    fn tonemap_filter_defaults_to_pq_when_transfer_missing() {
-        // Dolby Vision detected via side data may lack an explicit color_transfer tag.
-        let chain = tonemap_filter(true, true, None).unwrap();
-        assert!(chain.contains("tin=smpte2084"));
+    fn tonemap_filter_skips_when_transfer_missing() {
+        // DV detected via side data but no explicit transfer tag — base layer
+        // is likely SDR-compatible; tonemapping would fail or produce garbage.
+        assert!(tonemap_filter(true, true, None).is_none());
+    }
+
+    #[test]
+    fn tonemap_filter_skips_when_transfer_unknown() {
+        // DV Profile 5: is_hdr=true from DOVI side data, but color_transfer
+        // is "unknown" — base layer is SDR, must not attempt tonemap.
+        assert!(tonemap_filter(true, true, Some("unknown")).is_none());
     }
 
     #[test]
