@@ -65,22 +65,26 @@ jobs:
           releaseBody: |
             ## What's New
 
-            Initial release of Mosaic — a cross-platform desktop app for generating video contact sheets, screenshots, animated preview reels, and animated contact sheets.
+            ### Added
 
-            ### Features
+            - **HDR auto-tonemapping** — HDR10, HLG, and Dolby Vision thumbnails are automatically tonemapped to SDR across all output types (requires ffmpeg with libzimg)
+            - **MediaInfo modal** — click the file icon in any queue row to view raw `mediainfo` output with copy-to-clipboard (requires [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) installed separately)
+            - **Expanded format support** — 44 recognized video container types (was 12), including broadcast (MXF, R3D), camcorder (DV, WTV), and legacy formats
 
-            - Contact sheet generation with configurable grid, timestamps, header, and themes (PNG/JPEG)
-            - Individual screenshot extraction at evenly-spaced timestamps (PNG/JPEG)
-            - Animated preview reels stitched from short video clips (WebP/WebM/GIF)
-            - Animated contact sheets with grid of animated clips (WebP)
-            - Drag-and-drop batch queue with per-file progress and cancel support
-            - Dark/light theme following system preference
-            - Configurable output quality, fonts, suffixes, and output location
-            - Frame-accurate seeking with parallel extraction
+            ### Fixed
+
+            - Clip extraction (preview reels, animated sheets) no longer fails on transport stream containers (.ts, .m2ts)
+            - HDR tonemapping correctly specifies input colorspace to avoid zscale errors
+            - Dolby Vision Profile 5 streams with SDR-compatible base layers are left untouched
+
+            ### Changed
+
+            - Upgraded thiserror 1→2 and which 6→8
+            - Queue row click-to-reveal narrowed to filename only
 
             ### Requirements
 
-            **[ffmpeg](https://ffmpeg.org/) must be installed separately.** The app checks for `ffmpeg` and `ffprobe` on your PATH at startup.
+            **[ffmpeg](https://ffmpeg.org/) must be installed separately.** The app checks for `ffmpeg` and `ffprobe` on your PATH at startup. [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) is optional — needed only for the info modal.
 
             ### Notes
 
