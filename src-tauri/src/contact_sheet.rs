@@ -1,5 +1,5 @@
 use crate::drawtext::{font_for_ffmpeg, format_hms_escaped, header_overlay, timestamp_overlay};
-use crate::ffmpeg::{run_cancellable, RunError};
+use crate::ffmpeg::{run_batch_cancellable, run_cancellable, RunError};
 use crate::header::build_header_lines;
 use crate::jobs::ProgressReporter;
 use crate::layout::{compute_sheet_layout, header_height, line_height, sample_timestamps};
@@ -50,11 +50,10 @@ pub async fn generate(
     let font_path = font_for_ffmpeg(font);
     let total_steps = layout.total + 2 + u32::from(opts.show_header); // extracts + tile + stack + header
 
-    // 1. Extract thumbnails
+    // 1. Extract thumbnails (parallel)
+    let mut batch = Vec::with_capacity(timestamps.len());
     for (i, ts) in timestamps.iter().enumerate() {
         let idx = (i as u32) + 1;
-        (reporter.emit)(idx, total_steps, &format!("Thumb {}/{}", idx, layout.total));
-
         let thumb = tmp.path().join(format!("thumb_{:0width$}.png", idx, width = width_digits));
         let mut vf = format!("scale={}:-2", layout.thumb_w);
         if opts.show_timestamps {
@@ -68,15 +67,20 @@ pub async fn generate(
             ));
         }
         let mut args = crate::ffmpeg::base_args();
+        args.extend(crate::ffmpeg::seek_input_args(source, *ts));
         args.extend([
-            "-ss".into(), format!("{}", ts),
-            "-i".into(), source.to_string_lossy().into_owned(),
-            "-vframes".into(), "1".into(),
+            "-frames:v".into(), "1".into(),
             "-vf".into(), vf,
             thumb.to_string_lossy().into_owned(),
         ]);
-        run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
+        batch.push(args);
     }
+
+    let mut done = 0u32;
+    run_batch_cancellable(ffmpeg, batch, cancelled.clone(), |_| {
+        done += 1;
+        (reporter.emit)(done, total_steps, &format!("Thumb {}/{}", done, layout.total));
+    }).await?;
 
     // 2. Tile
     (reporter.emit)(layout.total + 1, total_steps, "Tiling grid");

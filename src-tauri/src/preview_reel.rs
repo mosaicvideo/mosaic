@@ -1,4 +1,4 @@
-use crate::ffmpeg::RunError;
+use crate::ffmpeg::{run_batch_cancellable, RunError};
 use crate::jobs::ProgressReporter;
 use crate::output_path::{vp9_crf, ReelFormat};
 use crate::video_info::VideoInfo;
@@ -32,11 +32,9 @@ pub fn build_extract_args(
     let duration = desired.min(remaining);
 
     let mut args = crate::ffmpeg::base_args();
+    args.extend(crate::ffmpeg::seek_input_args(source, timestamp));
     args.extend([
-        "-ss".into(), format!("{:.3}", timestamp),
-        "-i".into(), source.to_string_lossy().into_owned(),
         "-t".into(), format!("{:.3}", duration),
-        "-an".into(),
     ]);
     if info.video.height > target_height {
         args.push("-vf".into());
@@ -146,16 +144,21 @@ pub async fn generate(
 
     let tmp = tempfile::TempDir::new()?;
     let mut clips: Vec<std::path::PathBuf> = Vec::with_capacity(timestamps.len());
+    let mut batch = Vec::with_capacity(timestamps.len());
 
     for (i, ts) in timestamps.iter().enumerate() {
         let idx = (i as u32) + 1;
-        (reporter.emit)(idx, total_steps, &format!("Reel clip {}/{}", idx, timestamps.len()));
-
         let clip = tmp.path().join(format!("clip_{:03}.mp4", idx));
         let args = build_extract_args(source, info, *ts, opts.clip_length_secs, opts.height, &clip);
-        crate::ffmpeg::run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
+        batch.push(args);
         clips.push(clip);
     }
+
+    let mut done = 0u32;
+    run_batch_cancellable(ffmpeg, batch, cancelled.clone(), |_| {
+        done += 1;
+        (reporter.emit)(done, total_steps, &format!("Reel clip {}/{}", done, timestamps.len()));
+    }).await?;
 
     (reporter.emit)(total_steps, total_steps, "Stitching reel");
     let concat_list = tmp.path().join("concat.txt");
@@ -201,10 +204,18 @@ mod tests {
             &PathBuf::from("/tmp/out/clip_01.mp4"),
         );
         assert_eq!(args[0], "-hide_banner");
-        assert!(args.windows(2).any(|w| w[0] == "-ss" && w[1] == "12.500"));
+        assert!(args.iter().any(|a| a == "-copyts"));
+        assert!(args.iter().any(|a| a == "-an"));
+        // Dual -ss: input seek + output trim, both at the same timestamp
+        let ss_positions: Vec<usize> = args.iter().enumerate()
+            .filter(|(_, a)| a.as_str() == "-ss")
+            .map(|(i, _)| i)
+            .collect();
+        assert_eq!(ss_positions.len(), 2, "expected two -ss args");
+        assert_eq!(args[ss_positions[0] + 1], "12.500");
+        assert_eq!(args[ss_positions[1] + 1], "12.500");
         assert!(args.windows(2).any(|w| w[0] == "-i" && w[1] == "/v/movie.mkv"));
         assert!(args.windows(2).any(|w| w[0] == "-t" && w[1] == "5.000"));
-        assert!(args.iter().any(|a| a == "-an"));
         assert!(args.windows(2).any(|w| w[0] == "-vf" && w[1] == "scale=-2:480"));
         assert_eq!(args.last().unwrap(), "/tmp/out/clip_01.mp4");
     }
