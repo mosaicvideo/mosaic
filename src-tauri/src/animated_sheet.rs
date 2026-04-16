@@ -66,10 +66,11 @@ pub fn build_extract_args(
     output: &Path,
     is_hdr: bool,
     has_zscale: bool,
+    color_transfer: Option<&str>,
 ) -> Vec<String> {
     let mut vf = String::new();
-    if let Some(tm) = crate::ffmpeg::tonemap_filter(is_hdr, has_zscale) {
-        vf.push_str(tm);
+    if let Some(tm) = crate::ffmpeg::tonemap_filter(is_hdr, has_zscale, color_transfer) {
+        vf.push_str(&tm);
         vf.push(',');
     }
     vf.push_str(&format!("scale={}:{}", thumb_w, thumb_h));
@@ -205,6 +206,7 @@ pub async fn generate(
             source, *ts, layout.thumb_w, thumb_h, opts.gap, opts.fps,
             opts.clip_length_secs, opts.show_timestamps, opts.thumb_font_size,
             opts.theme, font, &cell, info.video.is_hdr, ctx.has_zscale,
+            info.video.color_transfer.as_deref(),
         );
         batch.push(args);
         clips.push(cell);
@@ -283,6 +285,7 @@ mod tests {
                 fps: 30.0,
                 bit_rate: None,
                 is_hdr: false,
+                color_transfer: None,
             },
             audio: None,
         }
@@ -297,7 +300,7 @@ mod tests {
             true, 18, SheetTheme::Dark,
             Path::new("/f/font.ttf"),
             Path::new("/tmp/cell.mp4"),
-            false, false,
+            false, false, None,
         );
         assert_eq!(args[0], "-hide_banner");
         assert!(args.iter().any(|a| a == "-an"));
@@ -326,7 +329,7 @@ mod tests {
             true, 18, SheetTheme::Light,
             Path::new("/f/font.ttf"),
             Path::new("/tmp/cell.mp4"),
-            false, false,
+            false, false, None,
         );
         let vf = args.iter().position(|a| a == "-vf").map(|i| &args[i + 1]).unwrap();
         assert!(vf.contains("pad=330:190:5:5:0xFFFFFF"));
@@ -343,7 +346,7 @@ mod tests {
             false, 18, SheetTheme::Dark,
             Path::new("/f/font.ttf"),
             Path::new("/tmp/cell.mp4"),
-            false, false,
+            false, false, None,
         );
         let vf = args.iter().position(|a| a == "-vf").map(|i| &args[i + 1]).unwrap();
         assert!(!vf.contains("drawtext"));

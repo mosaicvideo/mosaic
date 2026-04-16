@@ -52,8 +52,8 @@ pub async fn generate(
         let idx = (i as u32) + 1;
         let thumb = tmp.path().join(format!("thumb_{:0width$}.png", idx, width = width_digits));
         let mut vf = String::new();
-        if let Some(tm) = crate::ffmpeg::tonemap_filter(info.video.is_hdr, ctx.has_zscale) {
-            vf.push_str(tm);
+        if let Some(tm) = crate::ffmpeg::tonemap_filter(info.video.is_hdr, ctx.has_zscale, info.video.color_transfer.as_deref()) {
+            vf.push_str(&tm);
             vf.push(',');
         }
         vf.push_str(&format!("scale={}:-2", layout.thumb_w));
