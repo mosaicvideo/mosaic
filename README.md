@@ -13,6 +13,14 @@ Cross-platform desktop app for generating video contact sheets, screenshots, ani
 - Dark/light theme (follows system preference)
 - macOS, Windows, and Linux
 
+## Install
+
+Download the latest release from [GitHub Releases](https://github.com/bhutanio/mosaic/releases). Available as `.dmg` (macOS), `.exe` installer (Windows), and `.AppImage`/`.deb` (Linux).
+
+**Note:** Builds are currently unsigned. macOS users will need to right-click the app and select Open to bypass Gatekeeper. Windows users will need to click through the SmartScreen warning.
+
+**Requires [ffmpeg](https://ffmpeg.org/) installed separately** — the app checks for `ffmpeg` and `ffprobe` on your PATH at startup and shows install instructions if they're missing.
+
 ## Requirements (dev)
 
 - Node.js + `pnpm`

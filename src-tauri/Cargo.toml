@@ -1,6 +1,11 @@
 [package]
 name = "mosaic"
 version = "0.1.0"
+description = "Cross-platform desktop app for generating video contact sheets, screenshots, animated preview reels, and animated contact sheets"
+authors = ["Bhutan IO"]
+license = "MIT"
+homepage = "https://github.com/bhutanio/mosaic"
+repository = "https://github.com/bhutanio/mosaic"
 edition = "2021"
 
 [lib]

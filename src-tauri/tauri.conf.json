@@ -27,6 +27,8 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "shortDescription": "Video contact sheet and screenshot generator",
+    "longDescription": "Mosaic generates video contact sheets, screenshots, animated preview reels, and animated contact sheets from video files. Features drag-and-drop batch queue with live progress and cancel support. Requires ffmpeg installed separately.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -34,6 +36,8 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["assets/fonts/DejaVuSans.ttf"]
+    "resources": [
+      "assets/fonts/DejaVuSans.ttf"
+    ]
   }
 }

@@ -3,20 +3,29 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "Cross-platform desktop app for generating video contact sheets, screenshots, animated preview reels, and animated contact sheets",
+  "author": "Bhutan IO",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bhutanio/mosaic.git"
+  },
+  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "tauri": "tauri",
     "dev": "tauri dev",
     "build": "tauri build",
     "dev:web": "vite",
-    "build:web": "vite build"
+    "build:web": "vite build",
+    "version:bump": "node scripts/bump-version.mjs"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "latest",
+    "@tauri-apps/cli": "^2.10.1",
     "vite": "^8.0.8"
   },
   "dependencies": {
-    "@tauri-apps/api": "latest",
-    "@tauri-apps/plugin-dialog": "latest",
-    "@tauri-apps/plugin-store": "latest"
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/plugin-dialog": "^2.7.0",
+    "@tauri-apps/plugin-store": "^2.4.2"
   }
 }
