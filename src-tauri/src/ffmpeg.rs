@@ -92,6 +92,19 @@ mod tests {
 use std::process::Stdio;
 use tokio::process::Command;
 
+/// Apply platform-specific flags to prevent a visible console window on Windows.
+#[cfg(target_os = "windows")]
+fn hide_window(cmd: &mut Command) -> &mut Command {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    cmd.creation_flags(CREATE_NO_WINDOW)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn hide_window(cmd: &mut Command) -> &mut Command {
+    cmd
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum RunError {
     #[error("io: {0}")]
@@ -103,13 +116,13 @@ pub enum RunError {
 }
 
 pub async fn run_capture(exe: &std::path::Path, args: &[&str]) -> Result<String, RunError> {
-    let output = Command::new(exe)
-        .args(args)
+    let mut cmd = Command::new(exe);
+    cmd.args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output()
-        .await?;
+        .stderr(Stdio::piped());
+    hide_window(&mut cmd);
+    let output = cmd.output().await?;
     if !output.status.success() {
         let code = output.status.code().unwrap_or(-1);
         return Err(RunError::NonZero {
@@ -130,13 +143,14 @@ pub async fn run_cancellable(
 ) -> Result<(), RunError> {
     if cancelled.load(Ordering::Relaxed) { return Err(RunError::Killed); }
 
-    let mut child = Command::new(exe)
-        .args(args.iter().map(|s| s.as_str()))
+    let mut cmd = Command::new(exe);
+    cmd.args(args.iter().map(|s| s.as_str()))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .kill_on_drop(true)
-        .spawn()?;
+        .kill_on_drop(true);
+    hide_window(&mut cmd);
+    let mut child = cmd.spawn()?;
 
     // Drain stderr concurrently so ffmpeg never blocks on a full pipe buffer
     // (~64 KiB on macOS/Linux). With `-loglevel error` stderr is usually tiny,
