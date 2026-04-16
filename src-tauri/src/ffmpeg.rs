@@ -243,7 +243,6 @@ use tokio::process::Command;
 /// Apply platform-specific flags to prevent a visible console window on Windows.
 #[cfg(target_os = "windows")]
 fn hide_window(cmd: &mut Command) -> &mut Command {
-    use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x08000000;
     cmd.creation_flags(CREATE_NO_WINDOW)
 }
