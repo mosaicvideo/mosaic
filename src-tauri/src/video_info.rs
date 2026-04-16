@@ -8,6 +8,7 @@ pub struct VideoStream {
     pub height: u32,
     pub fps: f64,
     pub bit_rate: Option<u64>,
+    pub is_hdr: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -40,6 +41,11 @@ pub enum ProbeParseError {
 }
 
 #[derive(Deserialize)]
+struct RawSideData {
+    side_data_type: Option<String>,
+}
+
+#[derive(Deserialize)]
 struct RawRoot {
     streams: Vec<RawStream>,
     format: RawFormat,
@@ -56,6 +62,8 @@ struct RawStream {
     sample_rate: Option<String>,
     channels: Option<u32>,
     bit_rate: Option<String>,
+    color_transfer: Option<String>,
+    side_data_list: Option<Vec<RawSideData>>,
 }
 
 #[derive(Deserialize)]
@@ -94,6 +102,11 @@ pub fn parse(json: &str) -> Result<VideoInfo, ProbeParseError> {
         .find(|s| s.codec_type == "video")
         .ok_or(ProbeParseError::NoVideo)?;
 
+    let is_hdr = matches!(v.color_transfer.as_deref(), Some("smpte2084") | Some("arib-std-b67"))
+        || v.side_data_list.as_ref().is_some_and(|list|
+            list.iter().any(|sd| sd.side_data_type.as_deref() == Some("DOVI configuration record"))
+        );
+
     let video = VideoStream {
         codec: v.codec_name.clone().unwrap_or_default(),
         profile: v.profile.clone(),
@@ -101,6 +114,7 @@ pub fn parse(json: &str) -> Result<VideoInfo, ProbeParseError> {
         height: v.height.unwrap_or(0),
         fps: v.r_frame_rate.as_deref().and_then(parse_fraction).unwrap_or(0.0),
         bit_rate: v.bit_rate.as_deref().and_then(|s| s.parse().ok()),
+        is_hdr,
     };
 
     let audio = root.streams.iter().find(|s| s.codec_type == "audio").map(|a| AudioStream {
@@ -159,5 +173,51 @@ mod tests {
     fn fails_on_invalid_json() {
         let err = parse("not json").unwrap_err();
         matches!(err, ProbeParseError::Json(_));
+    }
+
+    #[test]
+    fn detects_dolby_vision_from_side_data() {
+        let json = r#"{
+            "streams": [
+                { "codec_type": "video", "codec_name": "hevc", "width": 1920, "height": 1080,
+                  "r_frame_rate": "24/1",
+                  "side_data_list": [{ "side_data_type": "DOVI configuration record" }] }
+            ],
+            "format": { "duration": "100.0" }
+        }"#;
+        let info = parse(json).unwrap();
+        assert!(info.video.is_hdr);
+    }
+
+    #[test]
+    fn detects_hlg_from_color_transfer() {
+        let json = r#"{
+            "streams": [
+                { "codec_type": "video", "codec_name": "hevc", "width": 3840, "height": 2160,
+                  "r_frame_rate": "50/1", "color_transfer": "arib-std-b67" }
+            ],
+            "format": { "duration": "60.0" }
+        }"#;
+        let info = parse(json).unwrap();
+        assert!(info.video.is_hdr);
+    }
+
+    #[test]
+    fn detects_hdr10_from_color_transfer() {
+        let json = r#"{
+            "streams": [
+                { "codec_type": "video", "codec_name": "hevc", "width": 3840, "height": 2160,
+                  "r_frame_rate": "24/1", "color_transfer": "smpte2084" }
+            ],
+            "format": { "duration": "100.0" }
+        }"#;
+        let info = parse(json).unwrap();
+        assert!(info.video.is_hdr);
+    }
+
+    #[test]
+    fn sdr_is_not_hdr() {
+        let info = parse(&fixture("ffprobe_typical.json")).unwrap();
+        assert!(!info.video.is_hdr);
     }
 }

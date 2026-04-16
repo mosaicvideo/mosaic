@@ -48,6 +48,7 @@ async fn end_to_end_contact_sheet_and_screenshots() {
         ffmpeg: &tools.ffmpeg,
         cancelled: Arc::new(AtomicBool::new(false)),
         reporter: &reporter,
+        has_zscale: tools.has_zscale,
     };
     mosaic_lib::contact_sheet::generate(
         &fixture, &info, &out, &opts, &font, &ctx,
@@ -66,6 +67,7 @@ async fn end_to_end_contact_sheet_and_screenshots() {
         ffmpeg: &tools.ffmpeg,
         cancelled: Arc::new(AtomicBool::new(false)),
         reporter: &reporter,
+        has_zscale: tools.has_zscale,
     };
     let outs = mosaic_lib::screenshots::generate(
         &fixture, &info, &shots_dir, &shots_opts, &ctx2,
@@ -105,6 +107,7 @@ async fn end_to_end_animated_preview_reel() {
         ffmpeg: &tools.ffmpeg,
         cancelled: Arc::new(AtomicBool::new(false)),
         reporter: &reporter,
+        has_zscale: tools.has_zscale,
     };
     mosaic_lib::preview_reel::generate(
         &fixture, &info, &out, &opts, &ctx,
@@ -143,6 +146,7 @@ async fn end_to_end_animated_preview_reel_webm() {
         ffmpeg: &tools.ffmpeg,
         cancelled: Arc::new(AtomicBool::new(false)),
         reporter: &reporter,
+        has_zscale: tools.has_zscale,
     };
     mosaic_lib::preview_reel::generate(
         &fixture, &info, &out, &opts, &ctx,
@@ -193,6 +197,7 @@ async fn end_to_end_animated_contact_sheet() {
         ffmpeg: &tools.ffmpeg,
         cancelled: Arc::new(AtomicBool::new(false)),
         reporter: &reporter,
+        has_zscale: tools.has_zscale,
     };
     mosaic_lib::animated_sheet::generate(
         &fixture, &info, &out, &opts, &font, &ctx,
@@ -231,6 +236,7 @@ async fn end_to_end_animated_contact_sheet_no_header() {
         ffmpeg: &tools.ffmpeg,
         cancelled: Arc::new(AtomicBool::new(false)),
         reporter: &reporter,
+        has_zscale: tools.has_zscale,
     };
     mosaic_lib::animated_sheet::generate(
         &fixture, &info, &out, &opts, &font, &ctx,
@@ -269,6 +275,7 @@ async fn end_to_end_animated_preview_reel_gif() {
         ffmpeg: &tools.ffmpeg,
         cancelled: Arc::new(AtomicBool::new(false)),
         reporter: &reporter,
+        has_zscale: tools.has_zscale,
     };
     mosaic_lib::preview_reel::generate(
         &fixture, &info, &out, &opts, &ctx,

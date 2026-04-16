@@ -21,6 +21,17 @@ pub fn seek_input_args(source: &std::path::Path, timestamp: f64) -> Vec<String> 
     ]
 }
 
+/// Returns the zscale/tonemap filter chain for HDR→SDR conversion, or `None`
+/// for SDR content or when the ffmpeg build lacks zscale (libzimg).
+pub fn tonemap_filter(is_hdr: bool, has_zscale: bool) -> Option<&'static str> {
+    if is_hdr && has_zscale {
+        Some("zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,\
+              tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p")
+    } else {
+        None
+    }
+}
+
 /// Encoder flags used by every intermediate H.264 clip we produce for later
 /// filter-graph consumption (preview reel, animated contact sheet). Chosen
 /// for cheap re-encode + filter-graph compatibility: `yuv420p` for universal
@@ -38,6 +49,9 @@ pub(crate) fn h264_clip_encoder() -> [String; 8] {
 pub struct Tools {
     pub ffmpeg: PathBuf,
     pub ffprobe: PathBuf,
+    /// Whether the located ffmpeg has the `zscale` filter (libzimg).
+    /// When false, HDR→SDR tonemapping is silently skipped.
+    pub has_zscale: bool,
 }
 
 #[derive(Debug, thiserror::Error, serde::Serialize)]
@@ -77,7 +91,22 @@ pub fn locate_tools() -> Result<Tools, ToolsError> {
 
     let ffmpeg = find("ffmpeg").ok_or(ToolsError::FfmpegMissing)?;
     let ffprobe = find("ffprobe").ok_or(ToolsError::FfprobeMissing)?;
-    Ok(Tools { ffmpeg, ffprobe })
+    let has_zscale = has_filter(&ffmpeg, "zscale");
+    Ok(Tools { ffmpeg, ffprobe, has_zscale })
+}
+
+/// Check whether the given ffmpeg binary supports a specific filter.
+fn has_filter(ffmpeg: &std::path::Path, name: &str) -> bool {
+    std::process::Command::new(ffmpeg)
+        .args(["-filters", "-hide_banner"])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).lines().any(|l| {
+            l.split_whitespace().nth(1) == Some(name)
+        }))
+        .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -113,6 +142,22 @@ mod tests {
             "-ss", "42.500",
             "-an",
         ]);
+    }
+
+    #[test]
+    fn tonemap_filter_returns_chain_for_hdr_with_zscale() {
+        assert!(tonemap_filter(true, true).is_some());
+        assert!(tonemap_filter(true, true).unwrap().contains("tonemap=hable"));
+    }
+
+    #[test]
+    fn tonemap_filter_returns_none_for_sdr() {
+        assert!(tonemap_filter(false, true).is_none());
+    }
+
+    #[test]
+    fn tonemap_filter_returns_none_when_zscale_missing() {
+        assert!(tonemap_filter(true, false).is_none());
     }
 }
 

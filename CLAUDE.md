@@ -60,3 +60,4 @@ Run `node scripts/bump-version.mjs <version> --tag` to update all three version 
 - Implementation plan: `docs/2026-04-14-mosaic-plan.md`
 - CLI plan (future work): `docs/2026-04-14-mosaic-cli-plan.md`
 - Distribution plan: `docs/2026-04-14-mosaic-distribution-plan.md`
+- Test samples (HDR10, DV, various codecs): https://kodi.wiki/view/Samples

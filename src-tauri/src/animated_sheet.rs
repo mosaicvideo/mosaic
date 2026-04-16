@@ -64,8 +64,15 @@ pub fn build_extract_args(
     theme: SheetTheme,
     font: &Path,
     output: &Path,
+    is_hdr: bool,
+    has_zscale: bool,
 ) -> Vec<String> {
-    let mut vf = format!("scale={}:{}", thumb_w, thumb_h);
+    let mut vf = String::new();
+    if let Some(tm) = crate::ffmpeg::tonemap_filter(is_hdr, has_zscale) {
+        vf.push_str(tm);
+        vf.push(',');
+    }
+    vf.push_str(&format!("scale={}:{}", thumb_w, thumb_h));
     if show_timestamps {
         vf.push(',');
         vf.push_str(&timestamp_overlay(
@@ -197,7 +204,7 @@ pub async fn generate(
         let args = build_extract_args(
             source, *ts, layout.thumb_w, thumb_h, opts.gap, opts.fps,
             opts.clip_length_secs, opts.show_timestamps, opts.thumb_font_size,
-            opts.theme, font, &cell,
+            opts.theme, font, &cell, info.video.is_hdr, ctx.has_zscale,
         );
         batch.push(args);
         clips.push(cell);
@@ -275,6 +282,7 @@ mod tests {
                 height: h,
                 fps: 30.0,
                 bit_rate: None,
+                is_hdr: false,
             },
             audio: None,
         }
@@ -289,6 +297,7 @@ mod tests {
             true, 18, SheetTheme::Dark,
             Path::new("/f/font.ttf"),
             Path::new("/tmp/cell.mp4"),
+            false, false,
         );
         assert_eq!(args[0], "-hide_banner");
         assert!(args.iter().any(|a| a == "-copyts"));
@@ -323,6 +332,7 @@ mod tests {
             true, 18, SheetTheme::Light,
             Path::new("/f/font.ttf"),
             Path::new("/tmp/cell.mp4"),
+            false, false,
         );
         let vf = args.iter().position(|a| a == "-vf").map(|i| &args[i + 1]).unwrap();
         assert!(vf.contains("pad=330:190:5:5:0xFFFFFF"));
@@ -339,6 +349,7 @@ mod tests {
             false, 18, SheetTheme::Dark,
             Path::new("/f/font.ttf"),
             Path::new("/tmp/cell.mp4"),
+            false, false,
         );
         let vf = args.iter().position(|a| a == "-vf").map(|i| &args[i + 1]).unwrap();
         assert!(!vf.contains("drawtext"));
@@ -444,6 +455,7 @@ mod tests {
             ffmpeg: Path::new("/bin/false"),
             cancelled: Arc::new(AtomicBool::new(false)),
             reporter: &reporter,
+            has_zscale: false,
         };
         let fut = generate(Path::new("/x.mp4"), &info, &out, &opts, font, &ctx);
         tokio::runtime::Builder::new_current_thread()

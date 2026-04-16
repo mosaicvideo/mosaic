@@ -67,6 +67,7 @@ mod tests {
                 height: 1080,
                 fps: 23.976,
                 bit_rate: Some(4_500_000),
+                is_hdr: false,
             },
             audio: Some(AudioStream {
                 codec: "aac".into(),
