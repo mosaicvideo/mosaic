@@ -35,18 +35,41 @@ pub fn format_hms_escaped(seconds: f64) -> String {
     format_hms_plain(seconds).replace(':', r"\:")
 }
 
+/// Normalise a Windows-style path string for use as an ffmpeg `fontfile=`
+/// value: strip the `\\?\` extended-length prefix, convert backslashes to
+/// forward slashes, and escape the drive-letter colon.
+///
+/// Pure string manipulation — no Windows APIs — so it compiles and tests
+/// on all platforms.
+fn normalise_win_font_path(mut s: String) -> String {
+    // Strip \\?\ prefix when followed by a drive letter (C:\...).
+    // Leave \\?\UNC\ paths alone — we don't expect them, but be safe.
+    if s.starts_with(r"\\?\") && s.as_bytes().get(5) == Some(&b':') {
+        s = s[4..].to_string();
+    }
+    s = s.replace('\\', "/");
+    if let Some(idx) = s.find(':') {
+        s.replace_range(idx..idx + 1, r"\:");
+    }
+    s
+}
+
 /// Render a filesystem path for use as `drawtext` `fontfile=`. On Windows the
 /// drive-letter colon would otherwise be interpreted as an ffmpeg option
 /// separator, so we normalise slashes and escape the colon.
+///
+/// Tauri's resource resolver (and some Windows APIs) may return paths with the
+/// `\\?\` extended-length prefix. That prefix **requires** backslashes, so it
+/// breaks once we normalise to forward slashes for ffmpeg. We strip it first —
+/// the underlying drive-letter path works fine without it for paths under
+/// MAX_PATH, and all our bundled-font paths are short.
 pub fn font_for_ffmpeg(p: &std::path::Path) -> String {
-    let mut s = p.to_string_lossy().into_owned();
+    let s = p.to_string_lossy().into_owned();
     if cfg!(windows) {
-        s = s.replace('\\', "/");
-        if let Some(idx) = s.find(':') {
-            s.replace_range(idx..idx + 1, r"\:");
-        }
+        normalise_win_font_path(s)
+    } else {
+        s
     }
-    s
 }
 
 /// Per-cell timestamp overlay for contact-sheet thumbnails. `hms_escaped` must
@@ -160,5 +183,35 @@ mod tests {
     #[test]
     fn formats_hms_truncates_fraction() {
         assert_eq!(format_hms_escaped(59.999), r"00\:00\:59");
+    }
+
+    // --- normalise_win_font_path tests (Windows font path logic, tested cross-platform) ---
+
+    #[test]
+    fn win_font_plain_drive_path() {
+        assert_eq!(
+            normalise_win_font_path(r"C:\Fonts\DejaVu.ttf".into()),
+            r"C\:/Fonts/DejaVu.ttf"
+        );
+    }
+
+    #[test]
+    fn win_font_strips_extended_length_prefix() {
+        // Tauri on Windows produces \\?\ prefixed paths for resources.
+        // After normalisation the prefix must be gone and the drive colon
+        // escaped — otherwise ffmpeg can't load the font.
+        assert_eq!(
+            normalise_win_font_path(r"\\?\F:\Program Files (x86)\mosaic\fonts\DejaVu.ttf".into()),
+            r"F\:/Program Files (x86)/mosaic/fonts/DejaVu.ttf"
+        );
+    }
+
+    #[test]
+    fn win_font_preserves_unc_prefix() {
+        // \\?\UNC\... paths should NOT be stripped (they're a different beast).
+        let input = r"\\?\UNC\server\share\font.ttf".to_string();
+        let out = normalise_win_font_path(input);
+        // The \\?\ is kept because byte 5 is 'U', not ':'.
+        assert!(out.starts_with("//?/UNC/"), "got: {}", out);
     }
 }

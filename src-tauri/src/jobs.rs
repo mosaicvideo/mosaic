@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicBool;
 
@@ -27,4 +28,11 @@ impl JobState {
 /// Emits per-file progress events (step, total_steps, label) back to the UI.
 pub struct ProgressReporter<'a> {
     pub emit: &'a (dyn Fn(u32, u32, &str) + Send + Sync),
+}
+
+/// Shared execution environment for all pipeline generate() functions.
+pub struct PipelineContext<'a> {
+    pub ffmpeg: &'a Path,
+    pub cancelled: Arc<AtomicBool>,
+    pub reporter: &'a ProgressReporter<'a>,
 }

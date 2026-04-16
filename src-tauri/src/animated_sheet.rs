@@ -1,13 +1,11 @@
 use crate::drawtext::{font_for_ffmpeg, format_hms_escaped, header_overlay, timestamp_overlay};
 use crate::ffmpeg::{run_batch_cancellable, run_cancellable, RunError};
 use crate::header::build_header_lines;
-use crate::jobs::ProgressReporter;
+use crate::jobs::PipelineContext;
 use crate::layout::{compute_sheet_layout, header_height, line_height, sample_timestamps, xstack_layout, SheetLayout};
 use crate::output_path::SheetTheme;
 use crate::video_info::VideoInfo;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
 
 /// ffmpeg's xstack requires at least 2 inputs and accepts up to 32
 /// (AV_FILTER_MAX_INPUTS in libavfilter). We fail fast outside this band
@@ -156,16 +154,13 @@ pub(crate) fn build_stitch_args(
     args
 }
 
-#[allow(clippy::too_many_arguments)]
 pub async fn generate(
     source: &Path,
     info: &VideoInfo,
     out: &Path,
     opts: &AnimatedSheetOptions,
-    ffmpeg: &Path,
     font: &Path,
-    cancelled: Arc<AtomicBool>,
-    reporter: &ProgressReporter<'_>,
+    ctx: &PipelineContext<'_>,
 ) -> Result<(), RunError> {
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent)?;
@@ -209,12 +204,12 @@ pub async fn generate(
     }
 
     let mut done = 0u32;
-    run_batch_cancellable(ffmpeg, batch, cancelled.clone(), |_| {
+    run_batch_cancellable(ctx.ffmpeg, batch, ctx.cancelled.clone(), |_| {
         done += 1;
-        (reporter.emit)(done, total_steps, &format!("Cell {}/{}", done, layout.total));
+        (ctx.reporter.emit)(done, total_steps, &format!("Cell {}/{}", done, layout.total));
     }).await?;
 
-    (reporter.emit)(total_steps, total_steps, "Stitching sheet");
+    (ctx.reporter.emit)(total_steps, total_steps, "Stitching sheet");
 
     let header_params = if opts.show_header {
         let display = source.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
@@ -235,7 +230,7 @@ pub async fn generate(
         &clips, &layout, thumb_h, opts.gap, opts.theme, header_params.as_ref(),
         opts.clip_length_secs, opts.fps, opts.quality, out,
     );
-    run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
+    run_cancellable(ctx.ffmpeg, &args, ctx.cancelled.clone()).await?;
 
     Ok(())
 }
@@ -243,6 +238,8 @@ pub async fn generate(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
+    use std::sync::atomic::AtomicBool;
 
     #[test]
     fn thumb_height_16_by_9_source() {
@@ -441,11 +438,14 @@ mod tests {
             theme: SheetTheme::Dark,
         };
         let out = PathBuf::from("/tmp/_never_written.webp");
-        let ffmpeg = Path::new("/bin/false");
         let font = Path::new("/bin/false");
-        let cancelled = Arc::new(AtomicBool::new(false));
-        let reporter = ProgressReporter { emit: &|_, _, _| {} };
-        let fut = generate(Path::new("/x.mp4"), &info, &out, &opts, ffmpeg, font, cancelled, &reporter);
+        let reporter = crate::jobs::ProgressReporter { emit: &|_, _, _| {} };
+        let ctx = PipelineContext {
+            ffmpeg: Path::new("/bin/false"),
+            cancelled: Arc::new(AtomicBool::new(false)),
+            reporter: &reporter,
+        };
+        let fut = generate(Path::new("/x.mp4"), &info, &out, &opts, font, &ctx);
         tokio::runtime::Builder::new_current_thread()
             .build().unwrap().block_on(fut)
     }

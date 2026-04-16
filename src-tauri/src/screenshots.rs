@@ -1,11 +1,9 @@
 use crate::ffmpeg::{run_batch_cancellable, RunError};
-use crate::jobs::ProgressReporter;
+use crate::jobs::PipelineContext;
 use crate::layout::sample_timestamps;
 use crate::output_path::{jpeg_qv, screenshot_path, OutputFormat};
 use crate::video_info::VideoInfo;
 use std::path::Path;
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ScreenshotsOptions {
@@ -21,9 +19,7 @@ pub async fn generate(
     info: &VideoInfo,
     out_dir: &Path,
     opts: &ScreenshotsOptions,
-    ffmpeg: &Path,
-    cancelled: Arc<AtomicBool>,
-    reporter: &ProgressReporter<'_>,
+    ctx: &PipelineContext<'_>,
 ) -> Result<Vec<std::path::PathBuf>, RunError> {
     std::fs::create_dir_all(out_dir)?;
     let timestamps = sample_timestamps(info.duration_secs, opts.count);
@@ -46,9 +42,9 @@ pub async fn generate(
     }
 
     let mut done = 0u32;
-    run_batch_cancellable(ffmpeg, batch, cancelled.clone(), |_| {
+    run_batch_cancellable(ctx.ffmpeg, batch, ctx.cancelled.clone(), |_| {
         done += 1;
-        (reporter.emit)(done, total, &format!("Shot {}/{}", done, total));
+        (ctx.reporter.emit)(done, total, &format!("Shot {}/{}", done, total));
     }).await?;
 
     Ok(outputs)
