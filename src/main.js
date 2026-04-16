@@ -5,6 +5,7 @@ import { Store } from '@tauri-apps/plugin-store';
 import { createQueue, isVideo, getVideoExts } from './queue.js';
 import { readSheetOpts, readShotsOpts, readPreviewOpts, readASheetOpts, readOutput, readProduce, applyOpts, applyProduce } from './options.js';
 import { wireDropzone } from './dropzone.js';
+import { createMediaInfoModal, openMediaInfo, closeMediaInfo, isMediaInfoOpen } from './mediainfo.js';
 
 const OUTPUT_TYPES = [
   {
@@ -27,6 +28,7 @@ const OUTPUT_TYPES = [
 
 const queue = createQueue(document.getElementById('queue'), {
   onReveal: (path) => invoke('reveal_in_finder', { path }).catch(console.error),
+  onInfo: (path) => openMediaInfo(path),
   onChange: () => { refreshActionBar(); saveSettings(); },
 });
 let store;
@@ -42,6 +44,7 @@ function init() {
   wireEvents();
   updateQualityVisibility();
   refreshActionBar();
+  createMediaInfoModal();
   loadSettings();
   checkTools();
   getVideoExts(); // fire-and-forget prime so first drop doesn't pay a round-trip
@@ -129,7 +132,10 @@ function wireButtons() {
   document.getElementById('btn-settings').onclick = openSettings;
   document.getElementById('btn-settings-close').onclick = closeSettings;
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && isSettingsOpen()) closeSettings();
+    if (e.key === 'Escape') {
+      if (isMediaInfoOpen()) closeMediaInfo();
+      else if (isSettingsOpen()) closeSettings();
+    }
   });
 
   document.querySelectorAll('input[name="out"]').forEach(r => r.onchange = () => {

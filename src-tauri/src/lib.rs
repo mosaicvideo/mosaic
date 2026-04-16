@@ -69,6 +69,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::probe_video,
             commands::check_tools,
+            commands::check_mediainfo,
+            commands::run_mediainfo,
             commands::get_video_exts,
             commands::reveal_in_finder,
             commands::scan_folder,

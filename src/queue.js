@@ -13,7 +13,7 @@ export async function isVideo(path) {
   return !!m && exts.includes(m[1]);
 }
 
-export function createQueue(root, { onReveal, onChange } = {}) {
+export function createQueue(root, { onReveal, onInfo, onChange } = {}) {
   const items = new Map();
   const nodes = new Map();
 
@@ -85,14 +85,23 @@ export function createQueue(root, { onReveal, onChange } = {}) {
       onChange?.();
     };
 
-    el.append(idxEl, nameCell, progEl, statusCell, removeBtn);
+    const infoBtn = document.createElement('button');
+    infoBtn.className = 'row-info';
+    infoBtn.title = 'MediaInfo';
+    infoBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 2l.117 .007a1 1 0 0 1 .876 .876l.007 .117v4l.005 .15a2 2 0 0 0 1.838 1.844l.157 .006h4l.117 .007a1 1 0 0 1 .876 .876l.007 .117v9a3 3 0 0 1 -2.824 2.995l-.176 .005h-10a3 3 0 0 1 -2.995 -2.824l-.005 -.176v-14a3 3 0 0 1 2.824 -2.995l.176 -.005zm3 14h-6a1 1 0 0 0 0 2h6a1 1 0 0 0 0 -2m0 -4h-6a1 1 0 0 0 0 2h6a1 1 0 0 0 0 -2m-5 -4h-1a1 1 0 1 0 0 2h1a1 1 0 0 0 0 -2"/><path d="M19 7h-4l-.001 -4.001z"/></svg>';
+    infoBtn.onclick = (e) => {
+      e.stopPropagation();
+      onInfo?.(it.path);
+    };
 
-    el.onclick = () => {
+    el.append(idxEl, nameCell, progEl, statusCell, infoBtn, removeBtn);
+
+    nameEl.onclick = () => {
       const cur = items.get(it.id);
       if (cur?.status === 'Done' && cur.outputPath) onReveal?.(cur.outputPath);
     };
 
-    return { el, idxEl, nameEl, metaEl, progEl, statusCell, statusLabel, removeBtn, errorEl: null };
+    return { el, idxEl, nameEl, metaEl, progEl, statusCell, statusLabel, infoBtn, removeBtn, errorEl: null };
   }
 
   // Caller must pre-filter to videos; `add` only dedupes against the existing queue.
@@ -125,10 +134,10 @@ export function createQueue(root, { onReveal, onChange } = {}) {
       n.statusCell.className = `status-cell ${it.status}`;
       n.statusLabel.textContent = it.status;
       n.removeBtn.disabled = it.status === 'Running';
-      n.el.classList.toggle('revealable', it.status === 'Done' && !!it.outputPath);
+      n.nameEl.classList.toggle('revealable-name', it.status === 'Done' && !!it.outputPath);
     }
     if (it.outputPath && it.status === 'Done') {
-      n.el.classList.add('revealable');
+      n.nameEl.classList.add('revealable-name');
     }
     if ((it.progress || '') !== (before.progress || '')) {
       n.progEl.textContent = it.progress || '—';
@@ -165,7 +174,7 @@ export function createQueue(root, { onReveal, onChange } = {}) {
   return { add, update, clear, values, pending, size };
 }
 
-function basename(p) {
+export function basename(p) {
   const i = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
   return i >= 0 ? p.slice(i + 1) : p;
 }
