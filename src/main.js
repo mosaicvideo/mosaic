@@ -249,6 +249,7 @@ function wireEvents() {
       progress: 'Done',
       outputPath: payload.outputPath,
     });
+    updateOverall(payload.index, payload.total);
   });
   listen('job:file-failed', ({ payload }) => {
     queue.update(payload.fileId, { status: 'Failed', error: payload.error });

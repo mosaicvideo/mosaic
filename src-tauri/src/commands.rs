@@ -192,6 +192,7 @@ where
                 completed += 1;
                 let _ = app.emit("job:file-done", serde_json::json!({
                     "fileId": item.id,
+                    "index": i + 1, "total": total,
                     "outputPath": out.map(|p| p.to_string_lossy().into_owned()),
                 }));
             }
