@@ -29,7 +29,7 @@
 ### Task 1: Backend — `locate_mediainfo()`
 
 **Files:**
-- Modify: `src-tauri/src/ffmpeg.rs:76-107` (after existing `locate_tools()`)
+- Modify: `src-tauri/src/ffmpeg.rs:76-123` (after existing `locate_tools()`)
 
 - [ ] **Step 1: Write the test**
 
@@ -57,7 +57,7 @@ Expected: FAIL — `locate_mediainfo` is not defined yet.
 
 - [ ] **Step 3: Implement `locate_mediainfo()`**
 
-Add this function right after the `locate_tools()` function (after line 107) in `src-tauri/src/ffmpeg.rs`:
+Add this function right after the `locate_tools()` function (after line 123) in `src-tauri/src/ffmpeg.rs`:
 
 ```rust
 /// Locate the `mediainfo` CLI binary. Returns `None` if not installed.
@@ -97,30 +97,9 @@ Add these two commands in `src-tauri/src/commands.rs`, after the existing `check
 pub fn check_mediainfo() -> bool {
     crate::ffmpeg::locate_mediainfo().is_some()
 }
-
-#[tauri::command]
-pub async fn run_mediainfo(path: String) -> Result<String, String> {
-    let bin = crate::ffmpeg::locate_mediainfo().ok_or_else(|| {
-        "MediaInfo not found.\n\nInstall it:\n  macOS:   brew install mediainfo\n  Windows: winget install MediaArea.MediaInfo.CLI\n  Linux:   apt install mediainfo".to_string()
-    })?;
-    let output = std::process::Command::new(&bin)
-        .arg(&path)
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .output()
-        .map_err(|e| format!("Failed to run mediainfo: {}", e))?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("mediainfo exited with error: {}", stderr));
-    }
-    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
-}
 ```
 
-Note: Uses `std::process::Command` (not tokio) since MediaInfo completes near-instantly and doesn't need cancellation. On Windows, add the `CREATE_NO_WINDOW` flag. Update the import block at the top of the `run_mediainfo` function:
-
-Replace the `run_mediainfo` implementation with this platform-aware version:
+And the `run_mediainfo` command (uses `std::process::Command`, not tokio, since MediaInfo completes near-instantly and doesn't need cancellation; includes Windows `CREATE_NO_WINDOW` flag):
 
 ```rust
 #[tauri::command]
@@ -523,7 +502,7 @@ git commit -m "feat: wire MediaInfo modal into main app init and keyboard handli
 
 - [ ] **Step 1: Update queue grid columns**
 
-In `src/style.css`, change the queue `<li>` grid-template-columns (line 378) from:
+In `src/style.css`, change the queue `<li>` grid-template-columns (line 377) from:
 
 ```css
 grid-template-columns: 30px 1fr 140px 110px 28px;
