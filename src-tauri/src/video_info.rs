@@ -9,6 +9,9 @@ pub struct VideoStream {
     pub fps: f64,
     pub bit_rate: Option<u64>,
     pub is_hdr: bool,
+    /// Raw `color_transfer` tag from ffprobe (e.g. "smpte2084", "arib-std-b67").
+    /// Passed to `tonemap_filter` so zscale gets explicit input transfer params.
+    pub color_transfer: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -115,6 +118,7 @@ pub fn parse(json: &str) -> Result<VideoInfo, ProbeParseError> {
         fps: v.r_frame_rate.as_deref().and_then(parse_fraction).unwrap_or(0.0),
         bit_rate: v.bit_rate.as_deref().and_then(|s| s.parse().ok()),
         is_hdr,
+        color_transfer: v.color_transfer.clone(),
     };
 
     let audio = root.streams.iter().find(|s| s.codec_type == "audio").map(|a| AudioStream {

@@ -68,6 +68,7 @@ mod tests {
                 fps: 23.976,
                 bit_rate: Some(4_500_000),
                 is_hdr: false,
+                color_transfer: None,
             },
             audio: Some(AudioStream {
                 codec: "aac".into(),
