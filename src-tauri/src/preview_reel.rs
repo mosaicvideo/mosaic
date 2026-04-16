@@ -31,7 +31,7 @@ pub fn build_extract_args(
     let duration = desired.min(remaining);
 
     let mut args = crate::ffmpeg::base_args();
-    args.extend(crate::ffmpeg::seek_input_args(source, timestamp));
+    args.extend(crate::ffmpeg::seek_input_args_clip(source, timestamp));
     args.extend([
         "-t".into(), format!("{:.3}", duration),
     ]);
@@ -212,16 +212,10 @@ mod tests {
             &PathBuf::from("/tmp/out/clip_01.mp4"),
         );
         assert_eq!(args[0], "-hide_banner");
-        assert!(args.iter().any(|a| a == "-copyts"));
         assert!(args.iter().any(|a| a == "-an"));
-        // Dual -ss: input seek + output trim, both at the same timestamp
-        let ss_positions: Vec<usize> = args.iter().enumerate()
-            .filter(|(_, a)| a.as_str() == "-ss")
-            .map(|(i, _)| i)
-            .collect();
-        assert_eq!(ss_positions.len(), 2, "expected two -ss args");
-        assert_eq!(args[ss_positions[0] + 1], "12.500");
-        assert_eq!(args[ss_positions[1] + 1], "12.500");
+        // Clip seeking: single -ss (no -copyts) for compatibility with TS containers
+        assert!(!args.iter().any(|a| a == "-copyts"));
+        assert!(args.windows(2).any(|w| w[0] == "-ss" && w[1] == "12.500"));
         assert!(args.windows(2).any(|w| w[0] == "-i" && w[1] == "/v/movie.mkv"));
         assert!(args.windows(2).any(|w| w[0] == "-t" && w[1] == "5.000"));
         assert!(args.windows(2).any(|w| w[0] == "-vf" && w[1] == "scale=-2:480"));

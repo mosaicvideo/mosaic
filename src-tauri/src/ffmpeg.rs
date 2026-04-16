@@ -6,17 +6,28 @@ pub(crate) fn base_args() -> Vec<String> {
     BASE_ARGS.iter().map(|s| s.to_string()).collect()
 }
 
-/// Seeking + input args shared by all extraction pipelines.
-/// Uses dual `-ss` with `-copyts` for frame-accurate seeking:
-/// input-level `-ss` does fast keyframe seek, `-copyts` preserves original
-/// stream timestamps, output-level `-ss` trims to the exact frame.
-/// `-an` strips audio since no extraction pipeline produces audio output.
+/// Frame-accurate seeking for single-frame extraction (contact sheets, screenshots).
+/// Uses dual `-ss` with `-copyts`: input-level `-ss` does fast keyframe seek,
+/// `-copyts` preserves original stream timestamps, output-level `-ss` trims to
+/// the exact frame. `-an` strips audio since no extraction pipeline produces audio.
 pub fn seek_input_args(source: &std::path::Path, timestamp: f64) -> Vec<String> {
     vec![
         "-ss".into(), format!("{:.3}", timestamp),
         "-copyts".into(),
         "-i".into(), source.to_string_lossy().into_owned(),
         "-ss".into(), format!("{:.3}", timestamp),
+        "-an".into(),
+    ]
+}
+
+/// Fast seeking for multi-second clip extraction (preview reels, animated sheets).
+/// Uses simple input-level `-ss` without `-copyts` — avoids reference-frame loss
+/// on transport streams and other containers with sparse keyframes. A slightly
+/// imprecise clip start (nearest keyframe) is acceptable for clips.
+pub fn seek_input_args_clip(source: &std::path::Path, timestamp: f64) -> Vec<String> {
+    vec![
+        "-ss".into(), format!("{:.3}", timestamp),
+        "-i".into(), source.to_string_lossy().into_owned(),
         "-an".into(),
     ]
 }
@@ -140,6 +151,16 @@ mod tests {
             "-copyts",
             "-i", "/v/movie.mkv",
             "-ss", "42.500",
+            "-an",
+        ]);
+    }
+
+    #[test]
+    fn seek_input_args_clip_has_no_copyts() {
+        let args = seek_input_args_clip(std::path::Path::new("/v/movie.mkv"), 42.5);
+        assert_eq!(args, vec![
+            "-ss", "42.500",
+            "-i", "/v/movie.mkv",
             "-an",
         ]);
     }
