@@ -5,4 +5,5 @@ dist/
 *.log
 .vite/
 .claude/
+src-tauri/gen/
 icon-source.png
