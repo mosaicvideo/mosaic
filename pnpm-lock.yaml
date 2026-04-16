@@ -9,17 +9,17 @@ importers:
   .:
     dependencies:
       '@tauri-apps/api':
-        specifier: latest
+        specifier: ^2.10.1
         version: 2.10.1
       '@tauri-apps/plugin-dialog':
-        specifier: latest
+        specifier: ^2.7.0
         version: 2.7.0
       '@tauri-apps/plugin-store':
-        specifier: latest
+        specifier: ^2.4.2
         version: 2.4.2
     devDependencies:
       '@tauri-apps/cli':
-        specifier: latest
+        specifier: ^2.10.1
         version: 2.10.1
       vite:
         specifier: ^8.0.8
