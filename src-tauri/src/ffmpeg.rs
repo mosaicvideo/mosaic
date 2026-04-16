@@ -131,12 +131,18 @@ pub fn locate_mediainfo() -> Option<PathBuf> {
 
 /// Check whether the given ffmpeg binary supports a specific filter.
 fn has_filter(ffmpeg: &std::path::Path, name: &str) -> bool {
-    std::process::Command::new(ffmpeg)
-        .args(["-filters", "-hide_banner"])
+    let mut cmd = std::process::Command::new(ffmpeg);
+    cmd.args(["-filters", "-hide_banner"])
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .output()
+        .stderr(std::process::Stdio::null());
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd.output()
         .map(|o| String::from_utf8_lossy(&o.stdout).lines().any(|l| {
             l.split_whitespace().nth(1) == Some(name)
         }))
