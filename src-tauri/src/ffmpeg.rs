@@ -6,6 +6,21 @@ pub(crate) fn base_args() -> Vec<String> {
     BASE_ARGS.iter().map(|s| s.to_string()).collect()
 }
 
+/// Seeking + input args shared by all extraction pipelines.
+/// Uses dual `-ss` with `-copyts` for frame-accurate seeking:
+/// input-level `-ss` does fast keyframe seek, `-copyts` preserves original
+/// stream timestamps, output-level `-ss` trims to the exact frame.
+/// `-an` strips audio since no extraction pipeline produces audio output.
+pub fn seek_input_args(source: &std::path::Path, timestamp: f64) -> Vec<String> {
+    vec![
+        "-ss".into(), format!("{:.3}", timestamp),
+        "-copyts".into(),
+        "-i".into(), source.to_string_lossy().into_owned(),
+        "-ss".into(), format!("{:.3}", timestamp),
+        "-an".into(),
+    ]
+}
+
 /// Encoder flags used by every intermediate H.264 clip we produce for later
 /// filter-graph consumption (preview reel, animated contact sheet). Chosen
 /// for cheap re-encode + filter-graph compatibility: `yuv420p` for universal
@@ -86,6 +101,18 @@ mod tests {
         let t = locate_tools().unwrap();
         assert!(t.ffmpeg.exists());
         assert!(t.ffprobe.exists());
+    }
+
+    #[test]
+    fn seek_input_args_produces_dual_ss_with_copyts() {
+        let args = seek_input_args(std::path::Path::new("/v/movie.mkv"), 42.5);
+        assert_eq!(args, vec![
+            "-ss", "42.500",
+            "-copyts",
+            "-i", "/v/movie.mkv",
+            "-ss", "42.500",
+            "-an",
+        ]);
     }
 }
 
@@ -187,4 +214,51 @@ pub async fn run_cancellable(
             Err(RunError::Killed)
         }
     }
+}
+
+/// Run multiple ffmpeg commands concurrently with bounded parallelism.
+/// `on_done` fires in the caller's context with the original task index
+/// each time a command completes. First error aborts all remaining tasks.
+pub async fn run_batch_cancellable<F>(
+    exe: &std::path::Path,
+    batch: Vec<Vec<String>>,
+    cancelled: Arc<AtomicBool>,
+    mut on_done: F,
+) -> Result<(), RunError>
+where
+    F: FnMut(usize),
+{
+    let concurrency = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+        .min(8);
+    let sem = Arc::new(tokio::sync::Semaphore::new(concurrency));
+    let mut set = tokio::task::JoinSet::new();
+    let exe = exe.to_path_buf();
+
+    for (i, args) in batch.into_iter().enumerate() {
+        let sem = sem.clone();
+        let exe = exe.clone();
+        let cancelled = cancelled.clone();
+        set.spawn(async move {
+            let _permit = sem.acquire().await.map_err(|_| RunError::Killed)?;
+            run_cancellable(&exe, &args, cancelled).await?;
+            Ok::<usize, RunError>(i)
+        });
+    }
+
+    while let Some(result) = set.join_next().await {
+        match result {
+            Ok(Ok(i)) => on_done(i),
+            Ok(Err(e)) => {
+                set.abort_all();
+                return Err(e);
+            }
+            Err(join_err) => {
+                set.abort_all();
+                return Err(RunError::Io(std::io::Error::other(join_err)));
+            }
+        }
+    }
+    Ok(())
 }
