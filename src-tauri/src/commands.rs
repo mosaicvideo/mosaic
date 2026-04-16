@@ -23,8 +23,33 @@ pub fn check_tools() -> Result<(), String> {
     locate_tools().map(|_| ()).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub fn check_mediainfo() -> bool {
+    crate::ffmpeg::locate_mediainfo().is_some()
+}
+
+#[tauri::command]
+pub async fn run_mediainfo(path: String) -> Result<String, String> {
+    let bin = crate::ffmpeg::locate_mediainfo().ok_or_else(|| {
+        "MediaInfo not found.\n\nInstall it:\n  macOS:   brew install mediainfo\n  Windows: winget install MediaArea.MediaInfo.CLI\n  Linux:   apt install mediainfo".to_string()
+    })?;
+    run_capture(&bin, &[&path]).await.map_err(|e| e.to_string())
+}
+
 const VIDEO_EXTS: &[&str] = &[
-    "mp4", "mkv", "mov", "avi", "webm", "wmv", "flv", "m4v", "mpg", "mpeg", "ts", "m2ts",
+    // Common containers
+    "mp4", "mkv", "mov", "avi", "webm", "wmv", "flv", "m4v", "mpg", "mpeg",
+    "ts", "m2ts", "mts", "vob", "iso", "ogv", "ogm", "qt", "asf",
+    // Mobile / MP4 family
+    "3gp", "3g2", "f4v", "mj2",
+    // Legacy / regional
+    "rm", "rmvb", "divx", "swf", "nsv",
+    // Broadcast / professional
+    "mxf", "gxf", "r3d",
+    // Camcorder / capture / recording
+    "dv", "dif", "wtv", "nuv", "pva",
+    // Other containers
+    "nut", "vro", "m1v", "m2v", "mk3d", "fli", "flc", "ivf", "y4m",
 ];
 
 /// Cap folder-scan recursion depth so a pathological symlink loop can't hang the UI.
