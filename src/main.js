@@ -9,15 +9,15 @@ import { wireDropzone } from './dropzone.js';
 const OUTPUT_TYPES = [
   {
     key: 'shots', pretty: 'Screenshots', invokeCmd: 'generate_screenshots', read: readShotsOpts,
-    preview: s => `${(s.suffix || '_screenshot_')}01.${s.format === 'Jpeg' ? 'jpg' : 'png'}`,
+    preview: s => `${(s.suffix || '_screens_')}01.${s.format === 'Jpeg' ? 'jpg' : 'png'}`,
   },
   {
     key: 'sheet', pretty: 'Contact Sheets', invokeCmd: 'generate_contact_sheets', read: readSheetOpts,
-    preview: s => `${(s.suffix || '_contact_sheet')}.${s.format === 'Jpeg' ? 'jpg' : 'png'}`,
+    preview: s => `${(s.suffix || '_sheet')}.${s.format === 'Jpeg' ? 'jpg' : 'png'}`,
   },
   {
     key: 'preview', pretty: 'Animated Previews', invokeCmd: 'generate_preview_reels', read: readPreviewOpts,
-    preview: s => `${(s.suffix || ' - reel')}.${ {Webp:'webp', Webm:'webm', Gif:'gif'}[s.format] ?? 'webp' }`,
+    preview: s => `${(s.suffix || '_reel')}.${ {Webp:'webp', Webm:'webm', Gif:'gif'}[s.format] ?? 'webp' }`,
   },
   {
     key: 'asheet', pretty: 'Animated Contact Sheets', invokeCmd: 'generate_animated_sheets', read: readASheetOpts,
