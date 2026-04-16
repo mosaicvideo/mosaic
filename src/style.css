@@ -374,7 +374,7 @@ button:disabled {
 }
 #queue li {
   display: grid;
-  grid-template-columns: 30px 1fr 140px 110px 28px;
+  grid-template-columns: 30px 1fr 140px 110px 28px 28px;
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
@@ -383,11 +383,13 @@ button:disabled {
   animation: row-in 180ms cubic-bezier(.4,0,.2,1);
   transition: background var(--t-fast);
 }
-#queue li.revealable {
+.revealable-name {
   cursor: pointer;
+  border-radius: 2px;
+  transition: color var(--t-fast);
 }
-#queue li.revealable:hover {
-  background: var(--elev);
+.revealable-name:hover {
+  color: var(--accent);
 }
 .name-cell {
   display: grid;
@@ -473,6 +475,23 @@ button:disabled {
 }
 .row-remove:hover:not(:disabled) {
   color: var(--danger);
+  background: transparent;
+}
+
+.row-info {
+  padding: 2px;
+  color: var(--subtle);
+  border-color: transparent;
+  background: transparent;
+  display: inline-grid;
+  place-items: center;
+}
+.row-info svg {
+  width: 15px;
+  height: 15px;
+}
+.row-info:hover:not(:disabled) {
+  color: var(--text);
   background: transparent;
 }
 
@@ -797,6 +816,72 @@ input[type=number] { appearance: textfield; }
 #queue::-webkit-scrollbar-thumb:hover {
   background-color: var(--faint);
   background-clip: padding-box;
+}
+
+/* ─── MediaInfo modal ─── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 100;
+}
+.modal-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 101;
+  width: 90vw;
+  max-width: 700px;
+  max-height: 80vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.modal-close {
+  padding: 2px 8px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--subtle);
+  border-color: transparent;
+  background: transparent;
+}
+.modal-close:hover {
+  color: var(--text);
+}
+.modal-body {
+  overflow: auto;
+  padding: 16px;
+}
+.modal-body pre {
+  margin: 0;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre;
+  tab-size: 4;
 }
 
 .hidden { display: none !important; }
