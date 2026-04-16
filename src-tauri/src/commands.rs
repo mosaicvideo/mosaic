@@ -1,7 +1,7 @@
 use crate::animated_sheet::{self, AnimatedSheetOptions};
 use crate::contact_sheet::{self, SheetOptions};
 use crate::ffmpeg::{locate_tools, run_capture, RunError};
-use crate::jobs::{JobState, ProgressReporter};
+use crate::jobs::{JobState, PipelineContext, ProgressReporter};
 use crate::output_path::{animated_sheet_path, contact_sheet_path, preview_reel_path};
 use crate::preview_reel::{self, PreviewOptions};
 use crate::screenshots::{self, ScreenshotsOptions};
@@ -10,7 +10,6 @@ use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 #[tauri::command]
@@ -120,12 +119,13 @@ async fn run_job_loop<F>(
     app: AppHandle,
     state: Arc<JobState>,
     ffprobe: PathBuf,
+    ffmpeg: PathBuf,
     items: Vec<QueueItem>,
     output: OutputLocation,
     per_file: F,
 ) -> Result<(), String>
 where
-    F: for<'a> Fn(&'a Path, &'a VideoInfo, &'a Path, Arc<AtomicBool>, &'a ProgressReporter<'a>) -> PerFileFut<'a>,
+    F: for<'a> Fn(&'a Path, &'a VideoInfo, &'a Path, &'a PipelineContext<'a>) -> PerFileFut<'a>,
 {
     state.begin()?;
     let total = items.len();
@@ -161,8 +161,9 @@ where
             }));
         };
         let reporter = ProgressReporter { emit: &step_fn };
+        let ctx = PipelineContext { ffmpeg: &ffmpeg, cancelled: state.cancelled.clone(), reporter: &reporter };
 
-        match per_file(&source, &info, &out_dir, state.cancelled.clone(), &reporter).await {
+        match per_file(&source, &info, &out_dir, &ctx).await {
             Ok(out) => {
                 completed += 1;
                 let _ = app.emit("job:file-done", serde_json::json!({
@@ -202,16 +203,14 @@ pub async fn generate_contact_sheets(
     let font = app.path().resolve("assets/fonts/DejaVuSans.ttf", tauri::path::BaseDirectory::Resource)
         .map_err(|e| e.to_string())?;
     let state_inner = Arc::clone(state.inner());
-    let ffmpeg = tools.ffmpeg.clone();
 
-    run_job_loop(app.clone(), state_inner, tools.ffprobe, items, output,
-        move |source, info, out_dir, cancelled, reporter| {
+    run_job_loop(app.clone(), state_inner, tools.ffprobe, tools.ffmpeg, items, output,
+        move |source, info, out_dir, ctx| {
             let out = contact_sheet_path(source, out_dir, opts.format, &opts.suffix, &|p| p.exists());
             let opts = opts.clone();
-            let ffmpeg = ffmpeg.clone();
             let font = font.clone();
             Box::pin(async move {
-                contact_sheet::generate(source, info, &out, &opts, &ffmpeg, &font, cancelled, reporter).await?;
+                contact_sheet::generate(source, info, &out, &opts, &font, ctx).await?;
                 Ok(Some(out))
             })
         }).await
@@ -227,14 +226,12 @@ pub async fn generate_screenshots(
 ) -> Result<(), String> {
     let tools = locate_tools().map_err(|e| e.to_string())?;
     let state_inner = Arc::clone(state.inner());
-    let ffmpeg = tools.ffmpeg.clone();
 
-    run_job_loop(app.clone(), state_inner, tools.ffprobe, items, output,
-        move |source, info, out_dir, cancelled, reporter| {
+    run_job_loop(app.clone(), state_inner, tools.ffprobe, tools.ffmpeg, items, output,
+        move |source, info, out_dir, ctx| {
             let opts = opts.clone();
-            let ffmpeg = ffmpeg.clone();
             Box::pin(async move {
-                let paths = screenshots::generate(source, info, out_dir, &opts, &ffmpeg, cancelled, reporter).await?;
+                let paths = screenshots::generate(source, info, out_dir, &opts, ctx).await?;
                 Ok(paths.into_iter().next())
             })
         }).await
@@ -250,15 +247,13 @@ pub async fn generate_preview_reels(
 ) -> Result<(), String> {
     let tools = locate_tools().map_err(|e| e.to_string())?;
     let state_inner = Arc::clone(state.inner());
-    let ffmpeg = tools.ffmpeg.clone();
 
-    run_job_loop(app.clone(), state_inner, tools.ffprobe, items, output,
-        move |source, info, out_dir, cancelled, reporter| {
+    run_job_loop(app.clone(), state_inner, tools.ffprobe, tools.ffmpeg, items, output,
+        move |source, info, out_dir, ctx| {
             let out = preview_reel_path(source, out_dir, opts.format, &opts.suffix, &|p| p.exists());
             let opts = opts.clone();
-            let ffmpeg = ffmpeg.clone();
             Box::pin(async move {
-                preview_reel::generate(source, info, &out, &opts, &ffmpeg, cancelled, reporter).await?;
+                preview_reel::generate(source, info, &out, &opts, ctx).await?;
                 Ok(Some(out))
             })
         }).await
@@ -276,16 +271,14 @@ pub async fn generate_animated_sheets(
     let font = app.path().resolve("assets/fonts/DejaVuSans.ttf", tauri::path::BaseDirectory::Resource)
         .map_err(|e| e.to_string())?;
     let state_inner = Arc::clone(state.inner());
-    let ffmpeg = tools.ffmpeg.clone();
 
-    run_job_loop(app.clone(), state_inner, tools.ffprobe, items, output,
-        move |source, info, out_dir, cancelled, reporter| {
+    run_job_loop(app.clone(), state_inner, tools.ffprobe, tools.ffmpeg, items, output,
+        move |source, info, out_dir, ctx| {
             let out = animated_sheet_path(source, out_dir, &opts.suffix, &|p| p.exists());
             let opts = opts.clone();
-            let ffmpeg = ffmpeg.clone();
             let font = font.clone();
             Box::pin(async move {
-                animated_sheet::generate(source, info, &out, &opts, &ffmpeg, &font, cancelled, reporter).await?;
+                animated_sheet::generate(source, info, &out, &opts, &font, ctx).await?;
                 Ok(Some(out))
             })
         }).await

@@ -44,9 +44,13 @@ async fn end_to_end_contact_sheet_and_screenshots() {
         suffix: String::new(),
         theme: mosaic_lib::output_path::SheetTheme::Dark,
     };
+    let ctx = mosaic_lib::jobs::PipelineContext {
+        ffmpeg: &tools.ffmpeg,
+        cancelled: Arc::new(AtomicBool::new(false)),
+        reporter: &reporter,
+    };
     mosaic_lib::contact_sheet::generate(
-        &fixture, &info, &out, &opts, &tools.ffmpeg, &font,
-        Arc::new(AtomicBool::new(false)), &reporter,
+        &fixture, &info, &out, &opts, &font, &ctx,
     ).await.unwrap();
     assert!(out.exists(), "sheet not written");
     assert!(std::fs::metadata(&out).unwrap().len() > 1000);
@@ -58,9 +62,13 @@ async fn end_to_end_contact_sheet_and_screenshots() {
         format: mosaic_lib::output_path::OutputFormat::Png, jpeg_quality: 92,
         suffix: String::new(),
     };
+    let ctx2 = mosaic_lib::jobs::PipelineContext {
+        ffmpeg: &tools.ffmpeg,
+        cancelled: Arc::new(AtomicBool::new(false)),
+        reporter: &reporter,
+    };
     let outs = mosaic_lib::screenshots::generate(
-        &fixture, &info, &shots_dir, &shots_opts, &tools.ffmpeg,
-        Arc::new(AtomicBool::new(false)), &reporter,
+        &fixture, &info, &shots_dir, &shots_opts, &ctx2,
     ).await.unwrap();
     assert_eq!(outs.len(), 3);
     for p in outs { assert!(p.exists()); }
@@ -93,9 +101,13 @@ async fn end_to_end_animated_preview_reel() {
         format: mosaic_lib::output_path::ReelFormat::Webp,
     };
 
+    let ctx = mosaic_lib::jobs::PipelineContext {
+        ffmpeg: &tools.ffmpeg,
+        cancelled: Arc::new(AtomicBool::new(false)),
+        reporter: &reporter,
+    };
     mosaic_lib::preview_reel::generate(
-        &fixture, &info, &out, &opts, &tools.ffmpeg,
-        Arc::new(AtomicBool::new(false)), &reporter,
+        &fixture, &info, &out, &opts, &ctx,
     ).await.unwrap();
 
     assert!(out.exists(), "reel not written");
@@ -127,9 +139,13 @@ async fn end_to_end_animated_preview_reel_webm() {
         format: mosaic_lib::output_path::ReelFormat::Webm,
     };
 
+    let ctx = mosaic_lib::jobs::PipelineContext {
+        ffmpeg: &tools.ffmpeg,
+        cancelled: Arc::new(AtomicBool::new(false)),
+        reporter: &reporter,
+    };
     mosaic_lib::preview_reel::generate(
-        &fixture, &info, &out, &opts, &tools.ffmpeg,
-        Arc::new(AtomicBool::new(false)), &reporter,
+        &fixture, &info, &out, &opts, &ctx,
     ).await.unwrap();
 
     assert!(out.exists(), "webm reel not written");
@@ -173,9 +189,13 @@ async fn end_to_end_animated_contact_sheet() {
         theme: mosaic_lib::output_path::SheetTheme::Dark,
     };
 
+    let ctx = mosaic_lib::jobs::PipelineContext {
+        ffmpeg: &tools.ffmpeg,
+        cancelled: Arc::new(AtomicBool::new(false)),
+        reporter: &reporter,
+    };
     mosaic_lib::animated_sheet::generate(
-        &fixture, &info, &out, &opts, &tools.ffmpeg, &font,
-        Arc::new(AtomicBool::new(false)), &reporter,
+        &fixture, &info, &out, &opts, &font, &ctx,
     ).await.unwrap();
 
     assert!(out.exists(), "animated sheet not written");
@@ -207,9 +227,13 @@ async fn end_to_end_animated_contact_sheet_no_header() {
         theme: mosaic_lib::output_path::SheetTheme::Light,
     };
 
+    let ctx = mosaic_lib::jobs::PipelineContext {
+        ffmpeg: &tools.ffmpeg,
+        cancelled: Arc::new(AtomicBool::new(false)),
+        reporter: &reporter,
+    };
     mosaic_lib::animated_sheet::generate(
-        &fixture, &info, &out, &opts, &tools.ffmpeg, &font,
-        Arc::new(AtomicBool::new(false)), &reporter,
+        &fixture, &info, &out, &opts, &font, &ctx,
     ).await.unwrap();
 
     assert!(out.exists(), "bare animated sheet not written");
@@ -241,9 +265,13 @@ async fn end_to_end_animated_preview_reel_gif() {
         format: mosaic_lib::output_path::ReelFormat::Gif,
     };
 
+    let ctx = mosaic_lib::jobs::PipelineContext {
+        ffmpeg: &tools.ffmpeg,
+        cancelled: Arc::new(AtomicBool::new(false)),
+        reporter: &reporter,
+    };
     mosaic_lib::preview_reel::generate(
-        &fixture, &info, &out, &opts, &tools.ffmpeg,
-        Arc::new(AtomicBool::new(false)), &reporter,
+        &fixture, &info, &out, &opts, &ctx,
     ).await.unwrap();
 
     assert!(out.exists(), "gif reel not written");

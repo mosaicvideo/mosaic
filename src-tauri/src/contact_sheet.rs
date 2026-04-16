@@ -1,13 +1,11 @@
 use crate::drawtext::{font_for_ffmpeg, format_hms_escaped, header_overlay, timestamp_overlay};
 use crate::ffmpeg::{run_batch_cancellable, run_cancellable, RunError};
 use crate::header::build_header_lines;
-use crate::jobs::ProgressReporter;
+use crate::jobs::PipelineContext;
 use crate::layout::{compute_sheet_layout, header_height, line_height, sample_timestamps};
 use crate::output_path::{jpeg_qv, OutputFormat, SheetTheme};
 use crate::video_info::VideoInfo;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
 use tempfile::TempDir;
 
 /// ffmpeg's tile filter consumes its inputs as a video stream; this is the input
@@ -37,10 +35,8 @@ pub async fn generate(
     info: &VideoInfo,
     output_path: &Path,
     opts: &SheetOptions,
-    ffmpeg: &Path,
     font: &Path,
-    cancelled: Arc<AtomicBool>,
-    reporter: &ProgressReporter<'_>,
+    ctx: &PipelineContext<'_>,
 ) -> Result<(), RunError> {
     let layout = compute_sheet_layout(opts.cols, opts.rows, opts.width, opts.gap);
     let timestamps = sample_timestamps(info.duration_secs, layout.total);
@@ -77,13 +73,13 @@ pub async fn generate(
     }
 
     let mut done = 0u32;
-    run_batch_cancellable(ffmpeg, batch, cancelled.clone(), |_| {
+    run_batch_cancellable(ctx.ffmpeg, batch, ctx.cancelled.clone(), |_| {
         done += 1;
-        (reporter.emit)(done, total_steps, &format!("Thumb {}/{}", done, layout.total));
+        (ctx.reporter.emit)(done, total_steps, &format!("Thumb {}/{}", done, layout.total));
     }).await?;
 
     // 2. Tile
-    (reporter.emit)(layout.total + 1, total_steps, "Tiling grid");
+    (ctx.reporter.emit)(layout.total + 1, total_steps, "Tiling grid");
     let grid = tmp.path().join("grid.png");
     let tile_input = tmp.path().join(format!("thumb_%0{}d.png", width_digits));
     let mut args = crate::ffmpeg::base_args();
@@ -98,13 +94,13 @@ pub async fn generate(
         "-frames:v".into(), "1".into(),
         grid.to_string_lossy().into_owned(),
     ]);
-    run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
+    run_cancellable(ctx.ffmpeg, &args, ctx.cancelled.clone()).await?;
 
     // 3. Header (optional) + 4. Finalize. The result of this block is a source
     // path on disk (`final_src`) that we then rename/copy into `output_path`.
     let final_src: PathBuf;
     if opts.show_header {
-        (reporter.emit)(layout.total + 2, total_steps, "Header");
+        (ctx.reporter.emit)(layout.total + 2, total_steps, "Header");
         let display = source.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
         let (l1, l2) = build_header_lines(info, &display);
         let h = header_height(opts.header_font_size, opts.gap);
@@ -119,9 +115,9 @@ pub async fn generate(
             "-frames:v".into(), "1".into(),
             header.to_string_lossy().into_owned(),
         ]);
-        run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
+        run_cancellable(ctx.ffmpeg, &args, ctx.cancelled.clone()).await?;
 
-        (reporter.emit)(total_steps, total_steps, "Composing");
+        (ctx.reporter.emit)(total_steps, total_steps, "Composing");
         let final_tmp = tmp.path().join(format!("final.{}", opts.format.ext()));
         let mut args = crate::ffmpeg::base_args();
         args.extend([
@@ -134,10 +130,10 @@ pub async fn generate(
             args.extend(["-q:v".into(), format!("{}", jpeg_qv(opts.jpeg_quality))]);
         }
         args.push(final_tmp.to_string_lossy().into_owned());
-        run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
+        run_cancellable(ctx.ffmpeg, &args, ctx.cancelled.clone()).await?;
         final_src = final_tmp;
     } else {
-        (reporter.emit)(total_steps, total_steps, "Finalizing");
+        (ctx.reporter.emit)(total_steps, total_steps, "Finalizing");
         match opts.format {
             OutputFormat::Png => {
                 // Grid is already PNG; no re-encode needed. Reuse it as-is.
@@ -153,7 +149,7 @@ pub async fn generate(
                     "-q:v".into(), format!("{}", jpeg_qv(opts.jpeg_quality)),
                     final_tmp.to_string_lossy().into_owned(),
                 ]);
-                run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
+                run_cancellable(ctx.ffmpeg, &args, ctx.cancelled.clone()).await?;
                 final_src = final_tmp;
             }
         }

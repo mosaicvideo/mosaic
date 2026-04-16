@@ -1,10 +1,8 @@
 use crate::ffmpeg::{run_batch_cancellable, RunError};
-use crate::jobs::ProgressReporter;
+use crate::jobs::PipelineContext;
 use crate::output_path::{vp9_crf, ReelFormat};
 use crate::video_info::VideoInfo;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PreviewOptions {
@@ -125,9 +123,7 @@ pub async fn generate(
     info: &VideoInfo,
     out: &Path,
     opts: &PreviewOptions,
-    ffmpeg: &Path,
-    cancelled: Arc<AtomicBool>,
-    reporter: &ProgressReporter<'_>,
+    ctx: &PipelineContext<'_>,
 ) -> Result<(), RunError> {
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent)?;
@@ -155,17 +151,17 @@ pub async fn generate(
     }
 
     let mut done = 0u32;
-    run_batch_cancellable(ffmpeg, batch, cancelled.clone(), |_| {
+    run_batch_cancellable(ctx.ffmpeg, batch, ctx.cancelled.clone(), |_| {
         done += 1;
-        (reporter.emit)(done, total_steps, &format!("Reel clip {}/{}", done, timestamps.len()));
+        (ctx.reporter.emit)(done, total_steps, &format!("Reel clip {}/{}", done, timestamps.len()));
     }).await?;
 
-    (reporter.emit)(total_steps, total_steps, "Stitching reel");
+    (ctx.reporter.emit)(total_steps, total_steps, "Stitching reel");
     let concat_list = tmp.path().join("concat.txt");
     std::fs::write(&concat_list, render_concat_list(&clips))?;
 
     let args = build_stitch_args(&concat_list, opts.fps, opts.quality, opts.format, out);
-    crate::ffmpeg::run_cancellable(ffmpeg, &args, cancelled.clone()).await?;
+    crate::ffmpeg::run_cancellable(ctx.ffmpeg, &args, ctx.cancelled.clone()).await?;
 
     Ok(())
 }
