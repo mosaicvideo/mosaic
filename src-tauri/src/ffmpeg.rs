@@ -38,8 +38,10 @@ pub fn seek_input_args_clip(source: &std::path::Path, timestamp: f64) -> Vec<Str
 ///
 /// Only tonemaps when `color_transfer` is an explicit HDR transfer (PQ or HLG).
 /// Streams with `"unknown"` or absent transfer — common in DV Profile 5 where
-/// the base layer is SDR-compatible — are left untouched; applying PQ
-/// tonemapping to non-PQ pixels produces garbage or zscale errors.
+/// the base layer is SDR-compatible — are left untouched. Note: DV Profile 5
+/// files may still exhibit color distortion (green/purple tint) due to ffmpeg's
+/// HEVC decoder applying DV RPU reshaping at decode time; this is a decoder
+/// limitation that no post-decode filter can fix.
 pub fn tonemap_filter(has_zscale: bool, color_transfer: Option<&str>) -> Option<String> {
     use crate::video_info::{PQ_TRANSFER, HLG_TRANSFER};
     if !has_zscale { return None; }
@@ -188,7 +190,6 @@ mod tests {
 
     #[test]
     fn tonemap_filter_returns_chain_for_pq() {
-        assert!(tonemap_filter(true, Some("smpte2084")).is_some());
         let chain = tonemap_filter(true, Some("smpte2084")).unwrap();
         assert!(chain.contains("tonemap=hable"));
         assert!(chain.contains("tin=smpte2084"));
