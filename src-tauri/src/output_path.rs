@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
-pub const DEFAULT_SHEET_SUFFIX: &str = "_contact_sheet";
-pub const DEFAULT_SHOTS_SUFFIX: &str = "_screenshot_";
-pub const DEFAULT_PREVIEW_SUFFIX: &str = " - reel";
+pub const DEFAULT_SHEET_SUFFIX: &str = "_sheet";
+pub const DEFAULT_SHOTS_SUFFIX: &str = "_screens_";
+pub const DEFAULT_PREVIEW_SUFFIX: &str = "_reel";
 pub const DEFAULT_ANIMATED_SHEET_SUFFIX: &str = "_animated_sheet";
 
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -154,7 +154,7 @@ mod tests {
             "",
             &|_| false,
         );
-        assert_eq!(p, PathBuf::from("/videos/movie_contact_sheet.png"));
+        assert_eq!(p, PathBuf::from("/videos/movie_sheet.png"));
     }
 
     #[test]
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn sheet_appends_suffix_when_file_exists() {
-        let taken: HashSet<PathBuf> = ["/out/movie_contact_sheet.png", "/out/movie_contact_sheet (1).png"]
+        let taken: HashSet<PathBuf> = ["/out/movie_sheet.png", "/out/movie_sheet (1).png"]
             .into_iter().map(PathBuf::from).collect();
         let p = contact_sheet_path(
             Path::new("/videos/movie.mkv"),
@@ -180,7 +180,7 @@ mod tests {
             "",
             &|p| taken.contains(p),
         );
-        assert_eq!(p, PathBuf::from("/out/movie_contact_sheet (2).png"));
+        assert_eq!(p, PathBuf::from("/out/movie_sheet (2).png"));
     }
 
     #[test]
@@ -205,7 +205,7 @@ mod tests {
             7,
             100,
         );
-        assert_eq!(p, PathBuf::from("/v/clip_screenshot_007.png"));
+        assert_eq!(p, PathBuf::from("/v/clip_screens_007.png"));
     }
 
     #[test]
@@ -218,7 +218,7 @@ mod tests {
             3,
             5,
         );
-        assert_eq!(p, PathBuf::from("/v/clip_screenshot_03.png"));
+        assert_eq!(p, PathBuf::from("/v/clip_screens_03.png"));
     }
 
     #[test]
@@ -243,7 +243,7 @@ mod tests {
             "",
             &|_| false,
         );
-        assert_eq!(p, PathBuf::from("/videos/movie - reel.webp"));
+        assert_eq!(p, PathBuf::from("/videos/movie_reel.webp"));
     }
 
     #[test]
@@ -260,7 +260,7 @@ mod tests {
 
     #[test]
     fn preview_reel_appends_suffix_when_file_exists() {
-        let taken: HashSet<PathBuf> = ["/out/movie - reel.webp", "/out/movie - reel (1).webp"]
+        let taken: HashSet<PathBuf> = ["/out/movie_reel.webp", "/out/movie_reel (1).webp"]
             .into_iter().map(PathBuf::from).collect();
         let p = preview_reel_path(
             Path::new("/videos/movie.mkv"),
@@ -269,7 +269,7 @@ mod tests {
             "",
             &|p| taken.contains(p),
         );
-        assert_eq!(p, PathBuf::from("/out/movie - reel (2).webp"));
+        assert_eq!(p, PathBuf::from("/out/movie_reel (2).webp"));
     }
 
     #[test]
@@ -281,7 +281,7 @@ mod tests {
             "",
             &|_| false,
         );
-        assert_eq!(p, PathBuf::from("/v/movie - reel.webm"));
+        assert_eq!(p, PathBuf::from("/v/movie_reel.webm"));
     }
 
     #[test]
@@ -293,7 +293,7 @@ mod tests {
             "",
             &|_| false,
         );
-        assert_eq!(p, PathBuf::from("/v/movie - reel.gif"));
+        assert_eq!(p, PathBuf::from("/v/movie_reel.gif"));
     }
 
     #[test]
