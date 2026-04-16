@@ -25,6 +25,7 @@ pub async fn generate(
     let timestamps = sample_timestamps(info.duration_secs, opts.count);
     let total = opts.count;
 
+    let tonemap = crate::ffmpeg::tonemap_filter(ctx.has_zscale, info.video.color_transfer.as_deref());
     let mut batch = Vec::with_capacity(timestamps.len());
     let mut outputs = Vec::with_capacity(timestamps.len());
     for (i, ts) in timestamps.iter().enumerate() {
@@ -33,8 +34,8 @@ pub async fn generate(
         let mut args = crate::ffmpeg::base_args();
         args.extend(crate::ffmpeg::seek_input_args(source, *ts));
         args.extend(["-frames:v".into(), "1".into()]);
-        if let Some(tm) = crate::ffmpeg::tonemap_filter(info.video.is_hdr, ctx.has_zscale, info.video.color_transfer.as_deref()) {
-            args.extend(["-vf".into(), tm]);
+        if let Some(ref tm) = tonemap {
+            args.extend(["-vf".into(), tm.clone()]);
         }
         if matches!(opts.format, OutputFormat::Jpeg) {
             args.extend(["-q:v".into(), format!("{}", jpeg_qv(opts.jpeg_quality))]);
