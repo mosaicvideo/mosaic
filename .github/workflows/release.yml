@@ -62,7 +62,29 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Mosaic ${{ github.ref_name }}"
-          releaseBody: "See [CHANGELOG.md](https://github.com/bhutanio/mosaic/blob/main/CHANGELOG.md) for details."
+          releaseBody: |
+            ## What's New
+
+            Initial release of Mosaic — a cross-platform desktop app for generating video contact sheets, screenshots, animated preview reels, and animated contact sheets.
+
+            ### Features
+
+            - Contact sheet generation with configurable grid, timestamps, header, and themes (PNG/JPEG)
+            - Individual screenshot extraction at evenly-spaced timestamps (PNG/JPEG)
+            - Animated preview reels stitched from short video clips (WebP/WebM/GIF)
+            - Animated contact sheets with grid of animated clips (WebP)
+            - Drag-and-drop batch queue with per-file progress and cancel support
+            - Dark/light theme following system preference
+            - Configurable output quality, fonts, suffixes, and output location
+            - Frame-accurate seeking with parallel extraction
+
+            ### Requirements
+
+            **[ffmpeg](https://ffmpeg.org/) must be installed separately.** The app checks for `ffmpeg` and `ffprobe` on your PATH at startup.
+
+            ### Notes
+
+            Builds are **unsigned**. macOS users: right-click → Open to bypass Gatekeeper. Windows users: click through the SmartScreen warning.
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.tauri-args }}
