@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+/// Transfer functions that indicate HDR content requiring tonemapping.
+pub const PQ_TRANSFER: &str = "smpte2084";
+pub const HLG_TRANSFER: &str = "arib-std-b67";
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VideoStream {
     pub codec: String,
@@ -105,7 +109,7 @@ pub fn parse(json: &str) -> Result<VideoInfo, ProbeParseError> {
         .find(|s| s.codec_type == "video")
         .ok_or(ProbeParseError::NoVideo)?;
 
-    let is_hdr = matches!(v.color_transfer.as_deref(), Some("smpte2084") | Some("arib-std-b67"))
+    let is_hdr = matches!(v.color_transfer.as_deref(), Some(PQ_TRANSFER) | Some(HLG_TRANSFER))
         || v.side_data_list.as_ref().is_some_and(|list|
             list.iter().any(|sd| sd.side_data_type.as_deref() == Some("DOVI configuration record"))
         );

@@ -33,24 +33,20 @@ pub fn seek_input_args_clip(source: &std::path::Path, timestamp: f64) -> Vec<Str
 }
 
 /// Returns the zscale/tonemap filter chain for HDR→SDR conversion, or `None`
-/// for SDR content, when the ffmpeg build lacks zscale, or when the stream
-/// has no confirmed HDR transfer function.
+/// when the ffmpeg build lacks zscale or the stream has no confirmed HDR
+/// transfer function.
 ///
-/// Only tonemaps when `color_transfer` is an explicit HDR transfer (`smpte2084`
-/// for HDR10/DV, `arib-std-b67` for HLG). Streams with `"unknown"` or absent
-/// transfer — common in DV Profile 5 where the base layer is SDR-compatible —
-/// are left untouched; applying PQ tonemapping to non-PQ pixels produces
-/// garbage or triggers zscale "no path between colorspaces" errors.
-pub fn tonemap_filter(is_hdr: bool, has_zscale: bool, color_transfer: Option<&str>) -> Option<String> {
-    if !is_hdr || !has_zscale { return None; }
+/// Only tonemaps when `color_transfer` is an explicit HDR transfer (PQ or HLG).
+/// Streams with `"unknown"` or absent transfer — common in DV Profile 5 where
+/// the base layer is SDR-compatible — are left untouched; applying PQ
+/// tonemapping to non-PQ pixels produces garbage or zscale errors.
+pub fn tonemap_filter(has_zscale: bool, color_transfer: Option<&str>) -> Option<String> {
+    use crate::video_info::{PQ_TRANSFER, HLG_TRANSFER};
+    if !has_zscale { return None; }
 
     let tin = match color_transfer {
-        Some("smpte2084") => "smpte2084",
-        Some("arib-std-b67") => "arib-std-b67",
-        // "unknown", absent, or any other value: the stream lacks a confirmed
-        // HDR transfer function. Skip tonemapping — the content is either
-        // SDR-compatible (DV Profile 5 base layer) or has metadata too broken
-        // for zscale to work with.
+        Some(PQ_TRANSFER) => PQ_TRANSFER,
+        Some(HLG_TRANSFER) => HLG_TRANSFER,
         _ => return None,
     };
     Some(format!(
@@ -191,9 +187,9 @@ mod tests {
     }
 
     #[test]
-    fn tonemap_filter_returns_chain_for_hdr_with_zscale() {
-        assert!(tonemap_filter(true, true, Some("smpte2084")).is_some());
-        let chain = tonemap_filter(true, true, Some("smpte2084")).unwrap();
+    fn tonemap_filter_returns_chain_for_pq() {
+        assert!(tonemap_filter(true, Some("smpte2084")).is_some());
+        let chain = tonemap_filter(true, Some("smpte2084")).unwrap();
         assert!(chain.contains("tonemap=hable"));
         assert!(chain.contains("tin=smpte2084"));
         assert!(chain.contains("min=bt2020nc"));
@@ -201,33 +197,30 @@ mod tests {
     }
 
     #[test]
-    fn tonemap_filter_uses_hlg_transfer_for_arib() {
-        let chain = tonemap_filter(true, true, Some("arib-std-b67")).unwrap();
+    fn tonemap_filter_returns_chain_for_hlg() {
+        let chain = tonemap_filter(true, Some("arib-std-b67")).unwrap();
         assert!(chain.contains("tin=arib-std-b67"));
     }
 
     #[test]
     fn tonemap_filter_skips_when_transfer_missing() {
-        // DV detected via side data but no explicit transfer tag — base layer
-        // is likely SDR-compatible; tonemapping would fail or produce garbage.
-        assert!(tonemap_filter(true, true, None).is_none());
+        assert!(tonemap_filter(true, None).is_none());
     }
 
     #[test]
     fn tonemap_filter_skips_when_transfer_unknown() {
-        // DV Profile 5: is_hdr=true from DOVI side data, but color_transfer
-        // is "unknown" — base layer is SDR, must not attempt tonemap.
-        assert!(tonemap_filter(true, true, Some("unknown")).is_none());
+        // DV Profile 5: color_transfer is "unknown" — base layer is SDR.
+        assert!(tonemap_filter(true, Some("unknown")).is_none());
     }
 
     #[test]
-    fn tonemap_filter_returns_none_for_sdr() {
-        assert!(tonemap_filter(false, true, None).is_none());
+    fn tonemap_filter_skips_sdr_transfer() {
+        assert!(tonemap_filter(true, Some("bt709")).is_none());
     }
 
     #[test]
     fn tonemap_filter_returns_none_when_zscale_missing() {
-        assert!(tonemap_filter(true, false, Some("smpte2084")).is_none());
+        assert!(tonemap_filter(false, Some("smpte2084")).is_none());
     }
 
     #[test]
