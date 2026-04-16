@@ -32,17 +32,29 @@ pub fn seek_input_args_clip(source: &std::path::Path, timestamp: f64) -> Vec<Str
     ]
 }
 
-/// Returns the zscale/tonemap filter chain for HDR→SDR conversion, or `None`
-/// when the ffmpeg build lacks zscale or the stream has no confirmed HDR
-/// transfer function.
+/// IPT-PQ-C2 → BT.709 color correction matrix for Dolby Vision Profile 5.
+/// Derived from libplacebo's IPT coefficients (Ebner & Fairchild 1998 inverse
+/// matrix, BT.2020 LMS→RGB Hunt-Pointer-Estevez transform, 2% crosstalk).
+/// Correct hues, slightly washed out (PQ gamma not inverted — acceptable for
+/// thumbnails). Works on any ffmpeg build, no zscale/GPU required.
+const DV_P5_COLOR_MATRIX: &str = "colorchannelmixer=\
+    rr=0.2938:rg=0.3557:rb=0.3504:\
+    gr=0.3508:gg=0.7312:gb=-0.0821:\
+    br=-0.1610:bg=1.0337:bb=0.1275";
+
+/// Returns the video filter for HDR/DV color correction, or `None` for SDR.
 ///
-/// Only tonemaps when `color_transfer` is an explicit HDR transfer (PQ or HLG).
-/// Streams with `"unknown"` or absent transfer — common in DV Profile 5 where
-/// the base layer is SDR-compatible — are left untouched. Note: DV Profile 5
-/// files may still exhibit color distortion (green/purple tint) due to ffmpeg's
-/// HEVC decoder applying DV RPU reshaping at decode time; this is a decoder
-/// limitation that no post-decode filter can fix.
-pub fn tonemap_filter(has_zscale: bool, color_transfer: Option<&str>) -> Option<String> {
+/// - **DV Profile 5**: colorchannelmixer (IPT-PQ-C2 → BT.709, no zscale needed)
+/// - **PQ/HLG with zscale**: full zscale tonemap chain
+/// - **Everything else**: None
+pub fn tonemap_filter(has_zscale: bool, color_transfer: Option<&str>, dv_profile: Option<u8>) -> Option<String> {
+    // DV Profile 5 uses IPT-PQ-C2 color space that ffmpeg misinterprets as
+    // YCbCr, producing green/purple output. Apply the correction matrix first
+    // since DV P5 has color_transfer=None which would fall through to None.
+    if dv_profile == Some(5) {
+        return Some(DV_P5_COLOR_MATRIX.into());
+    }
+
     use crate::video_info::{PQ_TRANSFER, HLG_TRANSFER};
     if !has_zscale { return None; }
 
@@ -196,7 +208,7 @@ mod tests {
 
     #[test]
     fn tonemap_filter_returns_chain_for_pq() {
-        let chain = tonemap_filter(true, Some("smpte2084")).unwrap();
+        let chain = tonemap_filter(true, Some("smpte2084"), None).unwrap();
         assert!(chain.contains("tonemap=hable"));
         assert!(chain.contains("tin=smpte2084"));
         assert!(chain.contains("min=bt2020nc"));
@@ -205,29 +217,44 @@ mod tests {
 
     #[test]
     fn tonemap_filter_returns_chain_for_hlg() {
-        let chain = tonemap_filter(true, Some("arib-std-b67")).unwrap();
+        let chain = tonemap_filter(true, Some("arib-std-b67"), None).unwrap();
         assert!(chain.contains("tin=arib-std-b67"));
     }
 
     #[test]
     fn tonemap_filter_skips_when_transfer_missing() {
-        assert!(tonemap_filter(true, None).is_none());
+        assert!(tonemap_filter(true, None, None).is_none());
     }
 
     #[test]
     fn tonemap_filter_skips_when_transfer_unknown() {
-        // DV Profile 5: color_transfer is "unknown" — base layer is SDR.
-        assert!(tonemap_filter(true, Some("unknown")).is_none());
+        assert!(tonemap_filter(true, Some("unknown"), None).is_none());
     }
 
     #[test]
     fn tonemap_filter_skips_sdr_transfer() {
-        assert!(tonemap_filter(true, Some("bt709")).is_none());
+        assert!(tonemap_filter(true, Some("bt709"), None).is_none());
     }
 
     #[test]
     fn tonemap_filter_returns_none_when_zscale_missing() {
-        assert!(tonemap_filter(false, Some("smpte2084")).is_none());
+        assert!(tonemap_filter(false, Some("smpte2084"), None).is_none());
+    }
+
+    #[test]
+    fn tonemap_filter_returns_ccm_for_dv_p5() {
+        let chain = tonemap_filter(false, None, Some(5)).unwrap();
+        assert!(chain.contains("colorchannelmixer"));
+        assert!(chain.contains("rr=0.2938"));
+        assert!(!chain.contains("tonemap"));
+    }
+
+    #[test]
+    fn tonemap_filter_dv_p5_ignores_zscale() {
+        // DV P5 correction works without zscale
+        let a = tonemap_filter(false, None, Some(5)).unwrap();
+        let b = tonemap_filter(true, None, Some(5)).unwrap();
+        assert_eq!(a, b);
     }
 
     #[test]

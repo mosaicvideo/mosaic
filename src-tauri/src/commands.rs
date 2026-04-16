@@ -319,7 +319,7 @@ pub(crate) async fn probe(ffprobe: &std::path::Path, path: &str) -> Result<Video
         "-v", "error",
         "-show_entries", "format=filename,duration,size,bit_rate",
         "-show_entries", "stream=codec_name,codec_type,width,height,r_frame_rate,sample_rate,channels,bit_rate,profile,color_transfer",
-        "-show_entries", "stream_side_data=side_data_type",
+        "-show_entries", "stream_side_data=side_data_type,dv_profile",
         "-of", "json",
         path,
     ];
