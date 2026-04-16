@@ -51,7 +51,12 @@ pub async fn generate(
     for (i, ts) in timestamps.iter().enumerate() {
         let idx = (i as u32) + 1;
         let thumb = tmp.path().join(format!("thumb_{:0width$}.png", idx, width = width_digits));
-        let mut vf = format!("scale={}:-2", layout.thumb_w);
+        let mut vf = String::new();
+        if let Some(tm) = crate::ffmpeg::tonemap_filter(info.video.is_hdr, ctx.has_zscale) {
+            vf.push_str(tm);
+            vf.push(',');
+        }
+        vf.push_str(&format!("scale={}:-2", layout.thumb_w));
         if opts.show_timestamps {
             vf.push(',');
             vf.push_str(&timestamp_overlay(

@@ -1,6 +1,6 @@
 use crate::animated_sheet::{self, AnimatedSheetOptions};
 use crate::contact_sheet::{self, SheetOptions};
-use crate::ffmpeg::{locate_tools, run_capture, RunError};
+use crate::ffmpeg::{locate_tools, run_capture, RunError, Tools};
 use crate::jobs::{JobState, PipelineContext, ProgressReporter};
 use crate::output_path::{animated_sheet_path, contact_sheet_path, preview_reel_path};
 use crate::preview_reel::{self, PreviewOptions};
@@ -118,8 +118,7 @@ type PerFileFut<'a> =
 async fn run_job_loop<F>(
     app: AppHandle,
     state: Arc<JobState>,
-    ffprobe: PathBuf,
-    ffmpeg: PathBuf,
+    tools: Tools,
     items: Vec<QueueItem>,
     output: OutputLocation,
     per_file: F,
@@ -144,7 +143,7 @@ where
 
         let source = PathBuf::from(&item.path);
         let out_dir = resolve_out_dir(&source, &output);
-        let info = match probe(&ffprobe, &item.path).await {
+        let info = match probe(&tools.ffprobe, &item.path).await {
             Ok(i) => i,
             Err(e) => {
                 failed += 1;
@@ -161,7 +160,7 @@ where
             }));
         };
         let reporter = ProgressReporter { emit: &step_fn };
-        let ctx = PipelineContext { ffmpeg: &ffmpeg, cancelled: state.cancelled.clone(), reporter: &reporter };
+        let ctx = PipelineContext { ffmpeg: &tools.ffmpeg, cancelled: state.cancelled.clone(), reporter: &reporter, has_zscale: tools.has_zscale };
 
         match per_file(&source, &info, &out_dir, &ctx).await {
             Ok(out) => {
@@ -204,7 +203,7 @@ pub async fn generate_contact_sheets(
         .map_err(|e| e.to_string())?;
     let state_inner = Arc::clone(state.inner());
 
-    run_job_loop(app.clone(), state_inner, tools.ffprobe, tools.ffmpeg, items, output,
+    run_job_loop(app.clone(), state_inner, tools, items, output,
         move |source, info, out_dir, ctx| {
             let out = contact_sheet_path(source, out_dir, opts.format, &opts.suffix, &|p| p.exists());
             let opts = opts.clone();
@@ -227,7 +226,7 @@ pub async fn generate_screenshots(
     let tools = locate_tools().map_err(|e| e.to_string())?;
     let state_inner = Arc::clone(state.inner());
 
-    run_job_loop(app.clone(), state_inner, tools.ffprobe, tools.ffmpeg, items, output,
+    run_job_loop(app.clone(), state_inner, tools, items, output,
         move |source, info, out_dir, ctx| {
             let opts = opts.clone();
             Box::pin(async move {
@@ -248,7 +247,7 @@ pub async fn generate_preview_reels(
     let tools = locate_tools().map_err(|e| e.to_string())?;
     let state_inner = Arc::clone(state.inner());
 
-    run_job_loop(app.clone(), state_inner, tools.ffprobe, tools.ffmpeg, items, output,
+    run_job_loop(app.clone(), state_inner, tools, items, output,
         move |source, info, out_dir, ctx| {
             let out = preview_reel_path(source, out_dir, opts.format, &opts.suffix, &|p| p.exists());
             let opts = opts.clone();
@@ -272,7 +271,7 @@ pub async fn generate_animated_sheets(
         .map_err(|e| e.to_string())?;
     let state_inner = Arc::clone(state.inner());
 
-    run_job_loop(app.clone(), state_inner, tools.ffprobe, tools.ffmpeg, items, output,
+    run_job_loop(app.clone(), state_inner, tools, items, output,
         move |source, info, out_dir, ctx| {
             let out = animated_sheet_path(source, out_dir, &opts.suffix, &|p| p.exists());
             let opts = opts.clone();
@@ -294,7 +293,8 @@ pub(crate) async fn probe(ffprobe: &std::path::Path, path: &str) -> Result<Video
     let args = [
         "-v", "error",
         "-show_entries", "format=filename,duration,size,bit_rate",
-        "-show_entries", "stream=codec_name,codec_type,width,height,r_frame_rate,sample_rate,channels,bit_rate,profile",
+        "-show_entries", "stream=codec_name,codec_type,width,height,r_frame_rate,sample_rate,channels,bit_rate,profile,color_transfer",
+        "-show_entries", "stream_side_data=side_data_type",
         "-of", "json",
         path,
     ];

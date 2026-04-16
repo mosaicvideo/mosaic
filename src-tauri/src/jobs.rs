@@ -35,4 +35,6 @@ pub struct PipelineContext<'a> {
     pub ffmpeg: &'a Path,
     pub cancelled: Arc<AtomicBool>,
     pub reporter: &'a ProgressReporter<'a>,
+    /// Whether the ffmpeg binary supports zscale (libzimg) for HDR→SDR tonemapping.
+    pub has_zscale: bool,
 }

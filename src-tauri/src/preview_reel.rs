@@ -23,6 +23,7 @@ pub fn build_extract_args(
     timestamp: f64,
     clip_length_secs: u32,
     target_height: u32,
+    has_zscale: bool,
     output: &Path,
 ) -> Vec<String> {
     let desired = clip_length_secs as f64;
@@ -34,9 +35,18 @@ pub fn build_extract_args(
     args.extend([
         "-t".into(), format!("{:.3}", duration),
     ]);
-    if info.video.height > target_height {
+    let tonemap = crate::ffmpeg::tonemap_filter(info.video.is_hdr, has_zscale);
+    if tonemap.is_some() || info.video.height > target_height {
+        let mut vf = String::new();
+        if let Some(tm) = tonemap {
+            vf.push_str(tm);
+        }
+        if info.video.height > target_height {
+            if !vf.is_empty() { vf.push(','); }
+            vf.push_str(&format!("scale=-2:{}", target_height));
+        }
         args.push("-vf".into());
-        args.push(format!("scale=-2:{}", target_height));
+        args.push(vf);
     }
     args.extend(crate::ffmpeg::h264_clip_encoder());
     args.push(output.to_string_lossy().into_owned());
@@ -145,7 +155,7 @@ pub async fn generate(
     for (i, ts) in timestamps.iter().enumerate() {
         let idx = (i as u32) + 1;
         let clip = tmp.path().join(format!("clip_{:03}.mp4", idx));
-        let args = build_extract_args(source, info, *ts, opts.clip_length_secs, opts.height, &clip);
+        let args = build_extract_args(source, info, *ts, opts.clip_length_secs, opts.height, ctx.has_zscale, &clip);
         batch.push(args);
         clips.push(clip);
     }
@@ -183,6 +193,7 @@ mod tests {
                 height,
                 fps: 30.0,
                 bit_rate: None,
+                is_hdr: false,
             },
             audio: None,
         }
@@ -197,6 +208,7 @@ mod tests {
             12.5,
             5,
             480,
+            false,
             &PathBuf::from("/tmp/out/clip_01.mp4"),
         );
         assert_eq!(args[0], "-hide_banner");
@@ -225,6 +237,7 @@ mod tests {
             12.0,
             5,
             480,
+            false,
             &PathBuf::from("/tmp/out/clip_01.mp4"),
         );
         assert!(!args.iter().any(|a| a == "-vf"));
@@ -239,6 +252,7 @@ mod tests {
             8.0,
             5,
             480,
+            false,
             &PathBuf::from("/tmp/out/clip_03.mp4"),
         );
         // 10.0 - 8.0 = 2.0 (less than requested 5)

@@ -33,6 +33,9 @@ pub async fn generate(
         let mut args = crate::ffmpeg::base_args();
         args.extend(crate::ffmpeg::seek_input_args(source, *ts));
         args.extend(["-frames:v".into(), "1".into()]);
+        if let Some(tm) = crate::ffmpeg::tonemap_filter(info.video.is_hdr, ctx.has_zscale) {
+            args.extend(["-vf".into(), tm.to_string()]);
+        }
         if matches!(opts.format, OutputFormat::Jpeg) {
             args.extend(["-q:v".into(), format!("{}", jpeg_qv(opts.jpeg_quality))]);
         }
