@@ -41,7 +41,10 @@ Each queue row gets an info icon button using the filled file-text SVG:
 **Behavior:**
 - Always visible, always clickable — not gated by row status or MediaInfo availability
 - On click: calls `invoke('run_mediainfo', { path })`, opens the modal with the result
-- `e.stopPropagation()` to prevent the row's click-to-reveal handler from firing
+
+### Reveal-on-click narrowing
+
+Currently the entire `<li>` row has an `onclick` that calls `reveal_in_finder` when the row status is "Done". With the info icon now in the row, this must be narrowed: move the reveal handler from `el.onclick` to `nameEl.onclick` (the `.name` span). Only clicking the filename opens the output folder. This prevents the info icon click from triggering reveal, and avoids needing `e.stopPropagation()` hacks.
 
 ### Modal
 
