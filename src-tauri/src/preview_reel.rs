@@ -139,11 +139,14 @@ pub async fn generate(
         std::fs::create_dir_all(parent)?;
     }
 
-    let timestamps = crate::layout::sample_timestamps(info.duration_secs, opts.count);
+    let timestamps = crate::layout::sample_clip_timestamps(info.duration_secs, opts.count, opts.clip_length_secs as f64);
     if timestamps.is_empty() {
         return Err(RunError::NonZero {
             code: -1,
-            stderr: "source duration too short for preview reel".into(),
+            stderr: format!(
+                "source duration ({:.2}s) is too short for {} clips of {}s each",
+                info.duration_secs, opts.count, opts.clip_length_secs
+            ),
         });
     }
     let total_steps = (timestamps.len() as u32) + 1;

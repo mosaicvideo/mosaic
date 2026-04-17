@@ -24,6 +24,20 @@ pub fn sample_timestamps(duration_secs: f64, n: u32) -> Vec<f64> {
     (1..=n).map(|i| i as f64 * interval).collect()
 }
 
+/// Timestamps for animated output (reel, animated sheet) where each sample
+/// starts a `clip_length_secs` segment. Constrained to (0, duration - clip_length)
+/// so no clip runs past the video end — which can produce an empty mp4 with no
+/// video stream and break the downstream stitch filter graph on some HEVC GOP
+/// structures (e.g. 120fps transport streams).
+///
+/// Returns empty if the video is shorter than the clip length.
+pub fn sample_clip_timestamps(duration_secs: f64, n: u32, clip_length_secs: f64) -> Vec<f64> {
+    if n == 0 || duration_secs <= clip_length_secs { return Vec::new(); }
+    let span = duration_secs - clip_length_secs;
+    let interval = span / (n as f64 + 1.0);
+    (1..=n).map(|i| i as f64 * interval).collect()
+}
+
 /// Line height (in pixels) used to stack drawtext lines: 1.3× font size, rounded.
 pub fn line_height(font: u32) -> u32 {
     ((font as f64) * 1.3).round() as u32
@@ -83,6 +97,27 @@ mod tests {
     #[test]
     fn timestamps_zero_count_returns_empty() {
         assert!(sample_timestamps(100.0, 0).is_empty());
+    }
+
+    #[test]
+    fn clip_timestamps_leave_room_for_clip_length() {
+        // Reproduces the 120fps DoVi.P8 transport-stream bug: 28.63s video,
+        // 18 cells, 2s clip — naive sampling gave last_ts=27.12 which overshot
+        // the video end and produced an empty mp4 with no video stream.
+        let ts = sample_clip_timestamps(28.63, 18, 2.0);
+        assert_eq!(ts.len(), 18);
+        // Every timestamp + clip_length must fit inside the video.
+        for (i, v) in ts.iter().enumerate() {
+            assert!(v + 2.0 <= 28.63, "ts[{}]={} + clip_length overshoots", i, v);
+        }
+        // And first > 0.
+        assert!(ts[0] > 0.0);
+    }
+
+    #[test]
+    fn clip_timestamps_return_empty_when_shorter_than_clip() {
+        assert!(sample_clip_timestamps(1.0, 8, 2.0).is_empty());
+        assert!(sample_clip_timestamps(2.0, 8, 2.0).is_empty());  // exactly equal, no room
     }
 
     #[test]
