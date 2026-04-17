@@ -4,6 +4,7 @@ dist/
 .DS_Store
 *.log
 .vite/
-.claude/
+.claude/*
+!.claude/commands/
 src-tauri/gen/
 icon-source.png
