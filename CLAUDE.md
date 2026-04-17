@@ -14,7 +14,7 @@ The integration test requires ffmpeg with the `drawtext` filter. On macOS the de
 
 Tauri 2 app. Rust backend orchestrates `ffmpeg`/`ffprobe` subprocesses; vanilla HTML/CSS/JS frontend talks to it via `invoke`/`listen`.
 
-**Pipeline separation — the core of the codebase.** Pure logic (`drawtext.rs`, `layout.rs`, `header.rs`, `output_path.rs`, `video_info.rs`) is fully unit-testable with no subprocess dependency. Orchestration modules (`contact_sheet.rs`, `screenshots.rs`, `preview_reel.rs`) take pure-logic outputs and build ffmpeg arg vectors, delegating subprocess I/O to `ffmpeg.rs`. Commands (`commands.rs`) wrap everything with Tauri handlers and per-file job loops. Keep this layering intact when adding features: put new math/parsing in pure modules with tests, not inline in the orchestration layer.
+**Pipeline separation — the core of the codebase.** Pure logic (`drawtext.rs`, `layout.rs`, `header.rs`, `output_path.rs`, `video_info.rs`) is fully unit-testable with no subprocess dependency. Orchestration modules (`contact_sheet.rs`, `screenshots.rs`, `preview_reel.rs`, `animated_sheet.rs`) take pure-logic outputs and build ffmpeg arg vectors, delegating subprocess I/O to `ffmpeg.rs`. Commands (`commands.rs`) wrap everything with Tauri handlers and per-file job loops. Keep this layering intact when adding features: put new math/parsing in pure modules with tests, not inline in the orchestration layer. **For animated outputs (reel, animated sheet), use `layout::sample_clip_timestamps(dur, n, clip_len)` — not `sample_timestamps` — so timestamps leave room for `-t clip_len` and don't produce empty mp4s near the video end.**
 
 **Four output types.** Contact sheets (grid JPEG/PNG), screenshots (individual frames), animated preview reels (WebP/WebM/GIF stitched from short clips), and animated contact sheets (WebP grid of animated clips). Each has its own orchestration module and its own `generate_*` Tauri command; `output_path` exposes a `*_path` builder per type with a configurable suffix.
 
@@ -30,11 +30,15 @@ Tauri 2 app. Rust backend orchestrates `ffmpeg`/`ffprobe` subprocesses; vanilla 
 
 **Progress events.** Rust emits `job:file-start`, `job:step`, `job:file-done`, `job:file-failed`, `job:finished` via `AppHandle::emit`. The frontend's `wireEvents()` in `main.js` is the only place listening; route new progress signals through the same event names or add new ones in parallel.
 
-**Additional Tauri commands.** Besides the generate/probe/check commands: `scan_folder(path, recursive)` returns all video paths under a directory (used by "Add Folder"); `reveal_in_finder(path)` shells out to `open -R` / `explorer /select` / `xdg-open` (used when a Done queue row is clicked).
+**Additional Tauri commands.** Besides the generate/probe/check-tools commands: `scan_folder(path, recursive)` returns video paths under a directory (used by "Add Folder"); `reveal_in_finder(path)` shells out to `open -R` / `explorer /select` / `xdg-open` (used when a Done queue row is clicked); `get_video_exts()` returns the canonical 45-extension list (`VIDEO_EXTS` in `commands.rs`); `check_mediainfo()` and `run_mediainfo(path)` for the optional metadata viewer; `cancel_job()` flips the shared cancel flag.
+
+**MediaInfo integration.** Optional per-file metadata viewer. `locate_mediainfo()` in `ffmpeg.rs` does `which::which("mediainfo")` with a `/opt/homebrew/bin` + `/usr/local/bin` fallback (macOS GUI apps don't inherit shell `PATH`). Frontend lives in `src/mediainfo.js` (modal DOM + open/close + copy-to-clipboard). Not bundled into the `Tools` struct — MediaInfo is independent of the ffmpeg prerequisite; the app runs fine without it.
 
 **Frontend views.** The main window has two overlaid views sharing `grid-row: 2` — `#main-view` (dropzone + queue + run-options + action bar) and `#settings-view` (all `SheetOptions`/`ScreenshotsOptions` fields in two stacked sections). Toggled by the gear icon in the header; `Esc` closes settings. There are no tabs. The "Generate" checkboxes in `#run-options` (internally `readProduce()`/`applyProduce()`) are the source of truth for what `onGenerate` runs. Don't reintroduce tabs or couple `onGenerate` to which settings section is visible.
 
 **Tools-missing state.** When `check_tools` fails, `main.js` adds `.tools-missing` to `#app` and swaps the queue area for `#tools-error` (install instructions + Retry). CSS disables the dropzone, run-options, action bar, and settings icon via `opacity: 0.4; pointer-events: none`. `toolsOk` in `main.js` also feeds into the Generate button's disabled state. Retry re-invokes `check_tools`; on success the UI un-dims.
+
+**Window title.** Set at runtime in `lib.rs`'s `setup()` hook via `window.set_title("Mosaic {version}")` using `app.package_info().version`. Don't set a static title in `tauri.conf.json` — it'll be overwritten on launch.
 
 ## ffmpeg quirks to know
 
@@ -50,9 +54,23 @@ Tauri 2 app. Rust backend orchestrates `ffmpeg`/`ffprobe` subprocesses; vanilla 
 
 Full icon set lives in `src-tauri/icons/` (`.icns`, `.ico`, plus platform PNGs generated by `pnpm tauri icon`). `tauri.conf.json` `bundle.icon` must list the icon files — an empty array means nothing is embedded (this was the long-standing bug that made the window icon blank). If regenerating icons, re-run `pnpm tauri icon <source.png>`; the source PNG should be 1024×1024 with transparent background.
 
+## Showcase site
+
+`site/` is a standalone static HTML/CSS/JS site deployed to `https://mosaicvideo.github.io/mosaic/` via `.github/workflows/pages.yml`. Two pages (`index.html`, `guide.html`), no build step. `site/assets/download.js` upgrades download buttons from a GitHub Releases API fetch at runtime — falls back to `releases/latest` without JS. Preview locally with `cd site && python3 -m http.server 8000`. The site is intentionally decoupled from the app — site copy updates don't need a version bump.
+
 ## Releasing
 
-Run `node scripts/bump-version.mjs <version> --tag` to update all three version files (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`), commit, and tag. Push the tag with `git push origin v<version>` to trigger the release workflow. CI builds unsigned artifacts for macOS (universal), Windows (x64), and Linux (x64) and creates a draft GitHub release. Review the draft, then publish.
+Run `node scripts/bump-version.mjs <version> --tag` to update all three version files (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`), commit, and tag. Push the tag with `git push origin v<version>` to trigger the release workflow. CI builds four platform artifacts: macOS universal (signed + notarized via Developer ID), Windows x64 + ARM64 (unsigned — SmartScreen warning expected), Linux x64 (AppImage + deb + rpm). Each has a `.sig` companion (minisign/ed25519) and a combined `latest.json` uploads to the release for the auto-updater. Releases start as drafts — review, then publish so `releases/latest/download/latest.json` resolves for installed users.
+
+Signing secrets live in repo Actions settings: `APPLE_CERTIFICATE` (base64 .p12), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` (app-specific), `APPLE_TEAM_ID`, `KEYCHAIN_PASSWORD`, `TAURI_SIGNING_PRIVATE_KEY`. The macOS-only keychain import step in `release.yml` runs before `tauri-action`.
+
+## Auto-update
+
+`tauri-plugin-updater` + `tauri-plugin-process`. Frontend calls `check()` on startup (fire-and-forget in `main.js` `checkForUpdate()`), shows a native `ask()` dialog if an update exists, then `downloadAndInstall()` + `relaunch()`. Errors are swallowed silently so dev-mode launches and offline starts aren't disrupted.
+
+Endpoint config lives in `tauri.conf.json` `plugins.updater.endpoints` → `github.com/mosaicvideo/mosaic/releases/latest/download/latest.json`. Public key (ed25519/minisign) is embedded in the same file; private key lives at `~/.tauri/mosaic-updater.key` locally and in the `TAURI_SIGNING_PRIVATE_KEY` CI secret. Losing the private key orphans installed users — back it up.
+
+Granted permissions in `src-tauri/capabilities/default.json`: `updater:default`, `process:default`, `dialog:allow-message`. Adding new plugins requires adding their permissions here too or the frontend `invoke` silently 404s.
 
 ## References
 
