@@ -19,6 +19,9 @@ jobs:
           - os: windows-latest
             rust-targets: x86_64-pc-windows-msvc
             tauri-args: ""
+          - os: windows-11-arm
+            rust-targets: aarch64-pc-windows-msvc
+            tauri-args: --target aarch64-pc-windows-msvc
           - os: ubuntu-22.04
             rust-targets: x86_64-unknown-linux-gnu
             tauri-args: ""
@@ -56,9 +59,38 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Import Apple Developer certificate (macOS only)
+        if: matrix.os == 'macos-latest'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$APPLE_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security import $RUNNER_TEMP/certificate.p12 -k build.keychain \
+            -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          security find-identity -v -p codesigning build.keychain
+          rm $RUNNER_TEMP/certificate.p12
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS code signing + notarization (only used on macos-latest runner)
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          # Tauri updater signing (all platforms)
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Mosaic ${{ github.ref_name }}"
@@ -67,20 +99,14 @@ jobs:
 
             ### Added
 
-            - **HDR auto-tonemapping** — HDR10, HLG, and Dolby Vision thumbnails are automatically tonemapped to SDR across all output types (requires ffmpeg with libzimg)
-            - **MediaInfo modal** — click the file icon in any queue row to view raw `mediainfo` output with copy-to-clipboard (requires [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) installed separately)
-            - **Expanded format support** — 44 recognized video container types (was 12), including broadcast (MXF, R3D), camcorder (DV, WTV), and legacy formats
+            - **Auto-update** — app checks for new releases on startup and offers one-click install. Updates are cryptographically signed and verified on device.
+            - **macOS code signing + notarization** — Gatekeeper-trusted on first open; no right-click → Open required.
+            - **Windows ARM64 builds** — native aarch64 binaries for Snapdragon-based Windows devices, alongside the existing x64 build.
+            - **Version in title bar** — window title shows the current version (e.g. `Mosaic 0.1.2`).
 
             ### Fixed
 
-            - Clip extraction (preview reels, animated sheets) no longer fails on transport stream containers (.ts, .m2ts)
-            - HDR tonemapping correctly specifies input colorspace to avoid zscale errors
-            - Dolby Vision Profile 5 streams with SDR-compatible base layers are left untouched
-
-            ### Changed
-
-            - Upgraded thiserror 1→2 and which 6→8
-            - Queue row click-to-reveal narrowed to filename only
+            - MediaInfo lookup on macOS now falls back to `/opt/homebrew/bin` and `/usr/local/bin` when `PATH` is empty (apps launched from Finder/Dock don't inherit shell `PATH`).
 
             ### Requirements
 
@@ -88,7 +114,9 @@ jobs:
 
             ### Notes
 
-            Builds are **unsigned**. macOS users: right-click → Open to bypass Gatekeeper. Windows users: click through the SmartScreen warning.
+            **Users on v0.1.1 and earlier:** download this version manually — the auto-updater was added in v0.1.2, so older versions have no way to know about it. From v0.1.2 → future versions, updates install automatically.
+
+            **Windows:** builds are not yet code-signed. SmartScreen may warn on first install and on each update — click "More info" → "Run anyway".
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.tauri-args }}

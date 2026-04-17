@@ -1,7 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { open } from '@tauri-apps/plugin-dialog';
+import { open, ask } from '@tauri-apps/plugin-dialog';
 import { Store } from '@tauri-apps/plugin-store';
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 import { createQueue, isVideo, getVideoExts } from './queue.js';
 import { readSheetOpts, readShotsOpts, readPreviewOpts, readASheetOpts, readOutput, readProduce, applyOpts, applyProduce } from './options.js';
 import { wireDropzone } from './dropzone.js';
@@ -49,6 +51,25 @@ function init() {
   loadSettings();
   checkTools();
   getVideoExts(); // fire-and-forget prime so first drop doesn't pay a round-trip
+  checkForUpdate();
+}
+
+async function checkForUpdate() {
+  try {
+    const update = await check();
+    if (!update) return;
+    const body = (update.body || '').trim();
+    const ok = await ask(
+      `${body ? body + '\n\n' : ''}Download and install? The app will restart.`,
+      { title: `Mosaic ${update.version} is available`, kind: 'info', okLabel: 'Install', cancelLabel: 'Later' }
+    );
+    if (!ok) return;
+    await update.downloadAndInstall();
+    await relaunch();
+  } catch (e) {
+    // Silent: fails harmlessly in dev mode (no signature), offline, or on rate limits.
+    console.warn('update check failed:', e);
+  }
 }
 
 function guard(fn) {

@@ -62,9 +62,24 @@ pub fn video_info_test_hook_parse(json: &str) -> Result<video_info::VideoInfo, v
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_store::Builder::default().build());
+    #[cfg(desktop)]
+    {
+        builder = builder
+            .plugin(tauri_plugin_updater::Builder::new().build())
+            .plugin(tauri_plugin_process::init());
+    }
+    builder
+        .setup(|app| {
+            use tauri::Manager;
+            if let Some(window) = app.get_webview_window("main") {
+                let version = app.package_info().version.to_string();
+                let _ = window.set_title(&format!("Mosaic {version}"));
+            }
+            Ok(())
+        })
         .manage(std::sync::Arc::new(crate::jobs::JobState::default()))
         .invoke_handler(tauri::generate_handler![
             commands::probe_video,

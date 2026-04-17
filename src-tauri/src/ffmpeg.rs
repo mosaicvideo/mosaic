@@ -137,8 +137,22 @@ pub fn locate_tools() -> Result<Tools, ToolsError> {
 /// Locate the `mediainfo` CLI binary. Returns `None` if not installed.
 /// MediaInfo is optional — the app works without it, but the info modal
 /// shows install instructions instead of output.
+///
+/// Falls back to common Homebrew paths on macOS because GUI apps launched
+/// from Finder/Dock don't inherit the shell `PATH`, so `which` alone misses
+/// `/opt/homebrew/bin/mediainfo`.
 pub fn locate_mediainfo() -> Option<PathBuf> {
-    which::which("mediainfo").ok()
+    if let Ok(p) = which::which("mediainfo") { return Some(p); }
+    let extra_paths: &[&str] = if cfg!(target_os = "macos") {
+        &["/opt/homebrew/bin", "/usr/local/bin"]
+    } else {
+        &[]
+    };
+    for ep in extra_paths {
+        let candidate = std::path::Path::new(ep).join("mediainfo");
+        if candidate.is_file() { return Some(candidate); }
+    }
+    None
 }
 
 /// Check whether the given ffmpeg binary supports a specific filter.
