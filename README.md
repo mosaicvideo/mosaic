@@ -16,7 +16,7 @@ Cross-platform desktop app for generating video contact sheets, screenshots, ani
 
 ## Install
 
-Download the latest release from [GitHub Releases](https://github.com/bhutanio/mosaic/releases). Available as `.dmg` (macOS), `.exe` installer (Windows), and `.AppImage`/`.deb` (Linux).
+Download the latest release from [GitHub Releases](https://github.com/mosaicvideo/mosaic/releases). Available as `.dmg` (macOS), `.exe` installer (Windows), and `.AppImage`/`.deb` (Linux).
 
 **Note:** macOS builds are signed and notarized from v0.1.2 onward. Windows builds are still unsigned — click through the SmartScreen warning (More info → Run anyway).
 

@@ -4,7 +4,7 @@
 // the row that matches the visitor's OS. Fails silently so the static
 // fallback always works.
 
-const REPO = 'bhutanio/mosaic';
+const REPO = 'mosaicvideo/mosaic';
 const API = `https://api.github.com/repos/${REPO}/releases/latest`;
 
 const PATTERNS = {

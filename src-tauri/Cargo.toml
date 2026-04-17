@@ -4,8 +4,8 @@ version = "0.1.2"
 description = "Cross-platform desktop app for generating video contact sheets, screenshots, animated preview reels, and animated contact sheets"
 authors = ["Abi"]
 license = "MIT"
-homepage = "https://github.com/bhutanio/mosaic"
-repository = "https://github.com/bhutanio/mosaic"
+homepage = "https://github.com/mosaicvideo/mosaic"
+repository = "https://github.com/mosaicvideo/mosaic"
 edition = "2021"
 
 [lib]

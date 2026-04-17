@@ -59,7 +59,7 @@ v0.1.1 users: **this release requires a manual download** since v0.1.1 predates 
 - ffmpeg/ffprobe tool detection with user-friendly error state
 - macOS, Windows, and Linux support (requires ffmpeg installed separately)
 
-[unreleased]: https://github.com/bhutanio/mosaic/compare/v0.1.2...HEAD
-[0.1.2]: https://github.com/bhutanio/mosaic/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/bhutanio/mosaic/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/bhutanio/mosaic/releases/tag/v0.1.0
+[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/mosaicvideo/mosaic/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/mosaicvideo/mosaic/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/mosaicvideo/mosaic/releases/tag/v0.1.0

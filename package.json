@@ -8,7 +8,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/bhutanio/mosaic.git"
+    "url": "https://github.com/mosaicvideo/mosaic.git"
   },
   "packageManager": "pnpm@10.33.0",
   "scripts": {
