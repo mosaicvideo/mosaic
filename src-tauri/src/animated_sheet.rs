@@ -2,7 +2,7 @@ use crate::drawtext::{font_for_ffmpeg, format_hms_escaped, header_overlay, times
 use crate::ffmpeg::{run_batch_cancellable, run_cancellable, RunError};
 use crate::header::build_header_lines;
 use crate::jobs::PipelineContext;
-use crate::layout::{compute_sheet_layout, header_height, line_height, sample_timestamps, xstack_layout, SheetLayout};
+use crate::layout::{compute_sheet_layout, header_height, line_height, sample_clip_timestamps, xstack_layout, SheetLayout};
 use crate::output_path::SheetTheme;
 use crate::video_info::VideoInfo;
 use std::path::{Path, PathBuf};
@@ -184,11 +184,14 @@ pub async fn generate(
     }
 
     let thumb_h = thumb_height(layout.thumb_w, info.video.width, info.video.height);
-    let timestamps = sample_timestamps(info.duration_secs, layout.total);
+    let timestamps = sample_clip_timestamps(info.duration_secs, layout.total, opts.clip_length_secs as f64);
     if timestamps.is_empty() {
         return Err(RunError::NonZero {
             code: -1,
-            stderr: "source duration too short for animated contact sheet".into(),
+            stderr: format!(
+                "source duration ({:.2}s) is too short for {} clips of {}s each",
+                info.duration_secs, layout.total, opts.clip_length_secs
+            ),
         });
     }
 
