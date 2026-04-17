@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-04-17
+
+### Added
+
+- **Richer contact-sheet headers via MediaInfo** — headers now show container title, video bit depth, HDR format (Dolby Vision / HDR10 / HLG), commercial audio codec name (e.g. DTS-HD MA, Dolby Atmos), channel layout (5.1, 7.1), and language tag. Header is one section per line so nothing clips on narrow grids.
+- **MediaInfo CLI promoted to a required prerequisite** — same tools-missing state as ffmpeg if absent. Enables the enrichment above and powers the existing per-file metadata viewer.
+
+### Fixed
+
+- **Anamorphic sources (phone portrait, non-square SAR)** render with the correct aspect across every output type. Previously a 9:16 phone clip encoded in a 1080×1080 frame came out squashed-square in contact sheets, reels, and screenshots. Mosaic now uses displayed square-pixel dimensions (applying SAR and Display Matrix rotation) for both layout and scaling.
+- **Rotated sources (±90° / ±270° Display Matrix)** — portrait orientation is preserved end-to-end instead of silently using encoded landscape dims.
+- **3D Blu-ray / MVC inputs** — contact sheets no longer come out as zero-dim squares; the usable base-layer stream is now preferred over the dependent-enhancement view that ffprobe lists first.
+
+### Changed
+
+- Probe pipeline now runs ffprobe and MediaInfo concurrently per file, roughly halving drag-and-drop probe latency.
+
 ## [0.1.2] - 2026-04-17
 
 ### Added
@@ -59,7 +76,8 @@ v0.1.1 users: **this release requires a manual download** since v0.1.1 predates 
 - ffmpeg/ffprobe tool detection with user-friendly error state
 - macOS, Windows, and Linux support (requires ffmpeg installed separately)
 
-[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.2...HEAD
+[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/mosaicvideo/mosaic/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/mosaicvideo/mosaic/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/mosaicvideo/mosaic/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/mosaicvideo/mosaic/releases/tag/v0.1.0
