@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Cross-platform desktop app for generating video contact sheets, screenshots, animated preview reels, and animated contact sheets",
-  "author": "Bhutan IO",
+  "author": "Abi",
   "license": "MIT",
   "repository": {
     "type": "git",

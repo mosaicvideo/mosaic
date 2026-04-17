@@ -8,6 +8,7 @@ Cross-platform desktop app for generating video contact sheets, screenshots, ani
 - **Screenshots** — individual frames at evenly-spaced timestamps (PNG/JPEG)
 - **Animated preview reels** — short clips stitched into a single animation (WebP/WebM/GIF)
 - **Animated contact sheets** — grid of animated clips (WebP)
+- **MediaInfo viewer** — click the info icon in any queue row for full metadata (codec, bitrate, HDR profile, audio tracks, etc.)
 - Drag-and-drop batch queue with per-file progress and cancel
 - Configurable grid size, quality, fonts, themes, and output suffixes
 - Dark/light theme (follows system preference)
@@ -17,9 +18,11 @@ Cross-platform desktop app for generating video contact sheets, screenshots, ani
 
 Download the latest release from [GitHub Releases](https://github.com/bhutanio/mosaic/releases). Available as `.dmg` (macOS), `.exe` installer (Windows), and `.AppImage`/`.deb` (Linux).
 
-**Note:** Builds are currently unsigned. macOS users will need to right-click the app and select Open to bypass Gatekeeper. Windows users will need to click through the SmartScreen warning.
+**Note:** macOS builds are signed and notarized from v0.1.2 onward. Windows builds are still unsigned — click through the SmartScreen warning (More info → Run anyway).
 
 **Requires [ffmpeg](https://ffmpeg.org/) installed separately** — the app checks for `ffmpeg` and `ffprobe` on your PATH at startup and shows install instructions if they're missing.
+
+**Optional: [MediaInfo CLI](https://mediaarea.net/en/MediaInfo)** — enables the per-file metadata viewer. Install via `brew install mediainfo` / `winget install MediaArea.MediaInfo.CLI` / `apt install mediainfo`. The app works fine without it (info icon shows install instructions instead).
 
 ## Requirements (dev)
 
