@@ -2,6 +2,8 @@
 
 Cross-platform desktop app for generating video contact sheets, screenshots, animated preview reels, and animated contact sheets. Drag-and-drop batch queue, live progress, cancel support. Built with Tauri 2 + Rust + vanilla HTML/CSS/JS.
 
+Site & downloads: <https://mosaicvideo.github.io/mosaic/>
+
 ## Features
 
 - **Contact sheets** — grid of thumbnails with optional header and timestamp overlays (PNG/JPEG)
@@ -9,6 +11,8 @@ Cross-platform desktop app for generating video contact sheets, screenshots, ani
 - **Animated preview reels** — short clips stitched into a single animation (WebP/WebM/GIF)
 - **Animated contact sheets** — grid of animated clips (WebP)
 - **MediaInfo viewer** — click the info icon in any queue row for full metadata (codec, bitrate, HDR profile, audio tracks, etc.)
+- **HDR auto-tonemap** — HDR10, HLG, and Dolby Vision (incl. Profile 5 via IPT-PQ-C2 → BT.709) produce clean SDR thumbnails automatically
+- **Auto-update** — from v0.1.2 onward, new releases install with one click after on-device signature verification
 - Drag-and-drop batch queue with per-file progress and cancel
 - Configurable grid size, quality, fonts, themes, and output suffixes
 - Dark/light theme (follows system preference)
@@ -16,9 +20,9 @@ Cross-platform desktop app for generating video contact sheets, screenshots, ani
 
 ## Install
 
-Download the latest release from [GitHub Releases](https://github.com/mosaicvideo/mosaic/releases). Available as `.dmg` (macOS), `.exe` installer (Windows), and `.AppImage`/`.deb` (Linux).
+Download the latest release from [GitHub Releases](https://github.com/mosaicvideo/mosaic/releases). Available as `.dmg` (macOS universal), `.exe`/`.msi` (Windows x64 + ARM64), and `.AppImage`/`.deb`/`.rpm` (Linux x64).
 
-**Note:** macOS builds are signed and notarized from v0.1.2 onward. Windows builds are still unsigned — click through the SmartScreen warning (More info → Run anyway).
+**Windows note:** builds aren't code-signed — SmartScreen will warn on first install. Click **More info** → **Run anyway**.
 
 **Requires [ffmpeg](https://ffmpeg.org/) installed separately** — the app checks for `ffmpeg` and `ffprobe` on your PATH at startup and shows install instructions if they're missing.
 
@@ -54,7 +58,7 @@ cd src-tauri && cargo test --features test-api
 
 The `test-api` feature exposes internal modules (and a couple of test hooks) so
 the end-to-end integration test can drive them. Without the feature only the
-74 unit tests run; the integration test is gated via `required-features`.
+94 unit tests run; the integration test is gated via `required-features`.
 
 On macOS the integration test requires `ffmpeg-full` for the `drawtext` filter:
 
