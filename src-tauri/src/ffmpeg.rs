@@ -105,11 +105,11 @@ impl Tools {
 #[derive(Debug, thiserror::Error, serde::Serialize)]
 pub enum ToolsError {
     #[error("ffmpeg not found on PATH")]
-    FfmpegMissing,
+    Ffmpeg,
     #[error("ffprobe not found on PATH")]
-    FfprobeMissing,
+    Ffprobe,
     #[error("mediainfo not found on PATH")]
-    MediaInfoMissing,
+    MediaInfo,
 }
 
 pub fn locate_tools() -> Result<Tools, ToolsError> {
@@ -139,9 +139,9 @@ pub fn locate_tools() -> Result<Tools, ToolsError> {
         None
     };
 
-    let ffmpeg = find("ffmpeg").ok_or(ToolsError::FfmpegMissing)?;
-    let ffprobe = find("ffprobe").ok_or(ToolsError::FfprobeMissing)?;
-    let mediainfo = find("mediainfo").ok_or(ToolsError::MediaInfoMissing)?;
+    let ffmpeg = find("ffmpeg").ok_or(ToolsError::Ffmpeg)?;
+    let ffprobe = find("ffprobe").ok_or(ToolsError::Ffprobe)?;
+    let mediainfo = find("mediainfo").ok_or(ToolsError::MediaInfo)?;
     Ok(Tools { ffmpeg, ffprobe, mediainfo })
 }
 
