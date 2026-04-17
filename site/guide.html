@@ -112,38 +112,21 @@
         </details>
 
         <h2 id="requirements">Requirements</h2>
-        <p>Mosaic shells out to two external CLIs. Both <strong>ffmpeg</strong> and <strong>MediaInfo</strong> are required — Mosaic reads codec/HDR/audio metadata from MediaInfo to build the contact-sheet header and to power the per-file metadata viewer (see <a href="#mediainfo">below</a>).</p>
-
-        <h3>Required · ffmpeg</h3>
-        <p>Both <code>ffmpeg</code> and <code>ffprobe</code> must be on your <code>PATH</code>.</p>
+        <p>Mosaic shells out to two external CLIs, both required: <strong>ffmpeg</strong> (with <code>ffprobe</code>) for extraction and tonemapping, and <strong><a href="https://mediaarea.net/en/MediaInfo">MediaInfo</a></strong> for richer header metadata (HDR format, commercial audio codec name, channel layout, language) and the per-file metadata viewer (see <a href="#mediainfo">below</a>). All three binaries — <code>ffmpeg</code>, <code>ffprobe</code>, <code>mediainfo</code> — must be on your <code>PATH</code>.</p>
 
         <h4>macOS</h4>
-        <pre><code>brew install ffmpeg-full</code></pre>
-        <p>The default <code>brew install ffmpeg</code> bottle omits libfreetype and libzimg — required for text overlays and HDR tonemapping. <code>ffmpeg-full</code> has both. Mosaic automatically prefers it when installed.</p>
+        <pre><code>brew install ffmpeg-full mediainfo</code></pre>
+        <p>The default <code>brew install ffmpeg</code> bottle omits libfreetype and libzimg — required for text overlays and HDR tonemapping. <code>ffmpeg-full</code> has both; Mosaic automatically prefers it when installed.</p>
 
         <h4>Windows</h4>
-        <pre><code>choco install ffmpeg-full</code></pre>
-        <p>Via <a href="https://chocolatey.org/">Chocolatey</a>. If you use winget, pick the BtbN "full" build: <code>winget install Gyan.FFmpeg</code>.</p>
+        <pre><code>winget install Gyan.FFmpeg MediaArea.MediaInfo.CLI</code></pre>
+        <p>Or via <a href="https://chocolatey.org/">Chocolatey</a>: <code>choco install ffmpeg-full mediainfo-cli</code>.</p>
 
         <h4>Linux</h4>
-        <pre><code>sudo apt install ffmpeg      # Debian / Ubuntu
-sudo dnf install ffmpeg      # Fedora
-sudo pacman -S ffmpeg        # Arch</code></pre>
-        <p>Most distro packages already ship with libfreetype and libzimg enabled.</p>
-
-        <h3>Required · <a href="https://mediaarea.net/en/MediaInfo">MediaInfo</a></h3>
-        <p>Used for richer header metadata (HDR format, commercial audio codec name, channel layout, language) and for the per-file metadata viewer.</p>
-
-        <h4>macOS</h4>
-        <pre><code>brew install mediainfo</code></pre>
-
-        <h4>Windows</h4>
-        <pre><code>winget install MediaArea.MediaInfo.CLI</code></pre>
-
-        <h4>Linux</h4>
-        <pre><code>sudo apt install mediainfo   # Debian / Ubuntu
-sudo dnf install mediainfo   # Fedora
-sudo pacman -S mediainfo     # Arch</code></pre>
+        <pre><code>sudo apt install ffmpeg mediainfo      # Debian / Ubuntu
+sudo dnf install ffmpeg mediainfo      # Fedora
+sudo pacman -S ffmpeg mediainfo        # Arch</code></pre>
+        <p>Most distro packages already ship ffmpeg with libfreetype and libzimg enabled.</p>
 
         <h2 id="first-run">First run</h2>
         <ol>
