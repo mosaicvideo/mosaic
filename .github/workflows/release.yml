@@ -99,18 +99,22 @@ jobs:
 
             ### Added
 
-            - **Auto-update** — app checks for new releases on startup and offers one-click install. Updates are cryptographically signed and verified on device.
-            - **macOS code signing + notarization** — Gatekeeper-trusted on first open; no right-click → Open required.
-            - **Windows ARM64 builds** — native aarch64 binaries for Snapdragon-based Windows devices, alongside the existing x64 build.
-            - **Version in title bar** — window title shows the current version (e.g. `Mosaic 0.1.2`).
+            - **Richer contact-sheet headers via MediaInfo** — headers now show container title, video bit depth, HDR format (Dolby Vision / HDR10 / HLG), commercial audio codec name (e.g. `DTS-HD MA`, `Dolby Atmos`), channel layout (`5.1`, `7.1`), and language tag. Header is now one section per line so nothing clips on narrow grids.
+            - **MediaInfo CLI promoted to a required prerequisite** — same tools-missing state as ffmpeg if absent. Enables the enrichment above and powers the existing per-file metadata viewer.
+
+            ### Fixed
+
+            - **Anamorphic sources (phone portrait, non-square SAR)** now render with the correct aspect across every output type. Previously, a 9:16 phone clip encoded in a 1080×1080 frame came out squashed-square in contact sheets, reels, and screenshots. Mosaic now uses the displayed square-pixel dimensions (applying SAR and Display Matrix rotation) for both layout and scaling.
+            - **Rotated sources (±90° / ±270° Display Matrix)** — portrait orientation is preserved end-to-end instead of silently using encoded landscape dims.
+            - **3D Blu-ray / MVC inputs** — contact sheets no longer come out as zero-dim squares; the usable base-layer stream is now preferred over the dependent-enhancement view that ffprobe lists first.
 
             ### Requirements
 
-            **[ffmpeg](https://ffmpeg.org/) and [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) must be installed separately.** The app checks for `ffmpeg`, `ffprobe`, and `mediainfo` on your PATH at startup. Install via `brew install ffmpeg-full mediainfo` (macOS), `winget install ffmpeg MediaArea.MediaInfo.CLI` (Windows), or `apt install ffmpeg mediainfo` (Linux).
+            **[ffmpeg](https://ffmpeg.org/) and [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) must both be installed separately.** The app checks for `ffmpeg`, `ffprobe`, and `mediainfo` on your `PATH` at startup. Install via `brew install ffmpeg-full mediainfo` (macOS), `winget install ffmpeg MediaArea.MediaInfo.CLI` (Windows), or `apt install ffmpeg mediainfo` (Linux).
+
+            **Upgrading from v0.1.2?** Auto-update handles it. **Upgrading from v0.1.1 or earlier?** Download manually — the auto-updater shipped in v0.1.2, so older versions have no way to know this release exists.
 
             ### Notes
-
-            **Users on v0.1.1 and earlier:** download this version manually — the auto-updater was added in v0.1.2, so older versions have no way to know about it. From v0.1.2 → future versions, updates install automatically.
 
             **Windows:** builds are not yet code-signed. SmartScreen may warn on first install and on each update — click "More info" → "Run anyway".
           releaseDraft: true
