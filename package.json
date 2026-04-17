@@ -1,6 +1,6 @@
 {
   "name": "mosaic",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "Cross-platform desktop app for generating video contact sheets, screenshots, animated preview reels, and animated contact sheets",
@@ -26,6 +26,8 @@
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-dialog": "^2.7.0",
-    "@tauri-apps/plugin-store": "^2.4.2"
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-store": "^2.4.2",
+    "@tauri-apps/plugin-updater": "^2.10.1"
   }
 }

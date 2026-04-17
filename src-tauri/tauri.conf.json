@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Mosaic",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "identifier": "com.mosaic.app",
   "build": {
     "beforeDevCommand": "pnpm dev:web",
@@ -27,6 +27,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "shortDescription": "Video contact sheet and screenshot generator",
     "longDescription": "Mosaic generates video contact sheets, screenshots, animated preview reels, and animated contact sheets from video files. Features drag-and-drop batch queue with live progress and cancel support. Requires ffmpeg installed separately.",
     "icon": [
@@ -39,5 +40,13 @@
     "resources": [
       "assets/fonts/DejaVuSans.ttf"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJERENGQzY3MTQwMEE1RUMKUldUc3BRQVVaL3pjTFRkbEFoNzB1Z29EM3dFd0lGeWR3SlVURzk4UXFiMGJHclBrbURlY1I1RlQK",
+      "endpoints": [
+        "https://github.com/bhutanio/mosaic/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
