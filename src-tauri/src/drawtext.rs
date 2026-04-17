@@ -89,24 +89,31 @@ pub fn timestamp_overlay(
     )
 }
 
-/// Two-line header drawtext chain (line1 above line2), padded `gap` from the
-/// left/top edge with `line_h` between the two lines. Both lines must already
-/// be drawtext-escaped ([`build_header_lines`][crate::header::build_header_lines]
-/// returns them escaped); `font_ffmpeg` must come from [`font_for_ffmpeg`].
+/// Multi-line header drawtext chain, one `drawtext=` node per line. Lines are
+/// stacked top-to-bottom at `x=gap`, starting at `y=gap` and advancing by
+/// `line_h` each. All inputs must be drawtext-escaped already
+/// ([`build_header_lines`][crate::header::build_header_lines] returns them
+/// escaped); `font_ffmpeg` must come from [`font_for_ffmpeg`].
 pub fn header_overlay(
-    line1_escaped: &str,
-    line2_escaped: &str,
+    lines_escaped: &[String],
     font_ffmpeg: &str,
     font_size: u32,
     fontcolor: &str,
     gap: u32,
     line_h: u32,
 ) -> String {
-    format!(
-        "drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor={}:x={}:y={},drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor={}:x={}:y={}",
-        line1_escaped, font_ffmpeg, font_size, fontcolor, gap, gap,
-        line2_escaped, font_ffmpeg, font_size, fontcolor, gap, gap + line_h
-    )
+    lines_escaped
+        .iter()
+        .enumerate()
+        .map(|(i, line)| {
+            let y = gap + (i as u32) * line_h;
+            format!(
+                "drawtext=text='{}':fontfile='{}':fontsize={}:fontcolor={}:x={}:y={}",
+                line, font_ffmpeg, font_size, fontcolor, gap, y
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 #[cfg(test)]
@@ -204,6 +211,41 @@ mod tests {
             normalise_win_font_path(r"\\?\F:\Program Files (x86)\mosaic\fonts\DejaVu.ttf".into()),
             r"F\:/Program Files (x86)/mosaic/fonts/DejaVu.ttf"
         );
+    }
+
+    #[test]
+    fn header_overlay_single_line_has_no_chain() {
+        let s = header_overlay(&["one".into()], "/f.ttf", 20, "white", 10, 26);
+        assert!(s.starts_with("drawtext=text='one'"));
+        assert!(s.contains(":x=10:y=10"));
+        assert!(!s.contains(",drawtext="), "no chained node expected for a single line");
+    }
+
+    #[test]
+    fn header_overlay_stacks_lines_top_to_bottom() {
+        // gap=10, line_h=26 → y positions 10, 36, 62, 88.
+        let s = header_overlay(
+            &["line1".into(), "line2".into(), "line3".into(), "line4".into()],
+            "/f.ttf", 20, "white", 10, 26,
+        );
+        assert_eq!(s.matches("drawtext=").count(), 4);
+        assert!(s.contains(":x=10:y=10"));
+        assert!(s.contains(":x=10:y=36"));
+        assert!(s.contains(":x=10:y=62"));
+        assert!(s.contains(":x=10:y=88"));
+        // All lines appear in emission order.
+        let p1 = s.find("line1").unwrap();
+        let p2 = s.find("line2").unwrap();
+        let p3 = s.find("line3").unwrap();
+        let p4 = s.find("line4").unwrap();
+        assert!(p1 < p2 && p2 < p3 && p3 < p4);
+    }
+
+    #[test]
+    fn header_overlay_empty_input_yields_empty_string() {
+        // Defensive — build_header_lines should never return empty, but the
+        // helper must not produce a malformed filter graph if it did.
+        assert_eq!(header_overlay(&[], "/f.ttf", 20, "white", 10, 26), "");
     }
 
     #[test]

@@ -112,7 +112,7 @@
         </details>
 
         <h2 id="requirements">Requirements</h2>
-        <p>Mosaic shells out to two external CLIs. <strong>ffmpeg</strong> is required; <strong>MediaInfo</strong> is optional (enables the in-app metadata viewer — see <a href="#mediainfo">below</a>).</p>
+        <p>Mosaic shells out to two external CLIs. Both <strong>ffmpeg</strong> and <strong>MediaInfo</strong> are required — Mosaic reads codec/HDR/audio metadata from MediaInfo to build the contact-sheet header and to power the per-file metadata viewer (see <a href="#mediainfo">below</a>).</p>
 
         <h3>Required · ffmpeg</h3>
         <p>Both <code>ffmpeg</code> and <code>ffprobe</code> must be on your <code>PATH</code>.</p>
@@ -131,8 +131,8 @@ sudo dnf install ffmpeg      # Fedora
 sudo pacman -S ffmpeg        # Arch</code></pre>
         <p>Most distro packages already ship with libfreetype and libzimg enabled.</p>
 
-        <h3>Optional · <a href="https://mediaarea.net/en/MediaInfo">MediaInfo</a></h3>
-        <p>Enables the per-file metadata viewer. Skip this and the app still works — the info icon just shows install instructions instead of output.</p>
+        <h3>Required · <a href="https://mediaarea.net/en/MediaInfo">MediaInfo</a></h3>
+        <p>Used for richer header metadata (HDR format, commercial audio codec name, channel layout, language) and for the per-file metadata viewer.</p>
 
         <h4>macOS</h4>
         <pre><code>brew install mediainfo</code></pre>
@@ -208,12 +208,7 @@ sudo pacman -S mediainfo     # Arch</code></pre>
         <h2 id="mediainfo">MediaInfo viewer</h2>
         <p>Every queue row has a small info icon next to the filename. Click it to open a modal showing the raw <a href="https://mediaarea.net/en/MediaInfo"><code>mediainfo</code></a> output for that file — video codec, bitrate, HDR profile, audio tracks, container metadata, everything MediaInfo knows.</p>
         <p>There's a copy-to-clipboard button for pasting into issue reports, forum threads, or metadata logs.</p>
-        <p><strong>Install:</strong></p>
-        <pre><code>brew install mediainfo                             # macOS
-winget install MediaArea.MediaInfo.CLI             # Windows
-sudo apt install mediainfo                         # Debian / Ubuntu
-sudo dnf install mediainfo                         # Fedora</code></pre>
-        <p>If MediaInfo isn't installed, clicking the icon shows install instructions instead of output — the rest of the app works normally.</p>
+        <p>MediaInfo is a required prerequisite — if it's missing at startup, Mosaic shows the same "required tools not found" state it does for ffmpeg. See <a href="#requirements">Requirements</a> for install commands.</p>
 
         <h2 id="auto-update">Auto-update</h2>
         <p>Every time you launch Mosaic (v0.1.2 or later), it silently checks GitHub for a newer release. If one exists, a native dialog appears:</p>
@@ -293,8 +288,8 @@ sudo dnf install mediainfo                         # Fedora</code></pre>
           <details class="faq-item">
             <summary data-num="08">Do I need to install MediaInfo too?</summary>
             <div class="faq-body">
-              <p>No — only if you want the in-app metadata viewer. Mosaic checks for <code>mediainfo</code> on your <code>PATH</code> when you click a file's info icon; if it's missing, the modal shows install instructions. The rest of the app is unaffected.</p>
-              <p>Installation is a one-liner per platform — see the <a href="#mediainfo">MediaInfo viewer section</a> above.</p>
+              <p>Yes. Mosaic uses MediaInfo both to build richer contact-sheet headers (HDR format, commercial audio codec name, channel layout, language) and to power the per-file metadata viewer. Mosaic checks for <code>mediainfo</code> on your <code>PATH</code> at startup and shows the same "required tools not found" message as it does for missing ffmpeg.</p>
+              <p>Installation is a one-liner per platform — see the <a href="#requirements">Requirements section</a> above.</p>
             </div>
           </details>
 

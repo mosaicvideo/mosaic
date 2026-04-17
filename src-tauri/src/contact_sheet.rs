@@ -2,7 +2,7 @@ use crate::drawtext::{font_for_ffmpeg, format_hms_escaped, header_overlay, times
 use crate::ffmpeg::{run_batch_cancellable, run_cancellable, RunError};
 use crate::header::build_header_lines;
 use crate::jobs::PipelineContext;
-use crate::layout::{compute_sheet_layout, header_height, line_height, sample_timestamps};
+use crate::layout::{compute_sheet_layout, header_height, line_height, sample_timestamps, thumb_height};
 use crate::output_path::{jpeg_qv, OutputFormat, SheetTheme};
 use crate::video_info::VideoInfo;
 use std::path::{Path, PathBuf};
@@ -46,6 +46,15 @@ pub async fn generate(
     let font_path = font_for_ffmpeg(font);
     let total_steps = layout.total + 2 + u32::from(opts.show_header); // extracts + tile + stack + header
 
+    // Explicit W:H from displayed dims: ffmpeg's `scale=W:-2` auto-height uses
+    // the encoded pixel grid and ignores SAR, so anamorphic sources (e.g.
+    // phone-shot 9:16 encoded in a 1:1 frame) come out square with the
+    // content stretched. `VideoStream.width`/`height` already carry the
+    // square-pixel displayed dims, so the same formula the animated sheet
+    // uses produces cells with the correct aspect for both normal and
+    // anamorphic / rotated sources.
+    let thumb_h = thumb_height(layout.thumb_w, info.video.width, info.video.height);
+
     // 1. Extract thumbnails (parallel)
     let tonemap = crate::ffmpeg::tonemap_filter(ctx.has_zscale, info.video.color_transfer.as_deref(), info.video.dv_profile);
     let mut batch = Vec::with_capacity(timestamps.len());
@@ -57,7 +66,7 @@ pub async fn generate(
             vf.push_str(tm);
             vf.push(',');
         }
-        vf.push_str(&format!("scale={}:-2", layout.thumb_w));
+        vf.push_str(&format!("scale={}:{}", layout.thumb_w, thumb_h));
         if opts.show_timestamps {
             vf.push(',');
             vf.push_str(&timestamp_overlay(
@@ -108,10 +117,10 @@ pub async fn generate(
     if opts.show_header {
         (ctx.reporter.emit)(layout.total + 2, total_steps, "Header");
         let display = source.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-        let (l1, l2) = build_header_lines(info, &display);
-        let h = header_height(opts.header_font_size, opts.gap);
+        let lines = build_header_lines(info, &display);
+        let h = header_height(opts.header_font_size, opts.gap, lines.len() as u32);
         let line_h = line_height(opts.header_font_size);
-        let vf = header_overlay(&l1, &l2, &font_path, opts.header_font_size, opts.theme.fontcolor(), opts.gap, line_h);
+        let vf = header_overlay(&lines, &font_path, opts.header_font_size, opts.theme.fontcolor(), opts.gap, line_h);
         let header = tmp.path().join("header.png");
         let mut args = crate::ffmpeg::base_args();
         args.extend([

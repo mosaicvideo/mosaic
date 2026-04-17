@@ -36,14 +36,25 @@ pub fn build_extract_args(
         "-t".into(), format!("{:.3}", duration),
     ]);
     let tonemap = crate::ffmpeg::tonemap_filter(has_zscale, info.video.color_transfer.as_deref(), info.video.dv_profile);
-    if tonemap.is_some() || info.video.height > target_height {
+    // Scale when: tone-mapping, downscaling to fit target height, OR the
+    // source has non-square pixels (SAR). The SAR case is the fix for
+    // anamorphic sources: skipping the scale would carry the encoded
+    // non-square grid through to the stitched webp/webm/gif, where SAR is
+    // typically lost and the clip would play with wrong aspect.
+    let needs_scale = info.video.height > target_height || info.video.sar.is_some();
+    if tonemap.is_some() || needs_scale {
         let mut vf = String::new();
         if let Some(tm) = tonemap {
             vf.push_str(&tm);
         }
-        if info.video.height > target_height {
+        if needs_scale {
             if !vf.is_empty() { vf.push(','); }
-            vf.push_str(&format!("scale=-2:{}", target_height));
+            // Final height: clamp to target, but don't upscale a source that's
+            // already smaller than target — pointless bandwidth. Width follows
+            // the displayed aspect so anamorphic sources render correctly.
+            let out_h = info.video.height.min(target_height);
+            let out_w = crate::layout::thumb_width(out_h, info.video.width, info.video.height);
+            vf.push_str(&format!("scale={}:{}", out_w, out_h));
         }
         args.push("-vf".into());
         args.push(vf);
@@ -199,8 +210,11 @@ mod tests {
                 is_hdr: false,
                 color_transfer: None,
                 dv_profile: None,
+                rotation: None,
+                sar: None,
             },
             audio: None,
+            enrichment: None,
         }
     }
 
@@ -223,8 +237,69 @@ mod tests {
         assert!(args.windows(2).any(|w| w[0] == "-ss" && w[1] == "12.500"));
         assert!(args.windows(2).any(|w| w[0] == "-i" && w[1] == "/v/movie.mkv"));
         assert!(args.windows(2).any(|w| w[0] == "-t" && w[1] == "5.000"));
-        assert!(args.windows(2).any(|w| w[0] == "-vf" && w[1] == "scale=-2:480"));
+        // Displayed-dim scale: 1920×1080 source, target height 480 →
+        // width = 480 * 1920/1080 = 853 → even-rounded to 852.
+        assert!(args.windows(2).any(|w| w[0] == "-vf" && w[1] == "scale=852:480"));
         assert_eq!(args.last().unwrap(), "/tmp/out/clip_01.mp4");
+    }
+
+    #[test]
+    fn extract_args_anamorphic_source_uses_displayed_width() {
+        // Anamorphic: caller already passed displayed dims (video_info.rs
+        // does the SAR conversion at parse time). For a displayed 606×1080,
+        // target height 480 → width = 480 * 606/1080 = 269 → even 268.
+        let mut info = sample_info(60.0, 1080);
+        info.video.width = 606;
+        info.video.sar = Some((9, 16));
+        let args = build_extract_args(
+            Path::new("/v/portrait.mp4"),
+            &info,
+            5.0,
+            3,
+            480,
+            false,
+            &PathBuf::from("/tmp/p.mp4"),
+        );
+        assert!(args.windows(2).any(|w| w[0] == "-vf" && w[1] == "scale=268:480"));
+    }
+
+    #[test]
+    fn extract_args_small_anamorphic_scales_to_displayed_dims_not_upscaling() {
+        // 640×360 encoded with SAR 9:16 → displayed 360×360. Target height
+        // 480 is larger than source; must NOT upscale to 480 but must still
+        // scale out the non-square pixels so the stitched reel renders as
+        // a 360×360 square instead of a 640×360 wide grid.
+        let mut info = sample_info(60.0, 360);
+        info.video.width = 360;
+        info.video.sar = Some((9, 16));
+        let args = build_extract_args(
+            Path::new("/v/tiny.mp4"),
+            &info,
+            1.0,
+            2,
+            480,
+            false,
+            &PathBuf::from("/tmp/t.mp4"),
+        );
+        assert!(args.windows(2).any(|w| w[0] == "-vf" && w[1] == "scale=360:360"));
+    }
+
+    #[test]
+    fn extract_args_skips_scale_when_source_smaller_and_square_pixels() {
+        // Regression guard: small landscape source, square pixels, no
+        // tonemap. The old behaviour (skip scale) must be preserved — we
+        // only added SAR to the gate, not encoded-vs-target comparison.
+        let info = sample_info(60.0, 360);
+        let args = build_extract_args(
+            Path::new("/v/small.mp4"),
+            &info,
+            1.0,
+            2,
+            480,
+            false,
+            &PathBuf::from("/tmp/s.mp4"),
+        );
+        assert!(!args.iter().any(|a| a == "-vf"));
     }
 
     #[test]
