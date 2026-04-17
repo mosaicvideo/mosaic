@@ -31,7 +31,7 @@ Download the latest release from [GitHub Releases](https://github.com/bhutanio/m
 - `ffmpeg` and `ffprobe` on PATH with the `drawtext` filter enabled:
   - macOS: `brew install ffmpeg-full` (the default `brew install ffmpeg` bottle omits libfreetype, which `drawtext` needs)
   - Linux: `apt install ffmpeg` (or distro equivalent; most packages include libfreetype)
-  - Windows: `winget install ffmpeg` (BtbN "full" build recommended)
+  - Windows: `choco install ffmpeg-full` (or `winget install Gyan.FFmpeg` for the BtbN full build)
 
 ## Run
 
