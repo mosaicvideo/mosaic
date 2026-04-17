@@ -58,9 +58,8 @@ async function checkForUpdate() {
   try {
     const update = await check();
     if (!update) return;
-    const body = (update.body || '').trim();
     const ok = await ask(
-      `${body ? body + '\n\n' : ''}Download and install? The app will restart.`,
+      'Download and install? The app will restart.',
       { title: `Mosaic ${update.version} is available`, kind: 'info', okLabel: 'Install', cancelLabel: 'Later' }
     );
     if (!ok) return;
