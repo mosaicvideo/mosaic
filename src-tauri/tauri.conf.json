@@ -29,7 +29,7 @@
     "targets": "all",
     "createUpdaterArtifacts": true,
     "shortDescription": "Video contact sheet and screenshot generator",
-    "longDescription": "Mosaic generates video contact sheets, screenshots, animated preview reels, and animated contact sheets from video files. Features drag-and-drop batch queue with live progress, cancel support, and an optional per-file MediaInfo metadata viewer. Requires ffmpeg installed separately; MediaInfo CLI is optional.",
+    "longDescription": "Mosaic generates video contact sheets, screenshots, animated preview reels, and animated contact sheets from video files. Features drag-and-drop batch queue with live progress, cancel support, and a per-file MediaInfo metadata viewer. Requires ffmpeg and MediaInfo CLI installed separately.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

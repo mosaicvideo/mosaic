@@ -43,12 +43,34 @@ pub fn line_height(font: u32) -> u32 {
     ((font as f64) * 1.3).round() as u32
 }
 
-pub fn header_height(header_font_size: u32, gap: u32) -> u32 {
-    2 * line_height(header_font_size) + 2 * gap
+/// Vertical extent of the header panel for `lines` stacked lines at the given
+/// font size. Matches `header_overlay`'s layout: `gap` top padding, `line_h`
+/// per line, `gap` bottom padding.
+pub fn header_height(header_font_size: u32, gap: u32, lines: u32) -> u32 {
+    lines * line_height(header_font_size) + 2 * gap
 }
 
 pub fn pad_width_for_count(n: u32) -> usize {
     n.to_string().len().max(2)
+}
+
+/// Derive a thumb height from the source's displayed aspect ratio. Rounded
+/// down to an even pixel count so `yuv420p` subsampling is happy; clamped to
+/// a minimum of 2 on degenerate inputs. Pass `VideoStream.width` / `height`
+/// (which [`crate::video_info`] already normalises to displayed square-pixel
+/// dimensions) so anamorphic and rotated sources produce correct cells.
+pub fn thumb_height(thumb_w: u32, src_w: u32, src_h: u32) -> u32 {
+    if src_w == 0 || src_h == 0 { return (thumb_w.max(2)) - (thumb_w % 2); }
+    let raw = (thumb_w as f64 * src_h as f64 / src_w as f64).round() as u32;
+    let even = raw - (raw % 2);
+    even.max(2)
+}
+
+/// Symmetric to [`thumb_height`]: given a target height, derive a width that
+/// matches the source's displayed aspect. Used by the preview-reel pipeline
+/// where the user configures a target height rather than width.
+pub fn thumb_width(thumb_h: u32, src_w: u32, src_h: u32) -> u32 {
+    thumb_height(thumb_h, src_h, src_w)
 }
 
 /// xstack `layout=` expression for a uniform grid where every input has
@@ -121,9 +143,16 @@ mod tests {
     }
 
     #[test]
-    fn header_height_default() {
+    fn header_height_two_line_default() {
         // font=20 → line_h=26; 2*26 + 2*10 = 72
-        assert_eq!(header_height(20, 10), 72);
+        assert_eq!(header_height(20, 10, 2), 72);
+    }
+
+    #[test]
+    fn header_height_scales_with_line_count() {
+        // Three lines: 3*26 + 2*10 = 98. Four lines: 4*26 + 2*10 = 124.
+        assert_eq!(header_height(20, 10, 3), 98);
+        assert_eq!(header_height(20, 10, 4), 124);
     }
 
     #[test]
@@ -133,6 +162,48 @@ mod tests {
         assert_eq!(pad_width_for_count(99), 2);
         assert_eq!(pad_width_for_count(100), 3);
         assert_eq!(pad_width_for_count(9999), 4);
+    }
+
+    #[test]
+    fn thumb_height_landscape_16_by_9() {
+        // 640 * 1080/1920 = 360 (even).
+        assert_eq!(thumb_height(640, 1920, 1080), 360);
+    }
+
+    #[test]
+    fn thumb_height_rounds_down_to_even() {
+        assert_eq!(thumb_height(100, 1000, 601), 60);  // 60.1 → 60
+        assert_eq!(thumb_height(100, 1000, 603), 60);  // 60.3 → 60
+        assert_eq!(thumb_height(100, 1000, 613), 60);  // 61.3 → even 60
+    }
+
+    #[test]
+    fn thumb_height_portrait_source_gives_tall_thumb() {
+        // Phone portrait after displayed-dim swap: 1080×1920. At thumb_w=640,
+        // thumb_h = 640 * 1920/1080 = 1138 (rounded to even).
+        assert_eq!(thumb_height(640, 1080, 1920), 1138);
+    }
+
+    #[test]
+    fn thumb_height_anamorphic_source_matches_displayed_aspect() {
+        // Maeshima sample: 1080×1080 encoded with SAR 9:16 → displayed 606×1080.
+        // At thumb_w=640, thumb_h = 640 * 1080/606 ≈ 1140 (even).
+        assert_eq!(thumb_height(640, 606, 1080), 1140);
+    }
+
+    #[test]
+    fn thumb_height_handles_zero_source_dims() {
+        // Degenerate input: fall back to thumb_w itself (still even-rounded)
+        // rather than dividing by zero.
+        assert_eq!(thumb_height(100, 0, 0), 100);
+    }
+
+    #[test]
+    fn thumb_width_is_inverse_of_thumb_height() {
+        // For a 16:9 source, asking for height 360 gives width 640.
+        assert_eq!(thumb_width(360, 1920, 1080), 640);
+        // For portrait 1080×1920, asking for height 480 gives width 270.
+        assert_eq!(thumb_width(480, 1080, 1920), 270);
     }
 
     #[test]

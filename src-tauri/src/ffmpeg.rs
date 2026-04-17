@@ -88,9 +88,18 @@ pub(crate) fn h264_clip_encoder() -> [String; 8] {
 pub struct Tools {
     pub ffmpeg: PathBuf,
     pub ffprobe: PathBuf,
-    /// Whether the located ffmpeg has the `zscale` filter (libzimg).
-    /// When false, HDR→SDR tonemapping is silently skipped.
-    pub has_zscale: bool,
+    pub mediainfo: PathBuf,
+}
+
+impl Tools {
+    /// Whether the located ffmpeg has the `zscale` filter (libzimg). When
+    /// false, HDR→SDR tonemapping is silently skipped. Probing this requires
+    /// spawning `ffmpeg -filters` so we don't eager-cache on the `Tools`
+    /// struct — call it once at pipeline-setup time, not in per-file hot
+    /// paths like `probe_video` or `run_mediainfo`.
+    pub fn detect_has_zscale(&self) -> bool {
+        has_filter(&self.ffmpeg, "zscale")
+    }
 }
 
 #[derive(Debug, thiserror::Error, serde::Serialize)]
@@ -99,6 +108,8 @@ pub enum ToolsError {
     FfmpegMissing,
     #[error("ffprobe not found on PATH")]
     FfprobeMissing,
+    #[error("mediainfo not found on PATH")]
+    MediaInfoMissing,
 }
 
 pub fn locate_tools() -> Result<Tools, ToolsError> {
@@ -130,29 +141,8 @@ pub fn locate_tools() -> Result<Tools, ToolsError> {
 
     let ffmpeg = find("ffmpeg").ok_or(ToolsError::FfmpegMissing)?;
     let ffprobe = find("ffprobe").ok_or(ToolsError::FfprobeMissing)?;
-    let has_zscale = has_filter(&ffmpeg, "zscale");
-    Ok(Tools { ffmpeg, ffprobe, has_zscale })
-}
-
-/// Locate the `mediainfo` CLI binary. Returns `None` if not installed.
-/// MediaInfo is optional — the app works without it, but the info modal
-/// shows install instructions instead of output.
-///
-/// Falls back to common Homebrew paths on macOS because GUI apps launched
-/// from Finder/Dock don't inherit the shell `PATH`, so `which` alone misses
-/// `/opt/homebrew/bin/mediainfo`.
-pub fn locate_mediainfo() -> Option<PathBuf> {
-    if let Ok(p) = which::which("mediainfo") { return Some(p); }
-    let extra_paths: &[&str] = if cfg!(target_os = "macos") {
-        &["/opt/homebrew/bin", "/usr/local/bin"]
-    } else {
-        &[]
-    };
-    for ep in extra_paths {
-        let candidate = std::path::Path::new(ep).join("mediainfo");
-        if candidate.is_file() { return Some(candidate); }
-    }
-    None
+    let mediainfo = find("mediainfo").ok_or(ToolsError::MediaInfoMissing)?;
+    Ok(Tools { ffmpeg, ffprobe, mediainfo })
 }
 
 /// Check whether the given ffmpeg binary supports a specific filter.
@@ -272,16 +262,15 @@ mod tests {
     }
 
     #[test]
-    fn locate_mediainfo_returns_some_when_installed() {
-        // Smoke test: if mediainfo is on this machine, we find it.
-        // If not installed, the test still passes (returns None).
-        let result = locate_mediainfo();
-        if which::which("mediainfo").is_ok() {
-            assert!(result.is_some());
-            assert!(result.unwrap().exists());
-        } else {
-            assert!(result.is_none());
+    fn locate_tools_populates_mediainfo_when_installed() {
+        // Smoke test: on a dev machine with all three tools, `Tools.mediainfo`
+        // should resolve to an executable path.
+        if which::which("ffmpeg").is_err() || which::which("ffprobe").is_err() || which::which("mediainfo").is_err() {
+            eprintln!("skipping: ffmpeg/ffprobe/mediainfo not all installed");
+            return;
         }
+        let t = locate_tools().unwrap();
+        assert!(t.mediainfo.exists());
     }
 }
 

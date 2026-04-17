@@ -7,6 +7,11 @@ mod drawtext;
 mod layout;
 
 #[cfg(any(test, feature = "test-api"))]
+pub mod mediainfo;
+#[cfg(not(any(test, feature = "test-api")))]
+mod mediainfo;
+
+#[cfg(any(test, feature = "test-api"))]
 pub mod output_path;
 #[cfg(not(any(test, feature = "test-api")))]
 mod output_path;
@@ -51,8 +56,8 @@ pub fn ffmpeg_test_hook_locate() -> Result<ffmpeg::Tools, ffmpeg::ToolsError> {
 }
 
 #[cfg(any(test, feature = "test-api"))]
-pub async fn ffmpeg_test_hook_probe(exe: &std::path::Path, path: &str) -> Result<video_info::VideoInfo, String> {
-    commands::probe(exe, path).await
+pub async fn ffmpeg_test_hook_probe(tools: &ffmpeg::Tools, path: &str) -> Result<video_info::VideoInfo, String> {
+    commands::probe(tools, path).await
 }
 
 #[cfg(any(test, feature = "test-api"))]
@@ -84,7 +89,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::probe_video,
             commands::check_tools,
-            commands::check_mediainfo,
             commands::run_mediainfo,
             commands::get_video_exts,
             commands::reveal_in_finder,

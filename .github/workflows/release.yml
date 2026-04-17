@@ -104,17 +104,9 @@ jobs:
             - **Windows ARM64 builds** — native aarch64 binaries for Snapdragon-based Windows devices, alongside the existing x64 build.
             - **Version in title bar** — window title shows the current version (e.g. `Mosaic 0.1.2`).
 
-            ### Reminder: optional [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) integration
-
-            Click the info icon on any queue row to view full container / codec / HDR metadata. Install with `brew install mediainfo` (macOS), `winget install MediaArea.MediaInfo.CLI` (Windows), or `apt install mediainfo` (Linux). The rest of the app works without it.
-
-            ### Fixed
-
-            - MediaInfo lookup on macOS now falls back to `/opt/homebrew/bin` and `/usr/local/bin` when `PATH` is empty (apps launched from Finder/Dock don't inherit shell `PATH`).
-
             ### Requirements
 
-            **[ffmpeg](https://ffmpeg.org/) must be installed separately.** The app checks for `ffmpeg` and `ffprobe` on your PATH at startup. [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) is optional — needed only for the info modal.
+            **[ffmpeg](https://ffmpeg.org/) and [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) must be installed separately.** The app checks for `ffmpeg`, `ffprobe`, and `mediainfo` on your PATH at startup. Install via `brew install ffmpeg-full mediainfo` (macOS), `winget install ffmpeg MediaArea.MediaInfo.CLI` (Windows), or `apt install ffmpeg mediainfo` (Linux).
 
             ### Notes
 

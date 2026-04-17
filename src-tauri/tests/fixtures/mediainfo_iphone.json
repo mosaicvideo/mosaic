@@ -1,0 +1,57 @@
+{
+  "creatingLibrary": {"name": "MediaInfoLib", "version": "26.01"},
+  "media": {
+    "@ref": "/samples/iphone6s_4k.mov",
+    "track": [
+      {
+        "@type": "General",
+        "VideoCount": "1",
+        "AudioCount": "1",
+        "FileExtension": "mov",
+        "Format": "MPEG-4",
+        "Format_Profile": "QuickTime",
+        "FileSize": "118742364",
+        "Duration": "18.547",
+        "OverallBitRate_Mode": "VBR",
+        "OverallBitRate": "51217928",
+        "FrameRate": "29.970",
+        "Encoded_Library": "Apple QuickTime",
+        "Encoded_Hardware_Name": "iPhone 6s"
+      },
+      {
+        "@type": "Video",
+        "StreamOrder": "0",
+        "ID": "1",
+        "Format": "AVC",
+        "Format_Profile": "High",
+        "Format_Level": "5.1",
+        "Duration": "18.547",
+        "BitRate": "51105477",
+        "Width": "3840",
+        "Height": "2160",
+        "DisplayAspectRatio": "1.778",
+        "Rotation": "0.000",
+        "FrameRate_Mode": "VFR",
+        "FrameRate": "29.970",
+        "ColorSpace": "YUV",
+        "ChromaSubsampling": "4:2:0",
+        "BitDepth": "8"
+      },
+      {
+        "@type": "Audio",
+        "StreamOrder": "1",
+        "ID": "2",
+        "Format": "AAC",
+        "Format_AdditionalFeatures": "LC",
+        "Duration": "18.541",
+        "BitRate_Mode": "CBR",
+        "BitRate": "96000",
+        "Channels": "2",
+        "ChannelPositions": "Front: L R",
+        "ChannelLayout": "L R",
+        "SamplingRate": "44100",
+        "Default": "Yes"
+      }
+    ]
+  }
+}

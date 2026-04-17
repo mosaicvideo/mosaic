@@ -24,9 +24,11 @@ Download the latest release from [GitHub Releases](https://github.com/mosaicvide
 
 **Windows note:** builds aren't code-signed — SmartScreen will warn on first install. Click **More info** → **Run anyway**.
 
-**Requires [ffmpeg](https://ffmpeg.org/) installed separately** — the app checks for `ffmpeg` and `ffprobe` on your PATH at startup and shows install instructions if they're missing.
+**Requires [ffmpeg](https://ffmpeg.org/) and [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) installed separately** — the app checks for `ffmpeg`, `ffprobe`, and `mediainfo` on your PATH at startup and shows install instructions if any are missing.
 
-**Optional: [MediaInfo CLI](https://mediaarea.net/en/MediaInfo)** — enables the per-file metadata viewer. Install via `brew install mediainfo` / `winget install MediaArea.MediaInfo.CLI` / `apt install mediainfo`. The app works fine without it (info icon shows install instructions instead).
+- macOS: `brew install ffmpeg-full mediainfo`
+- Windows: `winget install ffmpeg MediaArea.MediaInfo.CLI`
+- Linux: `apt install ffmpeg mediainfo`
 
 ## Requirements (dev)
 

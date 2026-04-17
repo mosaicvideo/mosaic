@@ -52,14 +52,14 @@
                   <path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0z" />
                 </svg>
                 <div>
-                  <h3>ffmpeg / ffprobe not found</h3>
-                  <p>Mosaic needs them on your <code>PATH</code>. Install and click Retry.</p>
+                  <h3>Required tools not found</h3>
+                  <p>Mosaic needs <code>ffmpeg</code>, <code>ffprobe</code>, and <code>mediainfo</code> on your <code>PATH</code>. Install the missing one(s) and click Retry.</p>
                 </div>
               </div>
               <div class="te-installs">
-                <div class="te-install"><span class="te-os">macOS</span><code>brew install ffmpeg-full</code></div>
-                <div class="te-install"><span class="te-os">Windows</span><code>winget install ffmpeg</code></div>
-                <div class="te-install"><span class="te-os">Linux</span><code>apt install ffmpeg</code></div>
+                <div class="te-install"><span class="te-os">macOS</span><code>brew install ffmpeg-full mediainfo</code></div>
+                <div class="te-install"><span class="te-os">Windows</span><code>winget install ffmpeg MediaArea.MediaInfo.CLI</code></div>
+                <div class="te-install"><span class="te-os">Linux</span><code>apt install ffmpeg mediainfo</code></div>
               </div>
               <button id="btn-retry-tools" class="secondary small">Retry</button>
             </div>

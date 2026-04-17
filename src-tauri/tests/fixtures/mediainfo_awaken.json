@@ -1,0 +1,73 @@
+{
+  "creatingLibrary": {"name": "MediaInfoLib", "version": "26.01"},
+  "media": {
+    "@ref": "/samples/awaken.mkv",
+    "track": [
+      {
+        "@type": "General",
+        "VideoCount": "1",
+        "AudioCount": "1",
+        "FileExtension": "mkv",
+        "Format": "Matroska",
+        "Format_Version": "4",
+        "FileSize": "125335345",
+        "Duration": "11.021",
+        "OverallBitRate": "90979290",
+        "FrameRate": "23.976",
+        "Title": "Awaken (2018) UHD Disc Sample",
+        "Movie": "Awaken (2018) UHD Disc Sample"
+      },
+      {
+        "@type": "Video",
+        "StreamOrder": "0",
+        "ID": "1",
+        "Format": "HEVC",
+        "Format_Profile": "Main 10",
+        "Format_Level": "5.1",
+        "HDR_Format": "Dolby Vision / SMPTE ST 2086",
+        "HDR_Format_Version": "1.0 / ",
+        "HDR_Format_Profile": "dvhe.07 / ",
+        "HDR_Format_Compatibility": "Blu-ray / HDR10",
+        "Duration": "11.012000000",
+        "BitRate": "89535914",
+        "Width": "3840",
+        "Height": "2160",
+        "DisplayAspectRatio": "1.778",
+        "FrameRate_Mode": "CFR",
+        "FrameRate": "23.976",
+        "ColorSpace": "YUV",
+        "ChromaSubsampling": "4:2:0",
+        "BitDepth": "10",
+        "colour_primaries": "BT.2020",
+        "transfer_characteristics": "PQ",
+        "MasteringDisplay_ColorPrimaries": "Display P3",
+        "MasteringDisplay_Luminance": "min: 0.0001 cd/m2, max: 1000 cd/m2",
+        "MaxCLL": "1000",
+        "MaxFALL": "976"
+      },
+      {
+        "@type": "Audio",
+        "StreamOrder": "1",
+        "ID": "2",
+        "Format": "DTS",
+        "Format_Commercial_IfAny": "DTS-ES",
+        "Format_Settings_Mode": "16",
+        "Format_AdditionalFeatures": "ES",
+        "Duration": "11.019000000",
+        "BitRate_Mode": "CBR",
+        "BitRate": "1509000",
+        "Channels": "6",
+        "Channels_Original": "7",
+        "ChannelPositions_Original": "Front: L C R, Side: L R, Back: C, LFE",
+        "ChannelLayout_Original": "C L R Ls Rs Cb LFE",
+        "SamplingRate": "48000",
+        "BitDepth": "24",
+        "Compression_Mode": "Lossy",
+        "Title": "DTS",
+        "Language": "en",
+        "Default": "Yes",
+        "Forced": "No"
+      }
+    ]
+  }
+}

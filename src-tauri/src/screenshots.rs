@@ -26,6 +26,13 @@ pub async fn generate(
     let total = opts.count;
 
     let tonemap = crate::ffmpeg::tonemap_filter(ctx.has_zscale, info.video.color_transfer.as_deref(), info.video.dv_profile);
+    // Anamorphic sources (non-square SAR) need an explicit resize to the
+    // displayed dims because PNG and JPEG carry no pixel-aspect metadata
+    // most viewers honour. Rotation alone is handled by ffmpeg's autorotate
+    // (decoded frame is already upright), so we gate on `sar` being Some.
+    let sar_scale: Option<String> = info.video.sar
+        .map(|_| format!("scale={}:{}", info.video.width, info.video.height));
+
     let mut batch = Vec::with_capacity(timestamps.len());
     let mut outputs = Vec::with_capacity(timestamps.len());
     for (i, ts) in timestamps.iter().enumerate() {
@@ -34,8 +41,10 @@ pub async fn generate(
         let mut args = crate::ffmpeg::base_args();
         args.extend(crate::ffmpeg::seek_input_args(source, *ts));
         args.extend(["-frames:v".into(), "1".into()]);
-        if let Some(ref tm) = tonemap {
-            args.extend(["-vf".into(), tm.clone()]);
+        let vf: Vec<&str> = [tonemap.as_deref(), sar_scale.as_deref()]
+            .into_iter().flatten().collect();
+        if !vf.is_empty() {
+            args.extend(["-vf".into(), vf.join(",")]);
         }
         if matches!(opts.format, OutputFormat::Jpeg) {
             args.extend(["-q:v".into(), format!("{}", jpeg_qv(opts.jpeg_quality))]);

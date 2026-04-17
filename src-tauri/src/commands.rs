@@ -15,7 +15,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 #[tauri::command]
 pub async fn probe_video(path: String) -> Result<VideoInfo, String> {
     let tools = locate_tools().map_err(|e| e.to_string())?;
-    probe(&tools.ffprobe, &path).await
+    probe(&tools, &path).await
 }
 
 #[tauri::command]
@@ -24,16 +24,9 @@ pub fn check_tools() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn check_mediainfo() -> bool {
-    crate::ffmpeg::locate_mediainfo().is_some()
-}
-
-#[tauri::command]
 pub async fn run_mediainfo(path: String) -> Result<String, String> {
-    let bin = crate::ffmpeg::locate_mediainfo().ok_or_else(|| {
-        "MediaInfo not found.\n\nInstall it:\n  macOS:   brew install mediainfo\n  Windows: winget install MediaArea.MediaInfo.CLI\n  Linux:   apt install mediainfo".to_string()
-    })?;
-    run_capture(&bin, &[&path]).await.map_err(|e| e.to_string())
+    let tools = locate_tools().map_err(|e| e.to_string())?;
+    run_capture(&tools.mediainfo, &[&path]).await.map_err(|e| e.to_string())
 }
 
 const VIDEO_EXTS: &[&str] = &[
@@ -152,6 +145,10 @@ where
     F: for<'a> Fn(&'a Path, &'a VideoInfo, &'a Path, &'a PipelineContext<'a>) -> PerFileFut<'a>,
 {
     state.begin()?;
+    // Resolve zscale support once per batch rather than per file — spawning
+    // `ffmpeg -filters` is relatively cheap but not free, and the answer is
+    // invariant across a batch.
+    let has_zscale = tools.detect_has_zscale();
     let total = items.len();
     let mut completed = 0u32;
     let mut failed = 0u32;
@@ -168,7 +165,7 @@ where
 
         let source = PathBuf::from(&item.path);
         let out_dir = resolve_out_dir(&source, &output);
-        let info = match probe(&tools.ffprobe, &item.path).await {
+        let info = match probe(&tools, &item.path).await {
             Ok(i) => i,
             Err(e) => {
                 failed += 1;
@@ -185,7 +182,7 @@ where
             }));
         };
         let reporter = ProgressReporter { emit: &step_fn };
-        let ctx = PipelineContext { ffmpeg: &tools.ffmpeg, cancelled: state.cancelled.clone(), reporter: &reporter, has_zscale: tools.has_zscale };
+        let ctx = PipelineContext { ffmpeg: &tools.ffmpeg, cancelled: state.cancelled.clone(), reporter: &reporter, has_zscale };
 
         match per_file(&source, &info, &out_dir, &ctx).await {
             Ok(out) => {
@@ -314,18 +311,38 @@ pub fn cancel_job(state: State<'_, Arc<JobState>>) {
     state.cancel();
 }
 
-/// Canonical ffprobe pipeline: run ffprobe with our arg list, parse into `VideoInfo`.
-pub(crate) async fn probe(ffprobe: &std::path::Path, path: &str) -> Result<VideoInfo, String> {
-    let args = [
+/// Canonical probe pipeline: ffprobe for structured metadata, MediaInfo for
+/// enrichment (HDR format, commercial audio name, bit depth, etc.). Both
+/// tools are required at startup; a non-zero exit or malformed MediaInfo
+/// output still degrades gracefully (`enrichment = None`) so a single bad
+/// file doesn't block the whole queue.
+///
+/// The two probes are independent I/O against the same file, so they run
+/// concurrently — roughly halves per-file probe latency on drag-and-drop.
+pub(crate) async fn probe(tools: &Tools, path: &str) -> Result<VideoInfo, String> {
+    let ffprobe_args = [
         "-v", "error",
         "-show_entries", "format=filename,duration,size,bit_rate",
-        "-show_entries", "stream=codec_name,codec_type,width,height,r_frame_rate,sample_rate,channels,bit_rate,profile,color_transfer",
-        "-show_entries", "stream_side_data=side_data_type,dv_profile",
+        "-show_entries", "stream=codec_name,codec_type,width,height,r_frame_rate,sample_rate,channels,bit_rate,profile,color_transfer,sample_aspect_ratio",
+        "-show_entries", "stream_side_data=side_data_type,dv_profile,rotation",
         "-of", "json",
         path,
     ];
-    let json = run_capture(ffprobe, &args).await.map_err(|e| e.to_string())?;
-    parse(&json).map_err(|e| e.to_string())
+    let (ffprobe_res, enrichment) = tokio::join!(
+        run_capture(&tools.ffprobe, &ffprobe_args),
+        probe_mediainfo(&tools.mediainfo, path),
+    );
+    let json = ffprobe_res.map_err(|e| e.to_string())?;
+    let mut info = parse(&json).map_err(|e| e.to_string())?;
+    info.enrichment = enrichment;
+    Ok(info)
+}
+
+/// Best-effort MediaInfo enrichment: `None` if the binary errors or emits
+/// output we can't parse.
+async fn probe_mediainfo(bin: &std::path::Path, path: &str) -> Option<crate::mediainfo::Enrichment> {
+    let json = run_capture(bin, &["--Output=JSON", path]).await.ok()?;
+    crate::mediainfo::parse_enrichment(&json)
 }
 
 fn resolve_out_dir(source: &std::path::Path, output: &OutputLocation) -> PathBuf {

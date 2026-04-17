@@ -2,7 +2,7 @@ use crate::drawtext::{font_for_ffmpeg, format_hms_escaped, header_overlay, times
 use crate::ffmpeg::{run_batch_cancellable, run_cancellable, RunError};
 use crate::header::build_header_lines;
 use crate::jobs::PipelineContext;
-use crate::layout::{compute_sheet_layout, header_height, line_height, sample_clip_timestamps, xstack_layout, SheetLayout};
+use crate::layout::{compute_sheet_layout, header_height, line_height, sample_clip_timestamps, thumb_height, xstack_layout, SheetLayout};
 use crate::output_path::SheetTheme;
 use crate::video_info::VideoInfo;
 use std::path::{Path, PathBuf};
@@ -32,18 +32,8 @@ pub struct AnimatedSheetOptions {
     pub theme: SheetTheme,
 }
 
-/// Derive a thumb height from source aspect ratio, rounded down to an even
-/// pixel count so yuv420p subsampling is happy.
-pub fn thumb_height(thumb_w: u32, src_w: u32, src_h: u32) -> u32 {
-    if src_w == 0 || src_h == 0 { return thumb_w.max(2) - (thumb_w % 2); }
-    let raw = (thumb_w as f64 * src_h as f64 / src_w as f64).round() as u32;
-    let even = raw - (raw % 2);
-    even.max(2)
-}
-
 pub(crate) struct HeaderParams {
-    pub(crate) line1: String,
-    pub(crate) line2: String,
+    pub(crate) lines: Vec<String>,
     pub(crate) height: u32,
     pub(crate) line_h: u32,
     pub(crate) font_size: u32,
@@ -139,7 +129,7 @@ pub(crate) fn build_stitch_args(
     );
 
     let final_label = if let Some(h) = header {
-        let hdr_draw = header_overlay(&h.line1, &h.line2, &h.font_ffmpeg, h.font_size, theme.fontcolor(), gap, h.line_h);
+        let hdr_draw = header_overlay(&h.lines, &h.font_ffmpeg, h.font_size, theme.fontcolor(), gap, h.line_h);
         graph.push_str(&format!(
             ";color=c={}:s={}x{}:d={}:r={},{}[hdr];[hdr][grid]vstack[out]",
             bg, grid_w, h.height, clip_length_secs, fps, hdr_draw
@@ -223,11 +213,11 @@ pub async fn generate(
 
     let header_params = if opts.show_header {
         let display = source.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-        let (l1, l2) = build_header_lines(info, &display);
+        let lines = build_header_lines(info, &display);
+        let line_count = lines.len() as u32;
         Some(HeaderParams {
-            line1: l1,
-            line2: l2,
-            height: header_height(opts.header_font_size, opts.gap),
+            lines,
+            height: header_height(opts.header_font_size, opts.gap, line_count),
             line_h: line_height(opts.header_font_size),
             font_size: opts.header_font_size,
             font_ffmpeg: font_for_ffmpeg(font),
@@ -251,27 +241,6 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::AtomicBool;
 
-    #[test]
-    fn thumb_height_16_by_9_source() {
-        // 640 * 1080/1920 = 360 (even)
-        assert_eq!(thumb_height(640, 1920, 1080), 360);
-    }
-
-    #[test]
-    fn thumb_height_rounds_down_to_even() {
-        // 100 * 601/1000 = 60.1 → 60 (already even)
-        assert_eq!(thumb_height(100, 1000, 601), 60);
-        // 100 * 603/1000 = 60.3 → 60 (rounded from 60, already even)
-        assert_eq!(thumb_height(100, 1000, 603), 60);
-        // 100 * 613/1000 = 61.3 → round to 61 → even 60
-        assert_eq!(thumb_height(100, 1000, 613), 60);
-    }
-
-    #[test]
-    fn thumb_height_handles_zero_source_dims() {
-        assert_eq!(thumb_height(100, 0, 0), 100);
-    }
-
     fn sample_info(duration: f64, w: u32, h: u32) -> VideoInfo {
         VideoInfo {
             filename: String::new(),
@@ -288,8 +257,11 @@ mod tests {
                 is_hdr: false,
                 color_transfer: None,
                 dv_profile: None,
+                rotation: None,
+                sar: None,
             },
             audio: None,
+            enrichment: None,
         }
     }
 
@@ -385,8 +357,7 @@ mod tests {
         let layout = compute_sheet_layout(2, 2, 800, 10);
         let clips: Vec<PathBuf> = (0..4).map(|i| PathBuf::from(format!("/tmp/c{}.mp4", i))).collect();
         let header = HeaderParams {
-            line1: "movie.mkv".into(),
-            line2: "Duration: 00:01:30 | 1920x1080".into(),
+            lines: vec!["movie.mkv".into(), "Duration: 00:01:30 | 1920x1080".into()],
             height: 72, line_h: 26, font_size: 20,
             font_ffmpeg: "/f/font.ttf".into(),
         };
@@ -409,7 +380,7 @@ mod tests {
         let layout = compute_sheet_layout(2, 2, 800, 10);
         let clips: Vec<PathBuf> = (0..4).map(|i| PathBuf::from(format!("/tmp/c{}.mp4", i))).collect();
         let header = HeaderParams {
-            line1: "m.mkv".into(), line2: "x".into(),
+            lines: vec!["m.mkv".into(), "x".into()],
             height: 50, line_h: 20, font_size: 16,
             font_ffmpeg: "/f.ttf".into(),
         };
