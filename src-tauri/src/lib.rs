@@ -49,6 +49,7 @@ pub mod jobs;
 mod jobs;
 
 mod commands;
+pub mod events;
 
 #[cfg(any(test, feature = "test-api"))]
 pub fn ffmpeg_test_hook_locate() -> Result<ffmpeg::Tools, ffmpeg::ToolsError> {

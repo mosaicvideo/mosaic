@@ -1,5 +1,6 @@
 use crate::animated_sheet::{self, AnimatedSheetOptions};
 use crate::contact_sheet::{self, SheetOptions};
+use crate::events;
 use crate::ffmpeg::{locate_tools, run_capture, RunError, Tools};
 use crate::jobs::{JobState, PipelineContext, ProgressReporter};
 use crate::output_path::{animated_sheet_path, contact_sheet_path, preview_reel_path};
@@ -159,7 +160,7 @@ where
             cancelled_count = (total - i) as u32;
             break;
         }
-        let _ = app.emit("job:file-start", serde_json::json!({
+        let _ = app.emit(events::FILE_START, serde_json::json!({
             "fileId": item.id, "index": i + 1, "total": total
         }));
 
@@ -169,7 +170,7 @@ where
             Ok(i) => i,
             Err(e) => {
                 failed += 1;
-                let _ = app.emit("job:file-failed", serde_json::json!({ "fileId": item.id, "error": e }));
+                let _ = app.emit(events::FILE_FAILED, serde_json::json!({ "fileId": item.id, "error": e }));
                 continue;
             }
         };
@@ -177,7 +178,7 @@ where
         let id = item.id.clone();
         let app2 = app.clone();
         let step_fn = move |step: u32, total_steps: u32, label: &str| {
-            let _ = app2.emit("job:step", serde_json::json!({
+            let _ = app2.emit(events::STEP, serde_json::json!({
                 "fileId": id, "step": step, "totalSteps": total_steps, "label": label
             }));
         };
@@ -187,7 +188,7 @@ where
         match per_file(&source, &info, &out_dir, &ctx).await {
             Ok(out) => {
                 completed += 1;
-                let _ = app.emit("job:file-done", serde_json::json!({
+                let _ = app.emit(events::FILE_DONE, serde_json::json!({
                     "fileId": item.id,
                     "index": i + 1, "total": total,
                     "outputPath": out.map(|p| p.to_string_lossy().into_owned()),
@@ -199,7 +200,7 @@ where
             }
             Err(e) => {
                 failed += 1;
-                let _ = app.emit("job:file-failed", serde_json::json!({
+                let _ = app.emit(events::FILE_FAILED, serde_json::json!({
                     "fileId": item.id, "error": e.to_string()
                 }));
             }
@@ -207,7 +208,7 @@ where
     }
 
     state.end();
-    let _ = app.emit("job:finished", serde_json::json!({
+    let _ = app.emit(events::FINISHED, serde_json::json!({
         "completed": completed, "failed": failed, "cancelled": cancelled_count
     }));
     Ok(())
