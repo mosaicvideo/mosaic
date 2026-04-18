@@ -1,0 +1,32 @@
+name: Defaults Sync Check
+
+on:
+  pull_request:
+    paths:
+      - "src-tauri/src/defaults.rs"
+      - "src/index.html"
+      - "scripts/sync-defaults.mjs"
+  push:
+    branches: [main]
+    paths:
+      - "src-tauri/src/defaults.rs"
+      - "src/index.html"
+      - "scripts/sync-defaults.mjs"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run sync-defaults
+        run: node scripts/sync-defaults.mjs
+      - name: Verify no drift
+        run: |
+          if ! git diff --exit-code src/index.html; then
+            echo "::error::src/index.html is out of sync with defaults.rs."
+            echo "Run 'pnpm sync:defaults' locally and commit the result."
+            exit 1
+          fi

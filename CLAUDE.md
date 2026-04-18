@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Use `pnpm tauri dev` for development and `pnpm tauri build` for production bundles. Rust tests live under `src-tauri/` — plain `cargo test` runs unit tests; add `--features test-api` for integration tests. Run `cargo` from `src-tauri/` (the `Cargo.toml` isn't at repo root). For frontend-only changes, `pnpm build:web` is a fast Vite build that catches syntax/import errors without launching Tauri.
 
-Always run `cargo clippy --all-targets --features test-api -- -D warnings` after Rust changes and before reporting work complete. Clippy must be clean — fix warnings, don't silence them.
+Always run `cargo clippy --all-targets --features test-api,cli -- -D warnings` after Rust changes and before reporting work complete. The plain `cargo clippy -- -D warnings` (GUI-only, no features) must also be clean. Clippy must be clean — fix warnings, don't silence them.
 
 Vite (port 5173) serves `src/` and is spawned automatically by `tauri dev` via `beforeDevCommand`. Tauri's file watcher hot-rebuilds the Rust crate on `src-tauri/**` changes; Vite HMR handles `src/**`.
 
@@ -20,7 +20,7 @@ Tauri 2 app. Rust backend orchestrates `ffmpeg`/`ffprobe` subprocesses; vanilla 
 
 **Four output types.** Contact sheets (grid JPEG/PNG), screenshots (individual frames), animated preview reels (WebP/WebM/GIF stitched from short clips), and animated contact sheets (WebP grid of animated clips). Each has its own orchestration module and its own `generate_*` Tauri command; `output_path` exposes a `*_path` builder per type with a configurable suffix.
 
-**`test-api` feature.** `lib.rs` uses `#[cfg(any(test, feature = "test-api"))] pub mod` to expose internal modules only during tests — they are `mod` (private) in production builds. The integration test (`tests/integration.rs`) declares `required-features = ["test-api"]` in `Cargo.toml` so a plain `cargo test` silently skips it instead of failing to link. Do NOT change these modules back to unconditional `pub mod`; it widens the public API surface of `mosaic_lib`.
+**`test-api` / `cli` feature.** `lib.rs` uses `#[cfg(any(test, feature = "test-api", feature = "cli"))] pub mod` to expose internal modules only during tests or CLI builds — they are `mod` (private) in production GUI builds. The integration test (`tests/integration.rs`) declares `required-features = ["test-api"]` and the CLI integration test (`tests/cli.rs`) declares `required-features = ["cli", "test-api"]` in `Cargo.toml` so a plain `cargo test` silently skips both instead of failing to link. Do NOT change these modules back to unconditional `pub mod`; it widens the public API surface of `mosaic_lib`.
 
 **ffmpeg argv prelude.** All pipelines begin with `ffmpeg::base_args()` (`-hide_banner -loglevel error -y`). Extend from that helper, don't inline the prelude.
 
@@ -32,7 +32,7 @@ Tauri 2 app. Rust backend orchestrates `ffmpeg`/`ffprobe` subprocesses; vanilla 
 
 **Progress events.** Rust emits `job:file-start`, `job:step`, `job:file-done`, `job:file-failed`, `job:finished` via `AppHandle::emit`. The frontend's `wireEvents()` in `main.js` is the only place listening; route new progress signals through the same event names or add new ones in parallel.
 
-**Additional Tauri commands.** Besides the generate/probe/check-tools commands: `scan_folder(path, recursive)` returns video paths under a directory (used by "Add Folder"); `reveal_in_finder(path)` shells out to `open -R` / `explorer /select` / `xdg-open` (used when a Done queue row is clicked); `get_video_exts()` returns the canonical 45-extension list (`VIDEO_EXTS` in `commands.rs`); `run_mediainfo(path)` for the metadata viewer; `cancel_job()` flips the shared cancel flag.
+**Additional Tauri commands.** Besides the generate/probe/check-tools commands: `scan_folder(path, recursive)` returns video paths under a directory (used by "Add Folder"); `reveal_in_finder(path)` shells out to `open -R` / `explorer /select` / `xdg-open` (used when a Done queue row is clicked); `get_video_exts()` returns the canonical 45-extension list (`VIDEO_EXTS` in `input_scan.rs`); `run_mediainfo(path)` for the metadata viewer; `cancel_job()` flips the shared cancel flag.
 
 **Tool prerequisites.** `locate_tools()` in `ffmpeg.rs` resolves ffmpeg, ffprobe, and mediainfo with a Homebrew-aware search (`ffmpeg-full` first on macOS, then `which`, then `/opt/homebrew/bin` / `/usr/local/bin` fallbacks — macOS GUI apps don't inherit shell `PATH`). All three are first-party requirements; any missing binary fails `check_tools` at startup and the frontend shows the tools-missing state.
 
@@ -43,6 +43,21 @@ Tauri 2 app. Rust backend orchestrates `ffmpeg`/`ffprobe` subprocesses; vanilla 
 **Tools-missing state.** When `check_tools` fails, `main.js` adds `.tools-missing` to `#app` and swaps the queue area for `#tools-error` (install instructions + Retry). CSS disables the dropzone, run-options, action bar, and settings icon via `opacity: 0.4; pointer-events: none`. `toolsOk` in `main.js` also feeds into the Generate button's disabled state. Retry re-invokes `check_tools`; on success the UI un-dims.
 
 **Window title.** Set at runtime in `lib.rs`'s `setup()` hook via `window.set_title("Mosaic {version}")` using `app.package_info().version`. Don't set a static title in `tauri.conf.json` — it'll be overwritten on launch.
+
+## CLI binary
+
+- Two binaries share the crate: `mosaic` (GUI, default) and `mosaic-cli` (compiled only when `--features cli` is set).
+- Build: `cargo build --release --features cli --bin mosaic-cli` from `src-tauri/`.
+- Test: `cargo test --features cli,test-api --test cli` (on macOS, prepend `PATH="/opt/homebrew/opt/ffmpeg-full/bin:$PATH"` — same ffmpeg-full requirement as the main integration test).
+- **`default-run` gotcha:** `src-tauri/Cargo.toml` has `default-run = "mosaic"`. `cargo run` without `--bin` launches the GUI; always pass `--bin mosaic-cli` when working on the CLI, or use the `pnpm dev:cli -- <args>` shortcut.
+- **Dev workflow:** `pnpm dev:cli -- <subcommand> [args]` is the quickest path for iteration (wraps `cargo run --manifest-path src-tauri/Cargo.toml --bin mosaic-cli --features cli --`). Args after `--` forward to the binary.
+- **Module layout:** `src-tauri/src/bin/mosaic_cli/` is a module directory with `main.rs` (entry + dispatch), `cli.rs` (clap structs), `config.rs` (`~/.mosaic-cli.toml` loader + validation), `font.rs` (embedded DejaVuSans), `hints.rs` (tool-missing install hints), `progress.rs` (indicatif wrapper), `signals.rs` (ctrl-c handler), and `run/` (per-subcommand implementations + shared helpers `inputs.rs`, `format.rs`, `suffix.rs`).
+- **Hook functions:** `lib.rs` exposes `ffmpeg_test_hook_locate`, `ffmpeg_test_hook_probe`, `video_info_test_hook_parse` under the same cfg as the pipeline modules. The `test_hook_` prefix is historical — they're now CLI-production entry points too. Rename deferred.
+- `defaults.rs` is the shared source of truth for GUI HTML defaults and CLI flag defaults. `scripts/sync-defaults.mjs` reads `defaults.rs` and patches the matching `<input>`/`<select>` values in `src/index.html`; it runs automatically via `pnpm version:bump`. When adding a new shipping default: add it to `defaults.rs`, extend the key map in `sync-defaults.mjs`, extend the test in `defaults.rs::tests`.
+- `input_scan.rs` owns folder-scan logic (moved out of `commands.rs`). Both the Tauri `scan_folder` command and the CLI's input expander call into it — don't duplicate the scan logic.
+- Config file: `~/.mosaic-cli.toml`, auto-created on first run with every key commented out. Override path via `$MOSAIC_CLI_CONFIG`. CLI flags always take precedence over the config file.
+- Pipeline modules (`video_info`, `ffmpeg`, `contact_sheet`, etc.) are exposed publicly under **both** `feature = "test-api"` **and** `feature = "cli"` via the two-branch `cfg` pattern in `lib.rs` (`#[cfg(any(test, feature = "test-api", feature = "cli"))] pub mod`). When adding a new pipeline module that the CLI needs, match that shape — do not widen to an unconditional `pub mod`.
+- `mosaic-cli` is included in CI release builds as a separate artifact (`mosaic-cli-*`); the release workflow builds it with `--features cli` alongside the Tauri bundle.
 
 ## ffmpeg quirks to know
 
@@ -80,6 +95,7 @@ Granted permissions in `src-tauri/capabilities/default.json`: `updater:default`,
 
 - Design spec: `docs/2026-04-14-mosaic-design.md`
 - Implementation plan: `docs/2026-04-14-mosaic-plan.md`
-- CLI plan (future work): `docs/2026-04-14-mosaic-cli-plan.md`
+- CLI spec: `docs/superpowers/specs/2026-04-18-mosaic-cli-design.md`
+- CLI plan: `docs/superpowers/plans/2026-04-18-mosaic-cli.md`
 - Distribution plan: `docs/2026-04-14-mosaic-distribution-plan.md`
 - Test samples (HDR10, DV, various codecs): https://kodi.wiki/view/Samples

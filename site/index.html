@@ -59,6 +59,10 @@
           <span class="tline out">  runs locally, auto-updates from v0.1.2 on.</span>
           <span class="tspace"></span>
 
+          <span class="tline cmd">mosaic-cli sheet movie.mkv</span>
+          <span class="tline out">  wrote movie_sheet.png  ·  batch-ready CLI for scripts</span>
+          <span class="tspace"></span>
+
           <span class="tline cmd">ls ./available-builds</span>
           <span class="tspace"></span>
 
@@ -112,12 +116,58 @@
     </div>
   </section>
 
+  <!-- ============ CLI DOWNLOADS ============ -->
+  <section class="section">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-path">~/mosaic/cli</div>
+        <h2 class="section-title">Command-line binaries</h2>
+        <p class="section-sub">For scripting, headless servers, and CI. Requires <code>ffmpeg</code>, <code>ffprobe</code>, and <code>mediainfo</code> on <code>PATH</code> — same as the app. <a href="guide.html#cli">Usage docs →</a></p>
+      </div>
+
+      <div class="dl-table" role="list">
+        <div class="dl-row" data-key="cli-macos">
+          <a id="cli-btn-macos" href="https://github.com/mosaicvideo/mosaic/releases/latest" role="listitem">
+            <div class="dl-index">01.</div>
+            <div class="dl-tag">mac</div>
+            <div class="dl-path">mosaic-cli-macos-universal</div>
+            <div class="dl-size">--</div>
+          </a>
+        </div>
+        <div class="dl-row" data-key="cli-win-x64">
+          <a id="cli-btn-win-x64" href="https://github.com/mosaicvideo/mosaic/releases/latest" role="listitem">
+            <div class="dl-index">02.</div>
+            <div class="dl-tag">windows</div>
+            <div class="dl-path">mosaic-cli-windows-x86_64.exe</div>
+            <div class="dl-size">--</div>
+          </a>
+        </div>
+        <div class="dl-row" data-key="cli-win-arm">
+          <a id="cli-btn-win-arm" href="https://github.com/mosaicvideo/mosaic/releases/latest" role="listitem">
+            <div class="dl-index">03.</div>
+            <div class="dl-tag">win-arm</div>
+            <div class="dl-path">mosaic-cli-windows-aarch64.exe</div>
+            <div class="dl-size">--</div>
+          </a>
+        </div>
+        <div class="dl-row" data-key="cli-linux">
+          <a id="cli-btn-linux" href="https://github.com/mosaicvideo/mosaic/releases/latest" role="listitem">
+            <div class="dl-index">04.</div>
+            <div class="dl-tag">linux</div>
+            <div class="dl-path">mosaic-cli-linux-x86_64</div>
+            <div class="dl-size">--</div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ OUTPUT TYPES ============ -->
   <section class="section">
     <div class="container">
       <div class="section-head">
         <div class="section-path">~/mosaic/output-types</div>
-        <h2 class="section-title">3 output types, 1 batch queue</h2>
+        <h2 class="section-title">4 output types, 1 batch queue</h2>
         <p class="section-sub">Drop videos or folders, pick what to produce, walk away. Every pipeline runs your local ffmpeg — nothing leaves the machine.</p>
       </div>
 
@@ -145,9 +195,16 @@
 
         <div class="fs-row" role="listitem">
           <div class="fs-idx">03.</div>
-          <div class="fs-name">animated_previews/</div>
-          <div class="fs-desc">Short clips stitched into a single reel, or laid out as an animated grid where every cell loops motion. Motion at a glance.</div>
+          <div class="fs-name">animated_reels/</div>
+          <div class="fs-desc">Short clips stitched end-to-end into a single reel. Motion preview without opening a video player.</div>
           <div class="fs-meta">WebP · WebM<br>GIF</div>
+        </div>
+
+        <div class="fs-row" role="listitem">
+          <div class="fs-idx">04.</div>
+          <div class="fs-name">animated_sheets/</div>
+          <div class="fs-desc">Grid of animated thumbnail clips — every cell loops a short motion clip. Motion at a glance, contact-sheet layout.</div>
+          <div class="fs-meta">WebP</div>
         </div>
       </div>
     </div>
@@ -159,7 +216,7 @@
       <div class="section-head">
         <div class="section-path">~/mosaic/flags</div>
         <h2 class="section-title">Built for real work</h2>
-        <p class="section-sub">Four decisions that shape how Mosaic behaves under load.</p>
+        <p class="section-sub">Five decisions that shape how Mosaic behaves under load.</p>
       </div>
 
       <div class="flags">
@@ -179,6 +236,10 @@
           <div class="flag-key">signed-updates</div>
           <div class="flag-body">One-click install on new releases. Every update is cryptographically verified on-device against the app's embedded public key.</div>
         </div>
+        <div class="flag">
+          <div class="flag-key">mosaic-cli</div>
+          <div class="flag-body">Every pipeline as a subcommand — <code>screenshots</code>, <code>sheet</code>, <code>reel</code>, <code>animated-sheet</code>, <code>probe</code>. Stdout is paths-only so it pipes cleanly into <code>xargs</code>. <a href="guide.html#cli">Docs →</a></div>
+        </div>
       </div>
     </div>
   </section>
@@ -197,7 +258,7 @@
           <img class="optional-screenshot" src="assets/screenshots/hero.png" alt="Mosaic app — drag-and-drop queue with files processing" loading="lazy">
         </div>
         <div class="showcase-caption">
-          <span>mosaic.app · v0.1.2 · mac-universal</span>
+          <span>mosaic.app · v0.1.3 · mac-universal</span>
           <span>prores 422 source</span>
         </div>
       </div>

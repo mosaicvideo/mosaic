@@ -1,67 +1,77 @@
-#[cfg(any(test, feature = "test-api"))]
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
 pub mod video_info;
-#[cfg(not(any(test, feature = "test-api")))]
+#[cfg(not(any(test, feature = "test-api", feature = "cli")))]
 mod video_info;
+
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
+pub mod defaults;
+#[cfg(not(any(test, feature = "test-api", feature = "cli")))]
+mod defaults;
+
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
+pub mod input_scan;
+#[cfg(not(any(test, feature = "test-api", feature = "cli")))]
+mod input_scan;
 
 mod drawtext;
 mod layout;
 
-#[cfg(any(test, feature = "test-api"))]
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
 pub mod mediainfo;
-#[cfg(not(any(test, feature = "test-api")))]
+#[cfg(not(any(test, feature = "test-api", feature = "cli")))]
 mod mediainfo;
 
-#[cfg(any(test, feature = "test-api"))]
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
 pub mod output_path;
-#[cfg(not(any(test, feature = "test-api")))]
+#[cfg(not(any(test, feature = "test-api", feature = "cli")))]
 mod output_path;
 
 mod header;
 
-#[cfg(any(test, feature = "test-api"))]
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
 pub mod ffmpeg;
-#[cfg(not(any(test, feature = "test-api")))]
+#[cfg(not(any(test, feature = "test-api", feature = "cli")))]
 mod ffmpeg;
 
-#[cfg(any(test, feature = "test-api"))]
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
 pub mod contact_sheet;
-#[cfg(not(any(test, feature = "test-api")))]
+#[cfg(not(any(test, feature = "test-api", feature = "cli")))]
 mod contact_sheet;
 
-#[cfg(any(test, feature = "test-api"))]
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
 pub mod screenshots;
-#[cfg(not(any(test, feature = "test-api")))]
+#[cfg(not(any(test, feature = "test-api", feature = "cli")))]
 mod screenshots;
 
-#[cfg(any(test, feature = "test-api"))]
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
 pub mod preview_reel;
-#[cfg(not(any(test, feature = "test-api")))]
+#[cfg(not(any(test, feature = "test-api", feature = "cli")))]
 mod preview_reel;
 
-#[cfg(any(test, feature = "test-api"))]
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
 pub mod animated_sheet;
-#[cfg(not(any(test, feature = "test-api")))]
+#[cfg(not(any(test, feature = "test-api", feature = "cli")))]
 mod animated_sheet;
 
-#[cfg(any(test, feature = "test-api"))]
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
 pub mod jobs;
-#[cfg(not(any(test, feature = "test-api")))]
+#[cfg(not(any(test, feature = "test-api", feature = "cli")))]
 mod jobs;
 
 mod commands;
 pub mod events;
 
-#[cfg(any(test, feature = "test-api"))]
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
 pub fn ffmpeg_test_hook_locate() -> Result<ffmpeg::Tools, ffmpeg::ToolsError> {
     ffmpeg::locate_tools()
 }
 
-#[cfg(any(test, feature = "test-api"))]
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
 pub async fn ffmpeg_test_hook_probe(tools: &ffmpeg::Tools, path: &str) -> Result<video_info::VideoInfo, String> {
     commands::probe(tools, path).await
 }
 
-#[cfg(any(test, feature = "test-api"))]
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
 pub fn video_info_test_hook_parse(json: &str) -> Result<video_info::VideoInfo, video_info::ProbeParseError> {
     video_info::parse(json)
 }

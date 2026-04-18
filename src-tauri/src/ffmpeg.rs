@@ -281,6 +281,26 @@ mod tests {
     }
 }
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
+static VERBOSE: AtomicBool = AtomicBool::new(false);
+
+/// Enable argv-print-before-spawn globally (used by `mosaic-cli --verbose`).
+#[allow(dead_code)]
+pub fn set_verbose(on: bool) {
+    VERBOSE.store(on, Ordering::Relaxed);
+}
+
+fn maybe_log_argv(bin: &std::path::Path, args: &[impl AsRef<std::ffi::OsStr>]) {
+    if !VERBOSE.load(Ordering::Relaxed) { return; }
+    let mut line = bin.display().to_string();
+    for a in args {
+        line.push(' ');
+        line.push_str(&a.as_ref().to_string_lossy());
+    }
+    eprintln!("+ {line}");
+}
+
 use std::process::Stdio;
 use tokio::process::Command;
 
@@ -308,6 +328,7 @@ pub enum RunError {
 }
 
 pub async fn run_capture(exe: &std::path::Path, args: &[&str]) -> Result<String, RunError> {
+    maybe_log_argv(exe, args);
     let mut cmd = Command::new(exe);
     cmd.args(args)
         .stdin(Stdio::null())
@@ -326,7 +347,6 @@ pub async fn run_capture(exe: &std::path::Path, args: &[&str]) -> Result<String,
 }
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 pub async fn run_cancellable(
     exe: &std::path::Path,
@@ -334,7 +354,7 @@ pub async fn run_cancellable(
     cancelled: Arc<AtomicBool>,
 ) -> Result<(), RunError> {
     if cancelled.load(Ordering::Relaxed) { return Err(RunError::Killed); }
-
+    maybe_log_argv(exe, args);
     let mut cmd = Command::new(exe);
     cmd.args(args.iter().map(|s| s.as_str()))
         .stdin(Stdio::null())

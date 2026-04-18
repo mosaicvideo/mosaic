@@ -92,16 +92,17 @@ pub fn screenshot_path(
     suffix: &str,
     index: u32,
     count: u32,
+    exists_fn: &dyn Fn(&Path) -> bool,
 ) -> PathBuf {
     let width = crate::layout::pad_width_for_count(count);
     let num = format!("{:0width$}", index, width = width);
-    out_dir.join(format!(
-        "{}{}{}.{}",
+    let base = format!(
+        "{}{}{}",
         stem(source),
         resolved(suffix, DEFAULT_SHOTS_SUFFIX),
         num,
-        fmt.ext()
-    ))
+    );
+    collision_free_path(out_dir, &base, fmt.ext(), exists_fn)
 }
 
 pub fn preview_reel_path(
@@ -204,6 +205,7 @@ mod tests {
             "",
             7,
             100,
+            &|_| false,
         );
         assert_eq!(p, PathBuf::from("/v/clip_screens_007.png"));
     }
@@ -217,6 +219,7 @@ mod tests {
             "",
             3,
             5,
+            &|_| false,
         );
         assert_eq!(p, PathBuf::from("/v/clip_screens_03.png"));
     }
@@ -230,8 +233,24 @@ mod tests {
             "-shot-",
             3,
             5,
+            &|_| false,
         );
         assert_eq!(p, PathBuf::from("/v/clip-shot-03.png"));
+    }
+
+    #[test]
+    fn screenshot_appends_suffix_on_collision() {
+        let taken: HashSet<PathBuf> = ["/out/clip_screens_01.png"].iter().map(PathBuf::from).collect();
+        let p = screenshot_path(
+            Path::new("/v/clip.mp4"),
+            Path::new("/out"),
+            OutputFormat::Png,
+            "",
+            1,
+            5,
+            &|p| taken.contains(p),
+        );
+        assert_eq!(p, PathBuf::from("/out/clip_screens_01 (1).png"));
     }
 
     #[test]

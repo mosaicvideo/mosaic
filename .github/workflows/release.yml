@@ -16,15 +16,23 @@ jobs:
           - os: macos-latest
             rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
             tauri-args: --target universal-apple-darwin
+            cli-name: macos-universal
+            cli-lipo: "true"
           - os: windows-latest
             rust-targets: x86_64-pc-windows-msvc
             tauri-args: ""
+            cli-name: windows-x86_64
+            cli-target: x86_64-pc-windows-msvc
           - os: windows-11-arm
             rust-targets: aarch64-pc-windows-msvc
             tauri-args: --target aarch64-pc-windows-msvc
+            cli-name: windows-aarch64
+            cli-target: aarch64-pc-windows-msvc
           - os: ubuntu-22.04
             rust-targets: x86_64-unknown-linux-gnu
             tauri-args: ""
+            cli-name: linux-x86_64
+            cli-target: x86_64-unknown-linux-gnu
 
     runs-on: ${{ matrix.os }}
 
@@ -120,3 +128,71 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.tauri-args }}
+
+      - name: Build mosaic-cli (lipo universal, macOS only)
+        if: matrix.cli-lipo == 'true'
+        working-directory: src-tauri
+        run: |
+          cargo build --release --features cli --bin mosaic-cli --target aarch64-apple-darwin
+          cargo build --release --features cli --bin mosaic-cli --target x86_64-apple-darwin
+          mkdir -p target/universal-apple-darwin/release
+          lipo -create -output target/universal-apple-darwin/release/mosaic-cli \
+            target/aarch64-apple-darwin/release/mosaic-cli \
+            target/x86_64-apple-darwin/release/mosaic-cli
+          strip target/universal-apple-darwin/release/mosaic-cli
+
+      - name: Build mosaic-cli (single target)
+        if: matrix.cli-lipo != 'true'
+        working-directory: src-tauri
+        run: cargo build --release --features cli --bin mosaic-cli --target ${{ matrix.cli-target }}
+
+      - name: Codesign + notarize mosaic-cli (macOS)
+        if: matrix.cli-lipo == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          bin="src-tauri/target/universal-apple-darwin/release/mosaic-cli"
+          codesign --force --options runtime --timestamp \
+            --sign "$APPLE_SIGNING_IDENTITY" "$bin"
+          codesign --verify --verbose "$bin"
+          # Notarize via zip — notarytool requires a container, not a raw Mach-O.
+          ditto -c -k --keepParent "$bin" mosaic-cli-notarize.zip
+          xcrun notarytool submit mosaic-cli-notarize.zip \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          rm mosaic-cli-notarize.zip
+
+      - name: Strip CLI (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        run: strip src-tauri/target/${{ matrix.cli-target }}/release/mosaic-cli
+
+      - name: Prepare CLI artifact
+        shell: bash
+        run: |
+          if [ "${{ matrix.cli-lipo }}" = "true" ]; then
+            src="src-tauri/target/universal-apple-darwin/release/mosaic-cli"
+            ext=""
+          elif [[ "${{ matrix.os }}" == windows* ]]; then
+            src="src-tauri/target/${{ matrix.cli-target }}/release/mosaic-cli.exe"
+            ext=".exe"
+          else
+            src="src-tauri/target/${{ matrix.cli-target }}/release/mosaic-cli"
+            ext=""
+          fi
+          dst="mosaic-cli-${{ matrix.cli-name }}${ext}"
+          cp "$src" "$dst"
+          echo "CLI_ARTIFACT=$dst" >> "$GITHUB_ENV"
+
+      - name: Upload CLI to release draft
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.CLI_ARTIFACT }}
+          tag_name: ${{ github.ref_name }}
+          draft: true
+          fail_on_unmatched_files: true

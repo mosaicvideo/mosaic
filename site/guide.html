@@ -49,6 +49,7 @@
           <li><a href="#settings">Settings</a></li>
           <li><a href="#mediainfo">MediaInfo viewer</a></li>
           <li><a href="#auto-update">Auto-update</a></li>
+          <li><a href="#cli">Command-line (CLI)</a></li>
           <li><a href="#faq">FAQ</a></li>
         </ul>
       </aside>
@@ -201,6 +202,49 @@ sudo pacman -S ffmpeg mediainfo        # Arch</code></pre>
         <p>Click <strong>Install</strong> and Mosaic downloads the new version, verifies its cryptographic signature against the embedded public key, installs, and relaunches. No manual download, no re-install.</p>
         <p>Update checks never send anything about your videos — only an unauthenticated HTTP request for the release metadata.</p>
         <p><strong>v0.1.1 and earlier:</strong> those versions predate the auto-updater — you'll need to download v0.1.2+ manually once. From then on, updates flow automatically.</p>
+
+        <h2 id="cli">Command-line (CLI)</h2>
+        <p>Mosaic ships a <code>mosaic-cli</code> binary for scripting, CI pipelines, and headless servers — same ffmpeg pipelines as the desktop app, driven from the terminal. Download the <code>mosaic-cli-*</code> asset for your platform from the <a href="https://github.com/mosaicvideo/mosaic/releases/latest">latest release</a>, or build from source:</p>
+
+        <pre><code>cd src-tauri
+cargo install --path . --bin mosaic-cli --features cli</code></pre>
+        <p>Verify the install with <code>mosaic-cli --version</code>.</p>
+
+        <h4>Subcommands</h4>
+        <pre><code>mosaic-cli screenshots    [OPTIONS] &lt;INPUT&gt;...     # individual frames
+mosaic-cli sheet          [OPTIONS] &lt;INPUT&gt;...     # still contact sheet
+mosaic-cli reel           [OPTIONS] &lt;INPUT&gt;...     # animated preview reel
+mosaic-cli animated-sheet [OPTIONS] &lt;INPUT&gt;...     # animated contact sheet
+mosaic-cli probe          [--mediainfo] &lt;INPUT&gt;    # VideoInfo as JSON</code></pre>
+        <p>Each subcommand accepts <code>--help</code> for its full flag list. Inputs can be individual files or folders (scanned recursively by default; pass <code>--no-recursive</code> to opt out).</p>
+
+        <h4>Examples</h4>
+        <pre><code># One contact sheet from a single file
+mosaic-cli sheet movie.mkv
+
+# 12 screenshots into a specific folder
+mosaic-cli screenshots --count 12 -o shots/ movie.mkv
+
+# Batch: every .mkv in a folder recursively
+mosaic-cli sheet /Videos
+
+# Animated preview reel, 10 clips at 2 seconds each
+mosaic-cli reel --count 10 --clip-length 2 movie.mkv
+
+# Probe metadata as JSON (pipe into jq)
+mosaic-cli probe movie.mkv | jq .duration_secs
+
+# Probe + MediaInfo envelope
+mosaic-cli probe --mediainfo movie.mkv</code></pre>
+
+        <h4>Config file</h4>
+        <p>On first run, <code>mosaic-cli</code> writes <code>~/.mosaic-cli.toml</code> with every option commented out. Uncomment and edit any key to change that option's default; flags on the command line always take precedence. Set <code>$MOSAIC_CLI_CONFIG</code> to point at a different path — useful for per-project configs or CI environments.</p>
+
+        <p class="callout">Note: the config key for reel/animated-sheet clip duration is <code>clip_length_secs</code> (TOML convention), while the CLI flag is <code>--clip-length</code>. The difference is intentional — the config makes the unit explicit.</p>
+
+        <div class="callout">
+          <strong>Prerequisite:</strong> <code>mosaic-cli</code> requires the same external tools as the desktop app — <code>ffmpeg</code>, <code>ffprobe</code>, and <code>mediainfo</code> on your <code>PATH</code>. See <a href="#requirements">Requirements</a> above.
+        </div>
 
         <h2 id="faq">FAQ</h2>
         <div class="faq">

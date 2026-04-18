@@ -126,8 +126,15 @@ pub fn build_stitch_args(
 pub fn render_concat_list(paths: &[PathBuf]) -> String {
     let mut out = String::new();
     for p in paths {
-        let s = p.to_string_lossy();
-        let escaped = s.replace('\\', "\\\\").replace('\'', "\\'");
+        // ffmpeg concat demuxer accepts forward slashes on all platforms.
+        // On Windows backslashes would need different escaping per ffmpeg
+        // version — normalizing to `/` avoids the whole minefield.
+        // Note: on Unix, filenames may legally contain a literal `\`
+        // character; normalization converts it to `/`, which may theoretically
+        // collide with a real directory separator in a contrived path. This is
+        // a known, accepted trade-off for cross-platform correctness.
+        let s = p.to_string_lossy().replace('\\', "/");
+        let escaped = s.replace('\'', "\\'");
         out.push_str("file '");
         out.push_str(&escaped);
         out.push_str("'\n");
@@ -439,12 +446,18 @@ mod tests {
     }
 
     #[test]
-    fn concat_list_escapes_single_quote_and_backslash() {
-        // ffmpeg concat demuxer: inside single-quoted values, backslash and
-        // single quote must each be backslash-escaped.
+    fn concat_list_escapes_single_quote_normalizes_backslash() {
+        // render_concat_list normalizes `\` → `/` before quoting (for
+        // cross-platform ffmpeg concat demuxer compatibility on Windows).
+        // A literal `\` in a Unix filename (legal but rare) gets converted to
+        // `/`; that is an accepted trade-off documented in the implementation.
+        // Single quotes are still backslash-escaped inside the ffmpeg value.
         let list = render_concat_list(&[
-            PathBuf::from(r"/tmp/o'brien\videos/clip.mp4"),
+            // This path has a literal backslash inside the directory segment
+            // (after the leading /) and a single-quote in the stem.
+            PathBuf::from("/tmp/o'brien\\videos/clip.mp4"),
         ]);
-        assert_eq!(list, "file '/tmp/o\\'brien\\\\videos/clip.mp4'\n");
+        // Backslash is normalized to `/`; single-quote is escaped to `\'`.
+        assert_eq!(list, "file '/tmp/o\\'brien/videos/clip.mp4'\n");
     }
 }

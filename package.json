@@ -17,7 +17,9 @@
     "build": "tauri build",
     "dev:web": "vite",
     "build:web": "vite build",
-    "version:bump": "node scripts/bump-version.mjs"
+    "dev:cli": "cargo run --manifest-path src-tauri/Cargo.toml --bin mosaic-cli --features cli --",
+    "version:bump": "node scripts/bump-version.mjs",
+    "sync:defaults": "node scripts/sync-defaults.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.10.1",
