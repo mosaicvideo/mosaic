@@ -61,22 +61,17 @@ pub async fn generate(
     for (i, ts) in timestamps.iter().enumerate() {
         let idx = (i as u32) + 1;
         let thumb = tmp.path().join(format!("thumb_{:0width$}.png", idx, width = width_digits));
-        let mut vf = String::new();
-        if let Some(ref tm) = tonemap {
-            vf.push_str(tm);
-            vf.push(',');
-        }
-        vf.push_str(&format!("scale={}:{}", layout.thumb_w, thumb_h));
-        if opts.show_timestamps {
-            vf.push(',');
-            vf.push_str(&timestamp_overlay(
-                &format_hms_escaped(*ts),
-                &font_path,
-                opts.thumb_font_size,
-                opts.theme.fontcolor(),
-                opts.theme.shadowcolor(),
-            ));
-        }
+        let scale = format!("scale={}:{}", layout.thumb_w, thumb_h);
+        let ts_filter = opts.show_timestamps.then(|| timestamp_overlay(
+            &format_hms_escaped(*ts),
+            &font_path,
+            opts.thumb_font_size,
+            opts.theme.fontcolor(),
+            opts.theme.shadowcolor(),
+        ));
+        let vf_parts: Vec<&str> = [tonemap.as_deref(), Some(&scale), ts_filter.as_deref()]
+            .into_iter().flatten().collect();
+        let vf = vf_parts.join(",");
         let mut args = crate::ffmpeg::base_args();
         args.extend(crate::ffmpeg::seek_input_args(source, *ts));
         args.extend([

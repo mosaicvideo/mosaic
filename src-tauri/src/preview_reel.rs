@@ -42,22 +42,19 @@ pub fn build_extract_args(
     // non-square grid through to the stitched webp/webm/gif, where SAR is
     // typically lost and the clip would play with wrong aspect.
     let needs_scale = info.video.height > target_height || info.video.sar.is_some();
-    if tonemap.is_some() || needs_scale {
-        let mut vf = String::new();
-        if let Some(tm) = tonemap {
-            vf.push_str(&tm);
-        }
-        if needs_scale {
-            if !vf.is_empty() { vf.push(','); }
-            // Final height: clamp to target, but don't upscale a source that's
-            // already smaller than target — pointless bandwidth. Width follows
-            // the displayed aspect so anamorphic sources render correctly.
-            let out_h = info.video.height.min(target_height);
-            let out_w = crate::layout::thumb_width(out_h, info.video.width, info.video.height);
-            vf.push_str(&format!("scale={}:{}", out_w, out_h));
-        }
+    // Final height: clamp to target, but don't upscale a source that's
+    // already smaller than target — pointless bandwidth. Width follows
+    // the displayed aspect so anamorphic sources render correctly.
+    let scale = needs_scale.then(|| {
+        let out_h = info.video.height.min(target_height);
+        let out_w = crate::layout::thumb_width(out_h, info.video.width, info.video.height);
+        format!("scale={}:{}", out_w, out_h)
+    });
+    let vf_parts: Vec<&str> = [tonemap.as_deref(), scale.as_deref()]
+        .into_iter().flatten().collect();
+    if !vf_parts.is_empty() {
         args.push("-vf".into());
-        args.push(vf);
+        args.push(vf_parts.join(","));
     }
     args.extend(crate::ffmpeg::h264_clip_encoder());
     args.push(output.to_string_lossy().into_owned());
