@@ -8,6 +8,7 @@ import { createQueue, isVideo, getVideoExts } from './queue.js';
 import { readSheetOpts, readShotsOpts, readPreviewOpts, readASheetOpts, readOutput, readProduce, applyOpts, applyProduce } from './options.js';
 import { wireDropzone } from './dropzone.js';
 import { createMediaInfoModal, openMediaInfo, closeMediaInfo, isMediaInfoOpen } from './mediainfo.js';
+import * as E from './events.js';
 
 const OUTPUT_TYPES = [
   {
@@ -256,14 +257,14 @@ async function addPaths(paths) {
 }
 
 function wireEvents() {
-  listen('job:file-start', ({ payload }) => {
+  listen(E.FILE_START, ({ payload }) => {
     queue.update(payload.fileId, { status: 'Running', progress: 'Starting…' });
     updateOverall(payload.index - 1, payload.total);
   });
-  listen('job:step', ({ payload }) => {
+  listen(E.STEP, ({ payload }) => {
     queue.update(payload.fileId, { progress: payload.label });
   });
-  listen('job:file-done', ({ payload }) => {
+  listen(E.FILE_DONE, ({ payload }) => {
     queue.update(payload.fileId, {
       status: 'Done',
       progress: 'Done',
@@ -271,10 +272,10 @@ function wireEvents() {
     });
     updateOverall(payload.index, payload.total);
   });
-  listen('job:file-failed', ({ payload }) => {
+  listen(E.FILE_FAILED, ({ payload }) => {
     queue.update(payload.fileId, { status: 'Failed', error: payload.error });
   });
-  listen('job:finished', () => {
+  listen(E.FINISHED, () => {
     /* totals surfaced by onGenerate once all passes complete */
   });
 }
