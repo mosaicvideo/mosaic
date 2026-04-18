@@ -295,7 +295,11 @@ async function runPasses(passes, candidates, output, statusEl) {
 
     statusEl.textContent = passStatusText(i, passes.length, pass);
 
-    const items = candidates.map(c => ({ id: c.id, path: c.path }));
+    const items = candidates.map(c => ({
+      id: c.id,
+      path: c.path,
+      info: c.probeError ? null : (c.info ?? null),
+    }));
     await invoke(pass.invokeCmd, { items, opts: pass.read(), output });
   }
 }

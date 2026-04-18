@@ -122,6 +122,10 @@ pub fn reveal_in_finder(path: String) -> Result<(), String> {
 pub struct QueueItem {
     pub id: String,
     pub path: String,
+    /// Frontend-cached probe result. When present, backend skips the probe()
+    /// round-trip for this file, avoiding the N+1 pattern across passes.
+    #[serde(default)]
+    pub info: Option<VideoInfo>,
 }
 
 #[derive(serde::Deserialize)]
@@ -166,13 +170,16 @@ where
 
         let source = PathBuf::from(&item.path);
         let out_dir = resolve_out_dir(&source, &output);
-        let info = match probe(&tools, &item.path).await {
-            Ok(i) => i,
-            Err(e) => {
-                failed += 1;
-                let _ = app.emit(events::FILE_FAILED, serde_json::json!({ "fileId": item.id, "error": e }));
-                continue;
-            }
+        let info = match item.info.clone() {
+            Some(cached) => cached,
+            None => match probe(&tools, &item.path).await {
+                Ok(i) => i,
+                Err(e) => {
+                    failed += 1;
+                    let _ = app.emit(events::FILE_FAILED, serde_json::json!({ "fileId": item.id, "error": e }));
+                    continue;
+                }
+            },
         };
 
         let id = item.id.clone();
