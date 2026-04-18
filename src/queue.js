@@ -102,7 +102,7 @@ export function createQueue(root, { onReveal, onInfo, onChange } = {}) {
       if (cur?.status !== 'Done' || !paths.length) return;
       // Multi-output rows reveal the shared parent folder; single-output
       // rows still reveal the file itself (selected in its parent).
-      onReveal?.(paths.length === 1 ? paths[0] : parentDir(paths[0]));
+      onReveal?.(paths.length === 1 ? paths[0] : dirname(paths[0]));
     };
 
     return { el, idxEl, nameEl, metaEl, progEl, statusCell, statusLabel, infoBtn, removeBtn, errorEl: null };
@@ -130,6 +130,7 @@ export function createQueue(root, { onReveal, onInfo, onChange } = {}) {
   function update(id, patch) {
     const it = items.get(id);
     if (!it) return;
+    const before = { status: it.status, progress: it.progress, error: it.error, info: it.info, probeError: it.probeError, outputCount: (it.outputPaths?.length || 0) };
     // appendOutputPath is signalling only — mutate outputPaths directly and
     // strip the key so Object.assign doesn't leak it onto the item.
     if (patch.appendOutputPath) {
@@ -137,7 +138,6 @@ export function createQueue(root, { onReveal, onInfo, onChange } = {}) {
       const { appendOutputPath, ...rest } = patch;
       patch = rest;
     }
-    const before = { status: it.status, progress: it.progress, error: it.error, info: it.info, probeError: it.probeError, outputCount: (it.outputPaths?.length || 0) };
     Object.assign(it, patch);
     const n = nodes.get(id);
     if (!n) return;
@@ -193,7 +193,7 @@ export function basename(p) {
   return i >= 0 ? p.slice(i + 1) : p;
 }
 
-export function parentDir(p) {
+export function dirname(p) {
   const i = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
-  return i >= 0 ? p.slice(0, i) : p;
+  return i >= 0 ? p.slice(0, i) : '';
 }

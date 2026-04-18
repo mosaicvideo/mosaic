@@ -4,7 +4,7 @@ import { open, ask } from '@tauri-apps/plugin-dialog';
 import { Store } from '@tauri-apps/plugin-store';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
-import { createQueue, isVideo, getVideoExts } from './queue.js';
+import { createQueue, isVideo, getVideoExts, basename, dirname } from './queue.js';
 import { readSheetOpts, readShotsOpts, readPreviewOpts, readASheetOpts, readOutput, readProduce, applyOpts, applyProduce, updateOutputModeUI, PRODUCE_FIELDS } from './options.js';
 import { wireDropzone } from './dropzone.js';
 import { createMediaInfoModal, openMediaInfo, closeMediaInfo, isMediaInfoOpen } from './mediainfo.js';
@@ -384,14 +384,6 @@ function renderOutputPreview() {
   preview.classList.remove('hidden');
 }
 
-function dirname(p) {
-  const i = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
-  return i >= 0 ? p.slice(0, i) : '';
-}
-function basename(p) {
-  const i = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
-  return i >= 0 ? p.slice(i + 1) : p;
-}
 function joinPath(dir, name) {
   if (!dir) return name;
   const sep = dir.includes('\\') ? '\\' : '/';
