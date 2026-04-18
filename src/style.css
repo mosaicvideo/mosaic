@@ -407,6 +407,10 @@ button:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.name-cell .meta.probe-error {
+  color: var(--banner-border);
+  cursor: help;
+}
 .name-cell .meta:empty { display: none; }
 #queue li:last-child { border-bottom: 0; }
 @keyframes row-in {
