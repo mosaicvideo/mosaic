@@ -58,10 +58,9 @@ console.log(`  Cargo.toml → ${version}`);
 execSync("cargo generate-lockfile", { cwd: resolve(root, "src-tauri"), stdio: "inherit" });
 console.log(`  Cargo.lock updated`);
 
-// Update the site's fallback version text. download.js overwrites these at
-// runtime from the Releases API, but the static fallback still shows when
-// JS is disabled or the API is unreachable — keep it accurate.
-// Narrow regexes anchored on specific id= attributes: never walks prose.
+// Fallback version text for when download.js can't reach the Releases API
+// (offline, rate-limited, JS disabled). Anchored on id= attributes so prose
+// mentions of older minimum-supported versions stay intact.
 const SITE_REPLACERS = [
   /(id="nav-version">)v\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(<)/g,
   /(id="line-version">)v\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(<)/g,
