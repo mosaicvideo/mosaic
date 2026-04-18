@@ -1,4 +1,4 @@
-// src-tauri/src/bin/mosaic_cli/font.rs
+// mosaic-cli/src/font.rs
 // Embeds DejaVuSans.ttf into the binary via include_bytes! and lazily
 // writes it to a tempfile on first use. Only `sheet` and
 // `animated-sheet` subcommands call this — `screenshots` and `reel`
@@ -11,7 +11,7 @@ use tempfile::NamedTempFile;
 
 static FONT_FILE: OnceLock<NamedTempFile> = OnceLock::new();
 
-const FONT_BYTES: &[u8] = include_bytes!("../../../assets/fonts/DejaVuSans.ttf");
+const FONT_BYTES: &[u8] = include_bytes!("../../src-tauri/assets/fonts/DejaVuSans.ttf");
 
 pub fn path() -> Result<PathBuf, std::io::Error> {
     // Returns an Err only on the first-time extraction attempt; subsequent
