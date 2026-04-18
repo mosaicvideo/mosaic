@@ -6,6 +6,13 @@ pub(crate) fn base_args() -> Vec<String> {
     BASE_ARGS.iter().map(|s| s.to_string()).collect()
 }
 
+/// Join a list of optional filter components into a single `-vf` value,
+/// dropping `None`s. Empty input yields an empty string; callers decide
+/// whether to emit `-vf` at all based on the result.
+pub(crate) fn vf_chain(parts: &[Option<&str>]) -> String {
+    parts.iter().copied().flatten().collect::<Vec<_>>().join(",")
+}
+
 /// Frame-accurate seeking for single-frame extraction (contact sheets, screenshots).
 /// Uses dual `-ss` with `-copyts`: input-level `-ss` does fast keyframe seek,
 /// `-copyts` preserves original stream timestamps, output-level `-ss` trims to

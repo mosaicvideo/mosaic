@@ -69,9 +69,7 @@ pub async fn generate(
             opts.theme.fontcolor(),
             opts.theme.shadowcolor(),
         ));
-        let vf_parts: Vec<&str> = [tonemap.as_deref(), Some(&scale), ts_filter.as_deref()]
-            .into_iter().flatten().collect();
-        let vf = vf_parts.join(",");
+        let vf = crate::ffmpeg::vf_chain(&[tonemap.as_deref(), Some(&scale), ts_filter.as_deref()]);
         let mut args = crate::ffmpeg::base_args();
         args.extend(crate::ffmpeg::seek_input_args(source, *ts));
         args.extend([

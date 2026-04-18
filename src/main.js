@@ -10,23 +10,22 @@ import { wireDropzone } from './dropzone.js';
 import { createMediaInfoModal, openMediaInfo, closeMediaInfo, isMediaInfoOpen } from './mediainfo.js';
 import * as E from './events.js';
 
-// Defaults mirror the canonical constants in src-tauri/src/output_path.rs
-// (DEFAULT_{SHOTS,SHEET,PREVIEW,ANIMATED_SHEET}_SUFFIX). Backend uses these
-// when `suffix` is empty; UI restores them on blur and echoes them in the
-// output-filename preview.
+// Defaults mirror src-tauri/src/output_path.rs DEFAULT_*_SUFFIX constants.
+// Preview lambdas receive an already-resolved suffix (never empty) so each
+// entry names its default exactly once, here.
 const OUTPUT_TYPES = [
   { key:'shots',   suffixId:'shots-suffix',   defaultSuffix:'_screens_',
     pretty:'Screenshots',              invokeCmd:'generate_screenshots',     read:readShotsOpts,
-    preview: s => `${s.suffix || '_screens_'}01.${s.format === 'Jpeg' ? 'jpg' : 'png'}` },
+    preview: s => `${s.suffix}01.${s.format === 'Jpeg' ? 'jpg' : 'png'}` },
   { key:'sheet',   suffixId:'sheet-suffix',   defaultSuffix:'_sheet',
     pretty:'Contact Sheets',           invokeCmd:'generate_contact_sheets',  read:readSheetOpts,
-    preview: s => `${s.suffix || '_sheet'}.${s.format === 'Jpeg' ? 'jpg' : 'png'}` },
+    preview: s => `${s.suffix}.${s.format === 'Jpeg' ? 'jpg' : 'png'}` },
   { key:'preview', suffixId:'preview-suffix', defaultSuffix:'_reel',
     pretty:'Animated Previews',        invokeCmd:'generate_preview_reels',   read:readPreviewOpts,
-    preview: s => `${s.suffix || '_reel'}.${ {Webp:'webp', Webm:'webm', Gif:'gif'}[s.format] ?? 'webp' }` },
+    preview: s => `${s.suffix}.${ {Webp:'webp', Webm:'webm', Gif:'gif'}[s.format] ?? 'webp' }` },
   { key:'asheet',  suffixId:'asheet-suffix',  defaultSuffix:'_animated_sheet',
     pretty:'Animated Contact Sheets',  invokeCmd:'generate_animated_sheets', read:readASheetOpts,
-    preview: s => `${s.suffix || '_animated_sheet'}.webp` },
+    preview: s => `${s.suffix}.webp` },
 ];
 
 const queue = createQueue(document.getElementById('queue'), {
@@ -365,7 +364,10 @@ function renderOutputPreview() {
   const out = readOutput();
   const dir = out.mode === 'custom' && out.custom ? out.custom : dirname(first.path);
   const stem = basename(first.path).replace(/\.[^./\\]+$/, '');
-  const parts = active.map(t => `${stem}${t.preview(t.read())}`);
+  const parts = active.map(t => {
+    const s = t.read();
+    return `${stem}${t.preview({ ...s, suffix: s.suffix || t.defaultSuffix })}`;
+  });
   const count = queue.size();
   const firstPath = joinPath(dir, parts[0]);
   const also = parts.length > 1 ? ' +' : '';

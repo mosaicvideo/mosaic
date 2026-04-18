@@ -50,11 +50,10 @@ pub fn build_extract_args(
         let out_w = crate::layout::thumb_width(out_h, info.video.width, info.video.height);
         format!("scale={}:{}", out_w, out_h)
     });
-    let vf_parts: Vec<&str> = [tonemap.as_deref(), scale.as_deref()]
-        .into_iter().flatten().collect();
-    if !vf_parts.is_empty() {
+    let vf = crate::ffmpeg::vf_chain(&[tonemap.as_deref(), scale.as_deref()]);
+    if !vf.is_empty() {
         args.push("-vf".into());
-        args.push(vf_parts.join(","));
+        args.push(vf);
     }
     args.extend(crate::ffmpeg::h264_clip_encoder());
     args.push(output.to_string_lossy().into_owned());

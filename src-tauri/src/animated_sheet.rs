@@ -68,9 +68,7 @@ pub fn build_extract_args(
         "pad={}:{}:{}:{}:{}",
         thumb_w + gap, thumb_h + gap, gap / 2, gap / 2, theme.bg()
     );
-    let vf_parts: Vec<&str> = [hdr_filter, Some(&scale), ts_filter.as_deref(), Some(&pad)]
-        .into_iter().flatten().collect();
-    let vf = vf_parts.join(",");
+    let vf = crate::ffmpeg::vf_chain(&[hdr_filter, Some(&scale), ts_filter.as_deref(), Some(&pad)]);
 
     let mut args = crate::ffmpeg::base_args();
     args.extend(crate::ffmpeg::seek_input_args_clip(source, timestamp));
