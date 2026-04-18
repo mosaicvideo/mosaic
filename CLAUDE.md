@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Use `pnpm tauri dev` for development and `pnpm tauri build` for production bundles. Rust tests live under `src-tauri/` — plain `cargo test` runs unit tests; add `--features test-api` for integration tests. Run `cargo` from `src-tauri/` (the `Cargo.toml` isn't at repo root). For frontend-only changes, `pnpm build:web` is a fast Vite build that catches syntax/import errors without launching Tauri.
 
+Always run `cargo clippy --all-targets --features test-api -- -D warnings` after Rust changes and before reporting work complete. Clippy must be clean — fix warnings, don't silence them.
+
 Vite (port 5173) serves `src/` and is spawned automatically by `tauri dev` via `beforeDevCommand`. Tauri's file watcher hot-rebuilds the Rust crate on `src-tauri/**` changes; Vite HMR handles `src/**`.
 
 The integration test requires ffmpeg with the `drawtext` filter. On macOS the default Homebrew `ffmpeg` bottle is built **without** libfreetype. Install `brew install ffmpeg-full` and run tests with `PATH="/opt/homebrew/opt/ffmpeg-full/bin:$PATH" cargo test --features test-api`. The app's `locate_tools()` already checks `ffmpeg-full` first on macOS.
