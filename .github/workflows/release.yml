@@ -135,10 +135,10 @@ jobs:
 
       - name: Build mosaic-cli (lipo universal, macOS only)
         if: matrix.cli-lipo == 'true'
-        working-directory: src-tauri
+        working-directory: mosaic-cli
         run: |
-          cargo build --release --features cli --bin mosaic-cli --target aarch64-apple-darwin
-          cargo build --release --features cli --bin mosaic-cli --target x86_64-apple-darwin
+          cargo build --release --target aarch64-apple-darwin
+          cargo build --release --target x86_64-apple-darwin
           mkdir -p target/universal-apple-darwin/release
           lipo -create -output target/universal-apple-darwin/release/mosaic-cli \
             target/aarch64-apple-darwin/release/mosaic-cli \
@@ -147,8 +147,8 @@ jobs:
 
       - name: Build mosaic-cli (single target)
         if: matrix.cli-lipo != 'true'
-        working-directory: src-tauri
-        run: cargo build --release --features cli --bin mosaic-cli --target ${{ matrix.cli-target }}
+        working-directory: mosaic-cli
+        run: cargo build --release --target ${{ matrix.cli-target }}
 
       - name: Codesign + notarize mosaic-cli (macOS)
         if: matrix.cli-lipo == 'true'
@@ -159,7 +159,7 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
           set -euo pipefail
-          bin="src-tauri/target/universal-apple-darwin/release/mosaic-cli"
+          bin="mosaic-cli/target/universal-apple-darwin/release/mosaic-cli"
           codesign --force --options runtime --timestamp \
             --sign "$APPLE_SIGNING_IDENTITY" "$bin"
           codesign --verify --verbose "$bin"
@@ -174,19 +174,19 @@ jobs:
 
       - name: Strip CLI (Linux)
         if: matrix.os == 'ubuntu-22.04'
-        run: strip src-tauri/target/${{ matrix.cli-target }}/release/mosaic-cli
+        run: strip mosaic-cli/target/${{ matrix.cli-target }}/release/mosaic-cli
 
       - name: Prepare CLI artifact
         shell: bash
         run: |
           if [ "${{ matrix.cli-lipo }}" = "true" ]; then
-            src="src-tauri/target/universal-apple-darwin/release/mosaic-cli"
+            src="mosaic-cli/target/universal-apple-darwin/release/mosaic-cli"
             ext=""
           elif [[ "${{ matrix.os }}" == windows* ]]; then
-            src="src-tauri/target/${{ matrix.cli-target }}/release/mosaic-cli.exe"
+            src="mosaic-cli/target/${{ matrix.cli-target }}/release/mosaic-cli.exe"
             ext=".exe"
           else
-            src="src-tauri/target/${{ matrix.cli-target }}/release/mosaic-cli"
+            src="mosaic-cli/target/${{ matrix.cli-target }}/release/mosaic-cli"
             ext=""
           fi
           dst="mosaic-cli-${{ matrix.cli-name }}${ext}"

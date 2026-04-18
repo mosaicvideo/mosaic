@@ -46,18 +46,17 @@ Tauri 2 app. Rust backend orchestrates `ffmpeg`/`ffprobe` subprocesses; vanilla 
 
 ## CLI binary
 
-- Two binaries share the crate: `mosaic` (GUI, default) and `mosaic-cli` (compiled only when `--features cli` is set).
-- Build: `cargo build --release --features cli --bin mosaic-cli` from `src-tauri/`.
-- Test: `cargo test --features cli,test-api --test cli` (on macOS, prepend `PATH="/opt/homebrew/opt/ffmpeg-full/bin:$PATH"` — same ffmpeg-full requirement as the main integration test).
-- **`default-run` gotcha:** `src-tauri/Cargo.toml` has `default-run = "mosaic"`. `cargo run` without `--bin` launches the GUI; always pass `--bin mosaic-cli` when working on the CLI, or use the `pnpm dev:cli -- <args>` shortcut.
-- **Dev workflow:** `pnpm dev:cli -- <subcommand> [args]` is the quickest path for iteration (wraps `cargo run --manifest-path src-tauri/Cargo.toml --bin mosaic-cli --features cli --`). Args after `--` forward to the binary.
-- **Module layout:** `src-tauri/src/bin/mosaic_cli/` is a module directory with `main.rs` (entry + dispatch), `cli.rs` (clap structs), `config.rs` (`~/.mosaic-cli.toml` loader + validation), `font.rs` (embedded DejaVuSans), `hints.rs` (tool-missing install hints), `progress.rs` (indicatif wrapper), `signals.rs` (ctrl-c handler), and `run/` (per-subcommand implementations + shared helpers `inputs.rs`, `format.rs`, `suffix.rs`).
+- The CLI is a **sibling Cargo package** at `mosaic-cli/`, not a `[[bin]]` inside the Tauri crate. This avoids `tauri build` trying to bundle the CLI into `.app`/`.deb` (the bundler iterates every `[[bin]]` in Cargo.toml and ignores `required-features`). `mosaic-cli` depends on the Tauri crate as a path dep (`mosaic = { path = "../src-tauri", features = ["cli"] }`), so it consumes `mosaic_lib` internals via the existing `feature = "cli"` visibility switch.
+- Build: `cargo build --release` from `mosaic-cli/`.
+- Test: `cargo test` from `mosaic-cli/` (on macOS, prepend `PATH="/opt/homebrew/opt/ffmpeg-full/bin:$PATH"` — same ffmpeg-full requirement as the main integration test). The CLI's `tests/cli.rs` uses `assert_cmd` to exec `mosaic-cli` against `../src-tauri/tests/fixtures/sample.mp4`.
+- **Dev workflow:** `pnpm dev:cli -- <subcommand> [args]` is the quickest path for iteration (wraps `cargo run --manifest-path mosaic-cli/Cargo.toml --bin mosaic-cli --`). Args after `--` forward to the binary.
+- **Module layout:** `mosaic-cli/src/` contains `main.rs` (entry + dispatch), `cli.rs` (clap structs), `config.rs` (`~/.mosaic-cli.toml` loader + validation), `font.rs` (embedded DejaVuSans), `hints.rs` (tool-missing install hints), `progress.rs` (indicatif wrapper), `signals.rs` (ctrl-c handler), and `run/` (per-subcommand implementations + shared helpers `inputs.rs`, `format.rs`, `suffix.rs`). Font is embedded via `include_bytes!("../../src-tauri/assets/fonts/DejaVuSans.ttf")` reaching into the sibling crate.
 - **Hook functions:** `lib.rs` exposes `ffmpeg_test_hook_locate`, `ffmpeg_test_hook_probe`, `video_info_test_hook_parse` under the same cfg as the pipeline modules. The `test_hook_` prefix is historical — they're now CLI-production entry points too. Rename deferred.
 - `defaults.rs` is the shared source of truth for GUI HTML defaults and CLI flag defaults. `scripts/sync-defaults.mjs` reads `defaults.rs` and patches the matching `<input>`/`<select>` values in `src/index.html`; it runs automatically via `pnpm version:bump`. When adding a new shipping default: add it to `defaults.rs`, extend the key map in `sync-defaults.mjs`, extend the test in `defaults.rs::tests`.
 - `input_scan.rs` owns folder-scan logic (moved out of `commands.rs`). Both the Tauri `scan_folder` command and the CLI's input expander call into it — don't duplicate the scan logic.
 - Config file: `~/.mosaic-cli.toml`, auto-created on first run with every key commented out. Override path via `$MOSAIC_CLI_CONFIG`. CLI flags always take precedence over the config file.
 - Pipeline modules (`video_info`, `ffmpeg`, `contact_sheet`, etc.) are exposed publicly under **both** `feature = "test-api"` **and** `feature = "cli"` via the two-branch `cfg` pattern in `lib.rs` (`#[cfg(any(test, feature = "test-api", feature = "cli"))] pub mod`). When adding a new pipeline module that the CLI needs, match that shape — do not widen to an unconditional `pub mod`.
-- `mosaic-cli` is included in CI release builds as a separate artifact (`mosaic-cli-*`); the release workflow builds it with `--features cli` alongside the Tauri bundle.
+- `mosaic-cli` is included in CI release builds as a separate artifact (`mosaic-cli-*`); the release workflow builds it from `mosaic-cli/` alongside the Tauri GUI bundle (they use separate `target/` directories).
 
 ## ffmpeg quirks to know
 
