@@ -7,7 +7,6 @@ license = "MIT"
 homepage = "https://github.com/mosaicvideo/mosaic"
 repository = "https://github.com/mosaicvideo/mosaic"
 edition = "2021"
-default-run = "mosaic"
 
 [lib]
 name = "mosaic_lib"
@@ -18,9 +17,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 # screenshots) and test hooks for the integration test. Off by default so the
 # shipped binary keeps these as private implementation details.
 test-api = []
-# Placeholder declared early so `feature = "cli"` cfg references compile cleanly
-# under check-cfg / -D warnings. Task 4 (CLI binary) will populate this.
-cli = ["dep:clap", "dep:indicatif", "dep:toml"]
+# Exposes the same modules and hook functions to the sibling `mosaic-cli`
+# crate at ../mosaic-cli. No extra deps are pulled in by enabling this —
+# it's a pure visibility switch on library internals.
+cli = []
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -37,26 +37,12 @@ tokio = { version = "1", features = ["process", "io-util", "sync", "rt-multi-thr
 tempfile = "3"
 thiserror = "2"
 which = "8"
-clap      = { version = "4",    features = ["derive"], optional = true }
-indicatif = { version = "0.17",                          optional = true }
-toml      = { version = "0.8",                           optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tempfile = "3"
 which = "8"
-assert_cmd = "2"
-predicates = "3"
 
 [[test]]
 name = "integration"
 required-features = ["test-api"]
-
-[[bin]]
-name = "mosaic-cli"
-path = "src/bin/mosaic_cli/main.rs"
-required-features = ["cli"]
-
-[[test]]
-name = "cli"
-required-features = ["cli", "test-api"]
