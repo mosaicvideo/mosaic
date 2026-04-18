@@ -39,13 +39,13 @@ let saveTimer = null;
 let running = false;
 let userCancelled = false;
 
-function init() {
+async function init() {
   window.addEventListener('error', (e) => showBanner(`JS error: ${e.message}`));
   window.addEventListener('unhandledrejection', (e) => showBanner(`Promise rejection: ${e.reason?.message || e.reason}`));
   document.addEventListener('contextmenu', (e) => e.preventDefault());
   wireButtons();
   wireDropzone(document.getElementById('dropzone'), addPaths);
-  wireEvents();
+  await wireEvents();
   updateQualityVisibility();
   refreshActionBar();
   createMediaInfoModal();
@@ -101,26 +101,18 @@ async function loadSettings() {
 
 let toolsOk = false;
 
-async function checkTools() {
-  const app = document.getElementById('app');
-  const te = document.getElementById('tools-error');
-  const q = document.getElementById('queue');
-  const qh = document.querySelector('.queue-head');
-  try {
-    await invoke('check_tools');
-    toolsOk = true;
-    te.classList.add('hidden');
-    q.classList.remove('hidden');
-    qh.classList.remove('hidden');
-    app.classList.remove('tools-missing');
-  } catch (_) {
-    toolsOk = false;
-    te.classList.remove('hidden');
-    q.classList.add('hidden');
-    qh.classList.add('hidden');
-    app.classList.add('tools-missing');
-  }
+function setToolsOk(ok) {
+  toolsOk = ok;
+  document.getElementById('app').classList.toggle('tools-missing', !ok);
+  document.getElementById('tools-error').classList.toggle('hidden', ok);
+  document.getElementById('queue').classList.toggle('hidden', !ok);
+  document.querySelector('.queue-head').classList.toggle('hidden', !ok);
   refreshActionBar();
+}
+
+async function checkTools() {
+  try { await invoke('check_tools'); setToolsOk(true); }
+  catch (_) { setToolsOk(false); }
 }
 
 function wireButtons() {
@@ -252,32 +244,29 @@ async function addPaths(paths) {
     try {
       const info = await invoke('probe_video', { path: it.path });
       queue.update(it.id, { probed: true, info });
-    } catch (_) { /* ignore; errors surface at generation */ }
+    } catch (e) {
+      queue.update(it.id, { probed: true, probeError: String(e?.message || e) });
+    }
   }
 }
 
-function wireEvents() {
-  listen(E.FILE_START, ({ payload }) => {
-    queue.update(payload.fileId, { status: 'Running', progress: 'Starting…' });
-    updateOverall(payload.index - 1, payload.total);
-  });
-  listen(E.STEP, ({ payload }) => {
-    queue.update(payload.fileId, { progress: payload.label });
-  });
-  listen(E.FILE_DONE, ({ payload }) => {
-    queue.update(payload.fileId, {
-      status: 'Done',
-      progress: 'Done',
-      outputPath: payload.outputPath,
-    });
-    updateOverall(payload.index, payload.total);
-  });
-  listen(E.FILE_FAILED, ({ payload }) => {
-    queue.update(payload.fileId, { status: 'Failed', error: payload.error });
-  });
-  listen(E.FINISHED, () => {
-    /* totals surfaced by onGenerate once all passes complete */
-  });
+async function wireEvents() {
+  const handlers = {
+    [E.FILE_START]: p => {
+      queue.update(p.fileId, { status: 'Running', progress: 'Starting…' });
+      updateOverall(p.index - 1, p.total);
+    },
+    [E.STEP]: p => queue.update(p.fileId, { progress: p.label }),
+    [E.FILE_DONE]: p => {
+      queue.update(p.fileId, { status: 'Done', progress: 'Done', outputPath: p.outputPath });
+      updateOverall(p.index, p.total);
+    },
+    [E.FILE_FAILED]: p => queue.update(p.fileId, { status: 'Failed', error: p.error }),
+    [E.FINISHED]: () => { /* totals surfaced by onGenerate once all passes complete */ },
+  };
+  await Promise.all(Object.entries(handlers).map(
+    ([ev, fn]) => listen(ev, ({ payload }) => fn(payload))
+  ));
 }
 
 function enforceProduceAtLeastOne() {
@@ -408,4 +397,4 @@ function joinPath(dir, name) {
   return dir.endsWith(sep) ? dir + name : `${dir}${sep}${name}`;
 }
 
-init();
+init().catch(e => showBanner(`init failed: ${e?.message || e}`));

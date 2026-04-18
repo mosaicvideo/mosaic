@@ -126,7 +126,7 @@ export function createQueue(root, { onReveal, onInfo, onChange } = {}) {
   function update(id, patch) {
     const it = items.get(id);
     if (!it) return;
-    const before = { status: it.status, progress: it.progress, error: it.error, info: it.info };
+    const before = { status: it.status, progress: it.progress, error: it.error, info: it.info, probeError: it.probeError };
     Object.assign(it, patch);
     const n = nodes.get(id);
     if (!n) return;
@@ -142,8 +142,10 @@ export function createQueue(root, { onReveal, onInfo, onChange } = {}) {
     if ((it.progress || '') !== (before.progress || '')) {
       n.progEl.textContent = it.progress || '—';
     }
-    if (it.info !== before.info) {
-      n.metaEl.textContent = formatMeta(it.info);
+    if (it.info !== before.info || it.probeError !== before.probeError) {
+      n.metaEl.textContent = it.probeError ? '⚠ probe failed' : formatMeta(it.info);
+      n.metaEl.title = it.probeError || '';
+      n.metaEl.classList.toggle('probe-error', !!it.probeError);
     }
     if ((it.error || null) !== (before.error || null)) {
       if (it.error) {
