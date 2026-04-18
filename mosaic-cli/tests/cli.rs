@@ -1,6 +1,6 @@
-// src-tauri/tests/cli.rs
+// mosaic-cli/tests/cli.rs
 // Integration tests for mosaic-cli via assert_cmd. Uses the shared
-// fixture tests/fixtures/sample.mp4 and writes outputs into
+// fixture in the sibling src-tauri crate and writes outputs into
 // TempDir-scoped directories so tests are hermetic.
 
 use assert_cmd::Command;
@@ -9,9 +9,11 @@ use std::fs;
 use tempfile::TempDir;
 
 fn sample() -> std::path::PathBuf {
-    // Resolve relative to the crate root.
+    // Fixture lives in the sibling src-tauri crate; resolve via
+    // CARGO_MANIFEST_DIR (= mosaic-cli/) + parent + src-tauri/tests/fixtures/.
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests").join("fixtures").join("sample.mp4")
+        .parent().unwrap()
+        .join("src-tauri").join("tests").join("fixtures").join("sample.mp4")
 }
 
 fn bin() -> Command {
