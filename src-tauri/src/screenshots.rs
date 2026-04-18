@@ -37,7 +37,7 @@ pub async fn generate(
     let mut outputs = Vec::with_capacity(timestamps.len());
     for (i, ts) in timestamps.iter().enumerate() {
         let idx = (i as u32) + 1;
-        let out = screenshot_path(source, out_dir, opts.format, &opts.suffix, idx, opts.count);
+        let out = screenshot_path(source, out_dir, opts.format, &opts.suffix, idx, opts.count, &|p| p.exists());
         let mut args = crate::ffmpeg::base_args();
         args.extend(crate::ffmpeg::seek_input_args(source, *ts));
         args.extend(["-frames:v".into(), "1".into()]);

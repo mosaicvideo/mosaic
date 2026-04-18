@@ -27,7 +27,7 @@ Download the latest release from [GitHub Releases](https://github.com/mosaicvide
 **Requires [ffmpeg](https://ffmpeg.org/) and [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) installed separately** — the app checks for `ffmpeg`, `ffprobe`, and `mediainfo` on your PATH at startup and shows install instructions if any are missing.
 
 - macOS: `brew install ffmpeg-full mediainfo`
-- Windows: `winget install ffmpeg MediaArea.MediaInfo.CLI`
+- Windows: `winget install Gyan.FFmpeg MediaArea.MediaInfo.CLI`
 - Linux: `apt install ffmpeg mediainfo`
 
 ## Requirements (dev)
@@ -84,9 +84,31 @@ I/O             ffmpeg.rs  (subprocess spawn, cancellation, batch parallelism)
 Commands        commands.rs  (Tauri handlers, per-file job loops, progress events)
 ```
 
+## Command-line usage
+
+In addition to the desktop app, mosaic ships a `mosaic-cli` binary for scripting and headless servers. Download the `mosaic-cli-*` asset for your platform from the [latest release](https://github.com/mosaicvideo/mosaic/releases/latest) or build locally:
+
+    cd src-tauri
+    cargo install --path . --bin mosaic-cli --features cli
+
+### Subcommands
+
+    mosaic-cli screenshots    [OPTIONS] <INPUT>...     # individual frames
+    mosaic-cli sheet          [OPTIONS] <INPUT>...     # still contact sheet
+    mosaic-cli reel           [OPTIONS] <INPUT>...     # animated preview reel
+    mosaic-cli animated-sheet [OPTIONS] <INPUT>...     # animated contact sheet
+    mosaic-cli probe          [--mediainfo] <INPUT>    # VideoInfo as JSON
+
+Each subcommand supports `--help` for its full flag list.
+
+### Config file
+
+On first run, `mosaic-cli` creates `~/.mosaic-cli.toml` with every default commented out. Uncomment and edit any key to change its default; CLI flags always override the file. Point `$MOSAIC_CLI_CONFIG` at a different path to use a per-project config.
+
 ## Docs
 
 - Design spec: `docs/2026-04-14-mosaic-design.md`
 - Implementation plan: `docs/2026-04-14-mosaic-plan.md`
-- CLI plan (future): `docs/2026-04-14-mosaic-cli-plan.md`
+- CLI spec: `docs/superpowers/specs/2026-04-18-mosaic-cli-design.md`
+- CLI plan: `docs/superpowers/plans/2026-04-18-mosaic-cli.md`
 - Distribution plan (future): `docs/2026-04-14-mosaic-distribution-plan.md`

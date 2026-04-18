@@ -30,28 +30,9 @@ pub async fn run_mediainfo(path: String) -> Result<String, String> {
     run_capture(&tools.mediainfo, &[&path]).await.map_err(|e| e.to_string())
 }
 
-const VIDEO_EXTS: &[&str] = &[
-    // Common containers
-    "mp4", "mkv", "mov", "avi", "webm", "wmv", "flv", "m4v", "mpg", "mpeg",
-    "ts", "m2ts", "mts", "vob", "iso", "ogv", "ogm", "qt", "asf",
-    // Mobile / MP4 family
-    "3gp", "3g2", "f4v", "mj2",
-    // Legacy / regional
-    "rm", "rmvb", "divx", "swf", "nsv",
-    // Broadcast / professional
-    "mxf", "gxf", "r3d",
-    // Camcorder / capture / recording
-    "dv", "dif", "wtv", "nuv", "pva",
-    // Other containers
-    "nut", "vro", "m1v", "m2v", "mk3d", "fli", "flc", "ivf", "y4m",
-];
-
-/// Cap folder-scan recursion depth so a pathological symlink loop can't hang the UI.
-const MAX_SCAN_DEPTH: u32 = 16;
-
 #[tauri::command]
 pub fn get_video_exts() -> Vec<String> {
-    VIDEO_EXTS.iter().map(|s| s.to_string()).collect()
+    crate::input_scan::VIDEO_EXTS.iter().map(|s| s.to_string()).collect()
 }
 
 #[tauri::command]
@@ -60,29 +41,8 @@ pub fn scan_folder(path: String, recursive: bool) -> Result<Vec<String>, String>
     if !root.is_dir() {
         return Err(format!("not a directory: {}", path));
     }
-    let mut out = Vec::new();
-    walk(&root, recursive, 0, &mut out);
-    out.sort();
-    Ok(out.into_iter().map(|p| p.to_string_lossy().into_owned()).collect())
-}
-
-fn walk(dir: &std::path::Path, recursive: bool, depth: u32, out: &mut Vec<std::path::PathBuf>) {
-    if depth > MAX_SCAN_DEPTH { return; }
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
-    for entry in entries.flatten() {
-        let Ok(ft) = entry.file_type() else { continue };
-        let p = entry.path();
-        if ft.is_dir() {
-            if recursive { walk(&p, recursive, depth + 1, out); }
-        } else if ft.is_file() {
-            let ext_ok = p.extension()
-                .and_then(|e| e.to_str())
-                .map(|e| e.to_ascii_lowercase())
-                .map(|e| VIDEO_EXTS.contains(&e.as_str()))
-                .unwrap_or(false);
-            if ext_ok { out.push(p); }
-        }
-    }
+    let found = crate::input_scan::scan(&root, recursive)?;
+    Ok(found.into_iter().map(|p| p.to_string_lossy().into_owned()).collect())
 }
 
 #[tauri::command]

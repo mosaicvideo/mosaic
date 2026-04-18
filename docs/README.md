@@ -21,7 +21,7 @@ Dated naming (`YYYY-MM-DD-topic-design.md`) makes chronology legible at `ls` tim
 |---|---|
 | [mosaic-design.md](2026-04-14-mosaic-design.md) | Product spec: goals, tech stack, output types, UX |
 | [mosaic-plan.md](2026-04-14-mosaic-plan.md) | Implementation plan for v1 (Tauri scaffold → pipelines → queue UI) |
-| [mosaic-cli-plan.md](2026-04-14-mosaic-cli-plan.md) | `mosaic` CLI plan — **not yet implemented** as of v0.1.3 |
+| [mosaic-cli-plan.md](2026-04-14-mosaic-cli-plan.md) | `mosaic` CLI — original v1 plan (superseded; see CLI spec + plan below) |
 | [mosaic-distribution-plan.md](2026-04-14-mosaic-distribution-plan.md) | Packaging, CI, multi-platform release plan |
 
 ## Feature specs (post-v1)
@@ -48,6 +48,11 @@ Specs describe features shipped since v0.1.0. Each is a post-hoc record of desig
 
 - [displayed-dims-and-enrichment-design](superpowers/specs/2026-04-17-displayed-dims-and-enrichment-design.md) — displayed square-pixel dimensions (SAR + rotation + 3D Blu-ray MVC), MediaInfo enrichment, multi-line header.
 
+### CLI (implemented, pending release)
+
+- [mosaic-cli-design](superpowers/specs/2026-04-18-mosaic-cli-design.md) — CLI design spec: subcommands, flag surface, config file, shared-defaults contract, module layout.
+- [mosaic-cli plan](superpowers/plans/2026-04-18-mosaic-cli.md) — step-by-step implementation plan for the `mosaic-cli` binary.
+
 ## Plans
 
 Plans are step-by-step implementation breakdowns used during TDD-driven builds. They're in `superpowers/plans/` and pair 1:1 with the spec from the same date:
@@ -55,6 +60,7 @@ Plans are step-by-step implementation breakdowns used during TDD-driven builds. 
 - [2026-04-15-animated-preview-reel.md](superpowers/plans/2026-04-15-animated-preview-reel.md)
 - [2026-04-16-extraction-fixes.md](superpowers/plans/2026-04-16-extraction-fixes.md)
 - [2026-04-16-mediainfo-modal.md](superpowers/plans/2026-04-16-mediainfo-modal.md) — partially superseded (see modal spec note).
+- [2026-04-18-mosaic-cli.md](superpowers/plans/2026-04-18-mosaic-cli.md) — CLI binary (`mosaic-cli`); implemented, pending release.
 
 Features shipped without an accompanying plan doc were implemented directly from the spec or without one at all — that's allowed for tightly-scoped changes where TDD tracking would be overhead.
 

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Command-line interface (`mosaic-cli`)** — every GUI pipeline available as a subcommand: `screenshots`, `sheet`, `reel`, `animated-sheet`, and a `probe` inspector that prints `VideoInfo` (and optionally MediaInfo) as JSON. Batch-friendly for scripts and headless servers — stdout is paths-only so it pipes cleanly into `xargs`.
+- **Per-user config** at `~/.mosaic-cli.toml` (override path via `$MOSAIC_CLI_CONFIG`). Auto-created on first run with every default commented out. CLI flags always override config values.
+- **Shared defaults module** (`mosaic_lib::defaults`) as the single source of truth for GUI HTML inputs and CLI flag defaults. `scripts/sync-defaults.mjs` keeps them in lockstep; CI fails on drift.
+
+### Changed
+
+- `scan_folder` / `VIDEO_EXTS` moved out of `commands.rs` into a new `input_scan` module so the CLI can reuse them without a Tauri roundtrip.
+
+### Requirements
+
+- Same as the GUI: `ffmpeg`, `ffprobe`, and `mediainfo` on `PATH`.
+
 ## [0.1.3] - 2026-04-17
 
 ### Added

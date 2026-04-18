@@ -8,10 +8,18 @@ const REPO = 'mosaicvideo/mosaic';
 const API = `https://api.github.com/repos/${REPO}/releases/latest`;
 
 const PATTERNS = {
-  macos:    /universal\.dmg$/,
-  winX64:   /_x64-setup\.exe$/,
-  winArm64: /_arm64-setup\.exe$/,
-  linux:    /\.AppImage$/,
+  gui: {
+    macos:    /universal\.dmg$/,
+    winX64:   /_x64-setup\.exe$/,
+    winArm64: /_arm64-setup\.exe$/,
+    linux:    /\.AppImage$/,
+  },
+  cli: {
+    macos:  /mosaic-cli-macos-universal$/,
+    winX64: /mosaic-cli-windows-x86_64\.exe$/,
+    winArm: /mosaic-cli-windows-aarch64\.exe$/,
+    linux:  /mosaic-cli-linux-x86_64$/,
+  },
 };
 
 // ────────────────────────────────────────────────────────────────
@@ -76,10 +84,18 @@ async function upgrade() {
   if (!release.assets) return;
 
   const find = (p) => release.assets.find(a => p.test(a.name));
-  setRow('btn-macos',   find(PATTERNS.macos));
-  setRow('btn-win',     find(PATTERNS.winX64));
-  setRow('btn-win-arm', find(PATTERNS.winArm64));
-  setRow('btn-linux',   find(PATTERNS.linux));
+
+  // GUI app rows
+  setRow('btn-macos',   find(PATTERNS.gui.macos));
+  setRow('btn-win',     find(PATTERNS.gui.winX64));
+  setRow('btn-win-arm', find(PATTERNS.gui.winArm64));
+  setRow('btn-linux',   find(PATTERNS.gui.linux));
+
+  // CLI binary rows
+  setRow('cli-btn-macos',   find(PATTERNS.cli.macos));
+  setRow('cli-btn-win-x64', find(PATTERNS.cli.winX64));
+  setRow('cli-btn-win-arm', find(PATTERNS.cli.winArm));
+  setRow('cli-btn-linux',   find(PATTERNS.cli.linux));
 
   const version = release.tag_name?.replace(/^v/, '');
   if (!version) return;
@@ -91,10 +107,10 @@ async function upgrade() {
   // Point CTA "download" button at the matched OS asset if we have one.
   const os = detectOS();
   const osAsset = {
-    macos: find(PATTERNS.macos),
-    winX64: find(PATTERNS.winX64),
-    winArm64: find(PATTERNS.winArm64),
-    linux: find(PATTERNS.linux),
+    macos: find(PATTERNS.gui.macos),
+    winX64: find(PATTERNS.gui.winX64),
+    winArm64: find(PATTERNS.gui.winArm64),
+    linux: find(PATTERNS.gui.linux),
   }[os];
   if (osAsset) {
     const primaryCta = document.querySelector('.cta.primary');
