@@ -56,26 +56,21 @@ pub fn build_extract_args(
     output: &Path,
     hdr_filter: Option<&str>,
 ) -> Vec<String> {
-    let mut vf = String::new();
-    if let Some(tm) = hdr_filter {
-        vf.push_str(tm);
-        vf.push(',');
-    }
-    vf.push_str(&format!("scale={}:{}", thumb_w, thumb_h));
-    if show_timestamps {
-        vf.push(',');
-        vf.push_str(&timestamp_overlay(
-            &format_hms_escaped(timestamp),
-            &font_for_ffmpeg(font),
-            thumb_font_size,
-            theme.fontcolor(),
-            theme.shadowcolor(),
-        ));
-    }
-    vf.push_str(&format!(
-        ",pad={}:{}:{}:{}:{}",
-        thumb_w + gap, thumb_h + gap, gap / 2, gap / 2, theme.bg()
+    let scale = format!("scale={}:{}", thumb_w, thumb_h);
+    let ts_filter = show_timestamps.then(|| timestamp_overlay(
+        &format_hms_escaped(timestamp),
+        &font_for_ffmpeg(font),
+        thumb_font_size,
+        theme.fontcolor(),
+        theme.shadowcolor(),
     ));
+    let pad = format!(
+        "pad={}:{}:{}:{}:{}",
+        thumb_w + gap, thumb_h + gap, gap / 2, gap / 2, theme.bg()
+    );
+    let vf_parts: Vec<&str> = [hdr_filter, Some(&scale), ts_filter.as_deref(), Some(&pad)]
+        .into_iter().flatten().collect();
+    let vf = vf_parts.join(",");
 
     let mut args = crate::ffmpeg::base_args();
     args.extend(crate::ffmpeg::seek_input_args_clip(source, timestamp));
