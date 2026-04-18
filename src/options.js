@@ -90,25 +90,20 @@ export function readOutput() {
   return { mode: 'next_to_source' };
 }
 
-export function readProduce() {
-  return {
-    shots:   document.getElementById('prod-shots').checked,
-    sheet:   document.getElementById('prod-sheet').checked,
-    preview: document.getElementById('prod-preview').checked,
-    asheet:  document.getElementById('prod-asheet').checked,
-  };
-}
+export const PRODUCE_FIELDS = [
+  { key: 'shots',   id: 'prod-shots',   kind: 'bool' },
+  { key: 'sheet',   id: 'prod-sheet',   kind: 'bool' },
+  { key: 'preview', id: 'prod-preview', kind: 'bool' },
+  { key: 'asheet',  id: 'prod-asheet',  kind: 'bool' },
+];
 
-export function applyProduce(produce) {
-  if (!produce) return;
-  const s = document.getElementById('prod-shots');
-  const c = document.getElementById('prod-sheet');
-  const p = document.getElementById('prod-preview');
-  const a = document.getElementById('prod-asheet');
-  if (s && typeof produce.shots === 'boolean')   s.checked = produce.shots;
-  if (c && typeof produce.sheet === 'boolean')   c.checked = produce.sheet;
-  if (p && typeof produce.preview === 'boolean') p.checked = produce.preview;
-  if (a && typeof produce.asheet === 'boolean')  a.checked = produce.asheet;
+export function readProduce()         { return readAll(PRODUCE_FIELDS); }
+export function applyProduce(produce) { writeAll(PRODUCE_FIELDS, produce); }
+
+export function updateOutputModeUI() {
+  const r = document.querySelector('input[name="out"]:checked');
+  document.getElementById('custom-folder-row')
+    .classList.toggle('hidden', r?.value !== 'custom');
 }
 
 export function applyOpts({ sheet, shots, preview, asheet, out } = {}) {
@@ -117,7 +112,9 @@ export function applyOpts({ sheet, shots, preview, asheet, out } = {}) {
   writeAll(PREVIEW_FIELDS, preview);
   writeAll(ASHEET_FIELDS,  asheet);
   if (out) {
-    document.querySelector(`input[name="out"][value="${out.mode}"]`)?.click();
+    const r = document.querySelector(`input[name="out"][value="${out.mode}"]`);
+    if (r) r.checked = true;
     if (out.custom) document.getElementById('custom-folder-path').textContent = out.custom;
+    updateOutputModeUI();
   }
 }

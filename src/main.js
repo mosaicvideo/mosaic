@@ -5,28 +5,28 @@ import { Store } from '@tauri-apps/plugin-store';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { createQueue, isVideo, getVideoExts } from './queue.js';
-import { readSheetOpts, readShotsOpts, readPreviewOpts, readASheetOpts, readOutput, readProduce, applyOpts, applyProduce } from './options.js';
+import { readSheetOpts, readShotsOpts, readPreviewOpts, readASheetOpts, readOutput, readProduce, applyOpts, applyProduce, updateOutputModeUI, PRODUCE_FIELDS } from './options.js';
 import { wireDropzone } from './dropzone.js';
 import { createMediaInfoModal, openMediaInfo, closeMediaInfo, isMediaInfoOpen } from './mediainfo.js';
 import * as E from './events.js';
 
+// Defaults mirror the canonical constants in src-tauri/src/output_path.rs
+// (DEFAULT_{SHOTS,SHEET,PREVIEW,ANIMATED_SHEET}_SUFFIX). Backend uses these
+// when `suffix` is empty; UI restores them on blur and echoes them in the
+// output-filename preview.
 const OUTPUT_TYPES = [
-  {
-    key: 'shots', pretty: 'Screenshots', invokeCmd: 'generate_screenshots', read: readShotsOpts,
-    preview: s => `${(s.suffix || '_screens_')}01.${s.format === 'Jpeg' ? 'jpg' : 'png'}`,
-  },
-  {
-    key: 'sheet', pretty: 'Contact Sheets', invokeCmd: 'generate_contact_sheets', read: readSheetOpts,
-    preview: s => `${(s.suffix || '_sheet')}.${s.format === 'Jpeg' ? 'jpg' : 'png'}`,
-  },
-  {
-    key: 'preview', pretty: 'Animated Previews', invokeCmd: 'generate_preview_reels', read: readPreviewOpts,
-    preview: s => `${(s.suffix || '_reel')}.${ {Webp:'webp', Webm:'webm', Gif:'gif'}[s.format] ?? 'webp' }`,
-  },
-  {
-    key: 'asheet', pretty: 'Animated Contact Sheets', invokeCmd: 'generate_animated_sheets', read: readASheetOpts,
-    preview: s => `${(s.suffix || '_animated_sheet')}.webp`,
-  },
+  { key:'shots',   suffixId:'shots-suffix',   defaultSuffix:'_screens_',
+    pretty:'Screenshots',              invokeCmd:'generate_screenshots',     read:readShotsOpts,
+    preview: s => `${s.suffix || '_screens_'}01.${s.format === 'Jpeg' ? 'jpg' : 'png'}` },
+  { key:'sheet',   suffixId:'sheet-suffix',   defaultSuffix:'_sheet',
+    pretty:'Contact Sheets',           invokeCmd:'generate_contact_sheets',  read:readSheetOpts,
+    preview: s => `${s.suffix || '_sheet'}.${s.format === 'Jpeg' ? 'jpg' : 'png'}` },
+  { key:'preview', suffixId:'preview-suffix', defaultSuffix:'_reel',
+    pretty:'Animated Previews',        invokeCmd:'generate_preview_reels',   read:readPreviewOpts,
+    preview: s => `${s.suffix || '_reel'}.${ {Webp:'webp', Webm:'webm', Gif:'gif'}[s.format] ?? 'webp' }` },
+  { key:'asheet',  suffixId:'asheet-suffix',  defaultSuffix:'_animated_sheet',
+    pretty:'Animated Contact Sheets',  invokeCmd:'generate_animated_sheets', read:readASheetOpts,
+    preview: s => `${s.suffix || '_animated_sheet'}.webp` },
 ];
 
 const queue = createQueue(document.getElementById('queue'), {
@@ -153,7 +153,7 @@ function wireButtons() {
   });
 
   document.querySelectorAll('input[name="out"]').forEach(r => r.onchange = () => {
-    document.getElementById('custom-folder-row').classList.toggle('hidden', r.value !== 'custom' || !r.checked);
+    updateOutputModeUI();
     refreshActionBar();
   });
 
@@ -168,18 +168,12 @@ function wireButtons() {
     });
   });
 
-  const suffixDefaults = {
-    'shots-suffix': '_screenshot_',
-    'sheet-suffix': '_contact_sheet',
-    'preview-suffix': ' - reel',
-    'asheet-suffix': '_animated_sheet',
-  };
-  for (const [id, def] of Object.entries(suffixDefaults)) {
-    const el = document.getElementById(id);
+  for (const t of OUTPUT_TYPES) {
+    const el = document.getElementById(t.suffixId);
     if (!el) continue;
     el.addEventListener('blur', () => {
       if (!el.value) {
-        el.value = def;
+        el.value = t.defaultSuffix;
         refreshActionBar();
         saveSettings();
       }
@@ -270,11 +264,8 @@ async function wireEvents() {
 }
 
 function enforceProduceAtLeastOne() {
-  const shots = document.getElementById('prod-shots');
-  const sheet = document.getElementById('prod-sheet');
-  const preview = document.getElementById('prod-preview');
-  const asheet = document.getElementById('prod-asheet');
-  if (!shots.checked && !sheet.checked && !preview.checked && !asheet.checked) shots.checked = true;
+  const boxes = PRODUCE_FIELDS.map(f => document.getElementById(f.id));
+  if (!boxes.some(b => b?.checked)) boxes[0].checked = true;
 }
 
 function updateOverall(done, total) {
