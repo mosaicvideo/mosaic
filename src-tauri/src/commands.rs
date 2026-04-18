@@ -90,22 +90,24 @@ pub fn reveal_in_finder(path: String) -> Result<(), String> {
     use std::process::Command;
     let p = std::path::PathBuf::from(&path);
 
+    // `-R` / `/select,` select the path in its PARENT (Finder/Explorer.
+    // window opens one level up with the target highlighted). That's right
+    // for files but wrong for directories — passing a dir would open the
+    // grandparent. Drop the select flag when the path is a directory.
     #[cfg(target_os = "macos")]
     {
-        Command::new("open")
-            .args(["-R", p.to_str().ok_or("non-utf8 path")?])
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        let s = p.to_str().ok_or("non-utf8 path")?;
+        let args: &[&str] = if p.is_dir() { &[s] } else { &["-R", s] };
+        Command::new("open").args(args).spawn().map_err(|e| e.to_string())?;
     }
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
-        Command::new("explorer")
-            .arg(format!("/select,{}", p.display()))
-            .creation_flags(CREATE_NO_WINDOW)
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        let mut cmd = Command::new("explorer");
+        if p.is_dir() { cmd.arg(p.as_os_str()); }
+        else          { cmd.arg(format!("/select,{}", p.display())); }
+        cmd.creation_flags(CREATE_NO_WINDOW).spawn().map_err(|e| e.to_string())?;
     }
     #[cfg(target_os = "linux")]
     {
