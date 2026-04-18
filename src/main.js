@@ -251,7 +251,7 @@ async function wireEvents() {
     },
     [E.STEP]: p => queue.update(p.fileId, { progress: p.label }),
     [E.FILE_DONE]: p => {
-      queue.update(p.fileId, { status: 'Done', progress: 'Done', outputPath: p.outputPath });
+      queue.update(p.fileId, { status: 'Done', progress: 'Done', appendOutputPath: p.outputPath });
       updateOverall(p.index, p.total);
     },
     [E.FILE_FAILED]: p => queue.update(p.fileId, { status: 'Failed', error: p.error }),
@@ -285,12 +285,16 @@ function passStatusText(i, total, pass) {
 }
 
 async function runPasses(passes, candidates, output, statusEl) {
+  // Fresh run: clear any outputs from a previous Generate on these rows.
+  // Between passes we append, so this only fires once at the top.
+  for (const c of candidates) queue.update(c.id, { outputPaths: [] });
+
   for (let i = 0; i < passes.length; i++) {
     if (userCancelled) return;
     const pass = passes[i];
 
     for (const it of candidates) {
-      queue.update(it.id, { status: 'Pending', progress: null, error: null, outputPath: null });
+      queue.update(it.id, { status: 'Pending', progress: null, error: null });
     }
 
     statusEl.textContent = passStatusText(i, passes.length, pass);

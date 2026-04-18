@@ -98,7 +98,11 @@ export function createQueue(root, { onReveal, onInfo, onChange } = {}) {
 
     nameEl.onclick = () => {
       const cur = items.get(it.id);
-      if (cur?.status === 'Done' && cur.outputPath) onReveal?.(cur.outputPath);
+      const paths = cur?.outputPaths || [];
+      if (cur?.status !== 'Done' || !paths.length) return;
+      // Multi-output rows reveal the shared parent folder; single-output
+      // rows still reveal the file itself (selected in its parent).
+      onReveal?.(paths.length === 1 ? paths[0] : parentDir(paths[0]));
     };
 
     return { el, idxEl, nameEl, metaEl, progEl, statusCell, statusLabel, infoBtn, removeBtn, errorEl: null };
@@ -126,18 +130,26 @@ export function createQueue(root, { onReveal, onInfo, onChange } = {}) {
   function update(id, patch) {
     const it = items.get(id);
     if (!it) return;
-    const before = { status: it.status, progress: it.progress, error: it.error, info: it.info, probeError: it.probeError };
+    // appendOutputPath is signalling only — mutate outputPaths directly and
+    // strip the key so Object.assign doesn't leak it onto the item.
+    if (patch.appendOutputPath) {
+      it.outputPaths = [...(it.outputPaths || []), patch.appendOutputPath];
+      const { appendOutputPath, ...rest } = patch;
+      patch = rest;
+    }
+    const before = { status: it.status, progress: it.progress, error: it.error, info: it.info, probeError: it.probeError, outputCount: (it.outputPaths?.length || 0) };
     Object.assign(it, patch);
     const n = nodes.get(id);
     if (!n) return;
-    if (it.status !== before.status) {
+    const outputCount = it.outputPaths?.length || 0;
+    if (it.status !== before.status || outputCount !== before.outputCount) {
       n.statusCell.className = `status-cell ${it.status}`;
       n.statusLabel.textContent = it.status;
       n.removeBtn.disabled = it.status === 'Running';
-      n.nameEl.classList.toggle('revealable-name', it.status === 'Done' && !!it.outputPath);
-    }
-    if (it.outputPath && it.status === 'Done') {
-      n.nameEl.classList.add('revealable-name');
+      n.nameEl.classList.toggle('revealable-name', it.status === 'Done' && outputCount > 0);
+      n.nameEl.title = outputCount > 1
+        ? `${it.path}\n\nOutputs:\n${it.outputPaths.map(p => '  ' + basename(p)).join('\n')}`
+        : it.path;
     }
     if ((it.progress || '') !== (before.progress || '')) {
       n.progEl.textContent = it.progress || '—';
@@ -179,4 +191,9 @@ export function createQueue(root, { onReveal, onInfo, onChange } = {}) {
 export function basename(p) {
   const i = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
   return i >= 0 ? p.slice(i + 1) : p;
+}
+
+export function parentDir(p) {
+  const i = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
+  return i >= 0 ? p.slice(0, i) : p;
 }
