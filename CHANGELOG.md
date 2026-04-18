@@ -7,19 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-04-18
+
 ### Added
 
-- **Command-line interface (`mosaic-cli`)** — every GUI pipeline available as a subcommand: `screenshots`, `sheet`, `reel`, `animated-sheet`, and a `probe` inspector that prints `VideoInfo` (and optionally MediaInfo) as JSON. Batch-friendly for scripts and headless servers — stdout is paths-only so it pipes cleanly into `xargs`.
-- **Per-user config** at `~/.mosaic-cli.toml` (override path via `$MOSAIC_CLI_CONFIG`). Auto-created on first run with every default commented out. CLI flags always override config values.
-- **Shared defaults module** (`mosaic_lib::defaults`) as the single source of truth for GUI HTML inputs and CLI flag defaults. `scripts/sync-defaults.mjs` keeps them in lockstep; CI fails on drift.
+- **Command-line interface (`mosaic-cli`)** — every GUI pipeline available as a subcommand (`screenshots`, `sheet`, `reel`, `animated-sheet`, `probe`). Batch-friendly for scripts and headless servers — stdout is paths-only so it pipes cleanly into `xargs`. Ctrl-C cancellation, continue-on-error batch mode. Per-user config at `~/.mosaic-cli.toml` auto-created on first run (override path via `$MOSAIC_CLI_CONFIG`); CLI flags always override config. Signed + notarized macOS universal binary plus Windows x86_64/aarch64 and Linux x86_64 binaries ship alongside the GUI installers.
+- **Multi-output history per queue row** — after a shots + sheet + reel run in a single Generate, the row now remembers all three outputs. Clicking reveals the shared parent folder; hover lists every filename. Previously only the last pass's output was kept.
+
+### Fixed
+
+- **Filename-suffix default mismatch** — clearing the screenshots suffix field used to restore `_screenshot_` on the UI while the backend wrote `_screens_`. UI defaults now match the backend constants.
+- **Silent probe failures in the queue** — rows whose probe fails now show `⚠ probe failed` (with the error as a tooltip) instead of leaving the metadata cell permanently blank.
+- **Unreadable auto-update dialog** — the native update prompt no longer dumps the full release-notes markdown; it shows just the version and install question. Full notes remain on the release page.
 
 ### Changed
 
-- `scan_folder` / `VIDEO_EXTS` moved out of `commands.rs` into a new `input_scan` module so the CLI can reuse them without a Tauri roundtrip.
-
-### Requirements
-
-- Same as the GUI: `ffmpeg`, `ffprobe`, and `mediainfo` on `PATH`.
+- **Faster multi-pass Generate** — the backend now reuses the probe the frontend already performs on queue-add instead of re-probing per pass. A shots + sheet + reel run on 10 files drops from 40 redundant ffprobe + mediainfo invocations to zero.
 
 ## [0.1.3] - 2026-04-17
 
@@ -90,7 +93,8 @@ v0.1.1 users: **this release requires a manual download** since v0.1.1 predates 
 - ffmpeg/ffprobe tool detection with user-friendly error state
 - macOS, Windows, and Linux support (requires ffmpeg installed separately)
 
-[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.3...HEAD
+[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/mosaicvideo/mosaic/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/mosaicvideo/mosaic/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/mosaicvideo/mosaic/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/mosaicvideo/mosaic/compare/v0.1.0...v0.1.1
