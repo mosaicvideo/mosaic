@@ -90,7 +90,7 @@ pub fn reveal_in_finder(path: String) -> Result<(), String> {
     use std::process::Command;
     let p = std::path::PathBuf::from(&path);
 
-    // `-R` / `/select,` select the path in its PARENT (Finder/Explorer.
+    // `-R` / `/select,` select the path in its PARENT (Finder/Explorer
     // window opens one level up with the target highlighted). That's right
     // for files but wrong for directories — passing a dir would open the
     // grandparent. Drop the select flag when the path is a directory.
