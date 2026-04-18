@@ -1,5 +1,11 @@
 # MediaInfo Modal
 
+> **Status:** Superseded in part by `2026-04-17-displayed-dims-and-enrichment-design.md` (v0.1.3).
+>
+> The **optional-MediaInfo** model described below (`locate_mediainfo()`, `check_mediainfo` Tauri command, `run_mediainfo` returning install instructions on `Err`) no longer reflects the code. In v0.1.3 MediaInfo was promoted to a first-party prerequisite: `locate_tools()` resolves it alongside ffmpeg/ffprobe, `check_mediainfo` is gone, and `run_mediainfo` now assumes the binary exists. The modal itself (queue-row icon, frontend structure, keyboard dismissal, copy button) is still accurate — read this doc for that part only.
+>
+> For the enrichment pipeline that parses MediaInfo JSON into contact-sheet header fields, see the v0.1.3 design doc.
+
 Add a per-file MediaInfo viewer to the queue. An icon in each queue row opens a modal displaying raw `mediainfo` CLI output with a copy-to-clipboard button.
 
 ## Backend
