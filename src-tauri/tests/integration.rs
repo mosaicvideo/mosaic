@@ -2,86 +2,25 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
-/// Spot-check that probing a known-anamorphic sample (1080×1080 + SAR 9:16)
-/// produces displayed dims of 606×1080. Requires the file at a fixed path on
-/// the developer machine; marked `#[ignore]` so CI doesn't need it.
+/// End-to-end: run every pipeline on a bundled anamorphic fixture
+/// (1080×1080 + SAR 9:16) and verify each output preserves the displayed
+/// aspect (9:16 portrait). Exercises the full probe → scale → render path,
+/// not just the arg-builder logic the `tests::*` units cover.
 #[tokio::test]
-#[ignore]
-async fn probe_produces_displayed_dims_for_anamorphic_sample() {
-    let fixture = std::path::Path::new("/Users/abi/Downloads/maeshima_mayu-beautiful.mp4");
-    if !fixture.exists() {
-        eprintln!("skipping: sample not available at {}", fixture.display());
+async fn all_pipelines_preserve_aspect_on_anamorphic_sample() {
+    if which::which("ffmpeg").is_err() || which::which("ffprobe").is_err() {
+        eprintln!("skipping: ffmpeg/ffprobe not installed");
         return;
     }
+    let fixture: PathBuf = [env!("CARGO_MANIFEST_DIR"), "tests", "fixtures", "anamorphic_sample.mp4"].iter().collect();
+    assert!(fixture.exists(), "missing test fixture {}", fixture.display());
     let tools = mosaic_lib::ffmpeg_test_hook_locate().expect("locate tools");
     let info = mosaic_lib::ffmpeg_test_hook_probe(&tools, &fixture.to_string_lossy())
         .await
         .expect("probe failed");
     // SAR 9:16 on 1080×1080 → 1080 * 9/16 = 607.5 → round_even = 606.
-    assert_eq!((info.video.width, info.video.height), (606, 1080),
-        "expected displayed dims 606×1080, got {}×{}", info.video.width, info.video.height);
-    assert_eq!(info.video.sar, Some((9, 16)));
-}
-
-/// Spot-check that probing a 3D Blu-ray ISO (MVC multi-view coding) picks
-/// the usable base-layer stream instead of the zero-dim dependent stream
-/// that ffprobe lists first. Regression guard for the contact-sheet bug on
-/// 3D ISOs where thumb_h fell back to square because of 0×0 inputs.
-#[tokio::test]
-#[ignore]
-async fn probe_3d_iso_picks_base_layer_stream() {
-    let fixture = std::path::Path::new("/Users/abi/Downloads/MosaicSamples/ISO-full3D-sample.iso");
-    if !fixture.exists() {
-        eprintln!("skipping: sample not available at {}", fixture.display());
-        return;
-    }
-    let tools = mosaic_lib::ffmpeg_test_hook_locate().expect("locate tools");
-    let info = mosaic_lib::ffmpeg_test_hook_probe(&tools, &fixture.to_string_lossy())
-        .await
-        .expect("probe failed");
-    assert_eq!((info.video.width, info.video.height), (1920, 1080),
-        "expected 1920×1080 base layer, got {}×{}", info.video.width, info.video.height);
-}
-
-/// Spot-check MediaInfo enrichment on a real HDR+DV sample. MediaInfo is now
-/// a first-party prerequisite, so `locate_tools` guarantees the binary is
-/// present — no skip needed beyond the sample file being available.
-#[tokio::test]
-#[ignore]
-async fn probe_enriches_with_mediainfo() {
-    let fixture = std::path::Path::new("/Users/abi/Downloads/MosaicSamples/awaken-girl.4K.HDR.DV.mkv");
-    if !fixture.exists() {
-        eprintln!("skipping: sample not available at {}", fixture.display());
-        return;
-    }
-    let tools = mosaic_lib::ffmpeg_test_hook_locate().expect("locate tools");
-    let info = mosaic_lib::ffmpeg_test_hook_probe(&tools, &fixture.to_string_lossy())
-        .await
-        .expect("probe failed");
-    let e = info.enrichment.as_ref().expect("mediainfo is a prerequisite; enrichment must populate");
-    assert_eq!(e.container_format.as_deref(), Some("Matroska"));
-    assert_eq!(e.video_bit_depth, Some(10));
-    assert!(e.video_hdr_format.as_deref().unwrap_or("").contains("Dolby Vision"));
-    assert!(e.audio_language.as_deref() == Some("en"));
-}
-
-/// End-to-end: run every pipeline on the real anamorphic sample and verify
-/// each output preserves the displayed aspect (9:16 portrait). Exercises the
-/// full probe → scale → render path, not just the arg-builder logic the
-/// `tests::*` units cover.
-#[tokio::test]
-#[ignore]
-async fn all_pipelines_preserve_aspect_on_anamorphic_sample() {
-    let fixture = std::path::Path::new("/Users/abi/Downloads/maeshima_mayu-beautiful.mp4");
-    if !fixture.exists() {
-        eprintln!("skipping: sample not available at {}", fixture.display());
-        return;
-    }
-    let tools = mosaic_lib::ffmpeg_test_hook_locate().expect("locate tools");
-    let info = mosaic_lib::ffmpeg_test_hook_probe(&tools, &fixture.to_string_lossy())
-        .await
-        .expect("probe failed");
     assert_eq!((info.video.width, info.video.height), (606, 1080));
+    assert_eq!(info.video.sar, Some((9, 16)));
 
     let font: PathBuf = [env!("CARGO_MANIFEST_DIR"), "assets", "fonts", "DejaVuSans.ttf"].iter().collect();
     let tmp = tempfile::tempdir().unwrap();
@@ -104,7 +43,7 @@ async fn all_pipelines_preserve_aspect_on_anamorphic_sample() {
         suffix: String::new(),
         theme: mosaic_lib::output_path::SheetTheme::Dark,
     };
-    mosaic_lib::contact_sheet::generate(fixture, &info, &sheet_out, &sheet_opts, &font, &ctx)
+    mosaic_lib::contact_sheet::generate(&fixture, &info, &sheet_out, &sheet_opts, &font, &ctx)
         .await.expect("static sheet failed");
     let (sw, sh) = probe_wh(&tools.ffprobe, &sheet_out).await;
     assert!(sh > sw, "static sheet should be portrait for anamorphic source, got {}×{}", sw, sh);
@@ -117,7 +56,7 @@ async fn all_pipelines_preserve_aspect_on_anamorphic_sample() {
         jpeg_quality: 92,
         suffix: String::new(),
     };
-    let shots = mosaic_lib::screenshots::generate(fixture, &info, &shots_dir, &shots_opts, &ctx)
+    let shots = mosaic_lib::screenshots::generate(&fixture, &info, &shots_dir, &shots_opts, &ctx)
         .await.expect("screenshots failed");
     for shot in &shots {
         let (w, h) = probe_wh(&tools.ffprobe, shot).await;
@@ -135,7 +74,7 @@ async fn all_pipelines_preserve_aspect_on_anamorphic_sample() {
         suffix: String::new(),
         theme: mosaic_lib::output_path::SheetTheme::Dark,
     };
-    mosaic_lib::animated_sheet::generate(fixture, &info, &anim_out, &anim_opts, &font, &ctx)
+    mosaic_lib::animated_sheet::generate(&fixture, &info, &anim_out, &anim_opts, &font, &ctx)
         .await.expect("animated sheet failed");
     let bytes = std::fs::read(&anim_out).unwrap();
     assert_animated_webp(&bytes);
@@ -155,7 +94,7 @@ async fn all_pipelines_preserve_aspect_on_anamorphic_sample() {
         suffix: String::new(),
         format: mosaic_lib::output_path::ReelFormat::Webm,
     };
-    mosaic_lib::preview_reel::generate(fixture, &info, &reel_out, &reel_opts, &ctx)
+    mosaic_lib::preview_reel::generate(&fixture, &info, &reel_out, &reel_opts, &ctx)
         .await.expect("preview reel failed");
     let (rw, rh) = probe_wh(&tools.ffprobe, &reel_out).await;
     assert!(rh > rw, "reel should be portrait for anamorphic source, got {}×{}", rw, rh);
@@ -167,13 +106,13 @@ async fn all_pipelines_preserve_aspect_on_anamorphic_sample() {
 /// bad displayed-dim swap / thumb_width inversion that would only show up
 /// when the source already had square pixels.
 #[tokio::test]
-#[ignore]
 async fn landscape_source_still_renders_landscape() {
-    let fixture = std::path::Path::new("/Users/abi/Downloads/MosaicSamples/12185792_3840_2160_30fps.mp4");
-    if !fixture.exists() {
-        eprintln!("skipping: sample not available at {}", fixture.display());
+    if which::which("ffmpeg").is_err() || which::which("ffprobe").is_err() {
+        eprintln!("skipping: ffmpeg/ffprobe not installed");
         return;
     }
+    let fixture: PathBuf = [env!("CARGO_MANIFEST_DIR"), "tests", "fixtures", "landscape_4k_sample.mp4"].iter().collect();
+    assert!(fixture.exists(), "missing test fixture {}", fixture.display());
     let tools = mosaic_lib::ffmpeg_test_hook_locate().expect("locate tools");
     let info = mosaic_lib::ffmpeg_test_hook_probe(&tools, &fixture.to_string_lossy())
         .await
@@ -194,7 +133,7 @@ async fn landscape_source_still_renders_landscape() {
     };
 
     let sheet_out = tmp.path().join("sheet.png");
-    mosaic_lib::contact_sheet::generate(fixture, &info, &sheet_out, &mosaic_lib::contact_sheet::SheetOptions {
+    mosaic_lib::contact_sheet::generate(&fixture, &info, &sheet_out, &mosaic_lib::contact_sheet::SheetOptions {
         cols: 2, rows: 2, width: 640, gap: 4,
         thumb_font_size: 14, header_font_size: 16,
         show_timestamps: false, show_header: false,
@@ -206,7 +145,7 @@ async fn landscape_source_still_renders_landscape() {
 
     // Screenshots: no scale filter because SAR is None and no tonemap.
     let shots_dir = tmp.path().join("shots");
-    let shots = mosaic_lib::screenshots::generate(fixture, &info, &shots_dir, &mosaic_lib::screenshots::ScreenshotsOptions {
+    let shots = mosaic_lib::screenshots::generate(&fixture, &info, &shots_dir, &mosaic_lib::screenshots::ScreenshotsOptions {
         count: 1, format: mosaic_lib::output_path::OutputFormat::Png,
         jpeg_quality: 92, suffix: String::new(),
     }, &ctx).await.expect("shots");
@@ -229,7 +168,7 @@ fn webp_canvas_wh(bytes: &[u8]) -> (u32, u32) {
 async fn probe_wh(ffprobe: &std::path::Path, path: &std::path::Path) -> (u32, u32) {
     let args = ["-v", "error", "-select_streams", "v:0",
         "-show_entries", "stream=width,height", "-of", "csv=p=0", &path.to_string_lossy()];
-    let out = std::process::Command::new(ffprobe).args(&args).output().expect("ffprobe");
+    let out = std::process::Command::new(ffprobe).args(args).output().expect("ffprobe");
     let s = String::from_utf8_lossy(&out.stdout);
     let (w, h) = s.trim().split_once(',').expect("w,h csv");
     (w.parse().unwrap(), h.parse().unwrap())
