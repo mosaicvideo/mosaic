@@ -14,6 +14,7 @@ const CARGO_TOML = resolve(root, "src-tauri/Cargo.toml");
 const CARGO_LOCK = resolve(root, "src-tauri/Cargo.lock");
 const SITE_INDEX = resolve(root, "site/index.html");
 const SITE_GUIDE = resolve(root, "site/guide.html");
+const SITE_CLI = resolve(root, "site/cli.html");
 const SRC_INDEX = resolve(root, "src/index.html");
 
 const SEMVER_RE = /^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$/;
@@ -66,7 +67,7 @@ const SITE_REPLACERS = [
   /(id="nav-version">)v\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(<)/g,
   /(id="line-version">)v\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(<)/g,
 ];
-for (const f of [SITE_INDEX, SITE_GUIDE]) {
+for (const f of [SITE_INDEX, SITE_GUIDE, SITE_CLI]) {
   let s = readFileSync(f, "utf8");
   for (const re of SITE_REPLACERS) s = s.replaceAll(re, `$1v${version}$3`);
   writeFileSync(f, s);
@@ -78,7 +79,7 @@ console.log(`\nVersion bumped to ${version}`);
 execSync("node scripts/sync-defaults.mjs", { cwd: root, stdio: "inherit" });
 
 if (shouldTag) {
-  const files = [PACKAGE_JSON, TAURI_CONF, CARGO_TOML, CARGO_LOCK, SITE_INDEX, SITE_GUIDE, SRC_INDEX].map(
+  const files = [PACKAGE_JSON, TAURI_CONF, CARGO_TOML, CARGO_LOCK, SITE_INDEX, SITE_GUIDE, SITE_CLI, SRC_INDEX].map(
     (f) => relative(root, f)
   );
   execSync(`git add ${files.join(" ")}`, { cwd: root, stdio: "inherit" });
