@@ -267,7 +267,7 @@ Extend `mosaic-cli/tests/cli.rs` using the existing `assert_cmd` + `predicates` 
 - `completions_bash_emits_complete_builtin` — exits 0; stdout contains `complete -F`.
 - `completions_fish_emits_complete` — exits 0; stdout contains `complete -c mosaic-cli`.
 - `completions_powershell_emits_register_argumentcompleter` — exits 0; stdout contains `Register-ArgumentCompleter`.
-- `manpage_emits_th_header` — exits 0; stdout starts with `.TH "MOSAIC-CLI"`.
+- `manpage_emits_th_header` — exits 0; stdout contains `.TH "MOSAIC-CLI"` (the literal `.TH` appears after `clap_mangen`'s troff-escape preamble, not at line 1).
 
 These tests require neither ffmpeg nor network (pure clap introspection) and run under a plain `cargo test` in `mosaic-cli/`.
 
