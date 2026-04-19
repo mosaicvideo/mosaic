@@ -193,10 +193,50 @@ jobs:
           cp "$src" "$dst"
           echo "CLI_ARTIFACT=$dst" >> "$GITHUB_ENV"
 
+      - name: Checksum CLI artifact
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            sha=$(certutil -hashfile "$CLI_ARTIFACT" SHA256 | sed -n '2p' | tr -d ' \r' | tr 'A-Z' 'a-z')
+            printf '%s  %s\n' "$sha" "$CLI_ARTIFACT" > "${CLI_ARTIFACT}.sha256"
+          else
+            shasum -a 256 "$CLI_ARTIFACT" > "${CLI_ARTIFACT}.sha256"
+          fi
+          cat "${CLI_ARTIFACT}.sha256"
+
       - name: Upload CLI to release draft
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ env.CLI_ARTIFACT }}
+          files: |
+            ${{ env.CLI_ARTIFACT }}
+            ${{ env.CLI_ARTIFACT }}.sha256
+          tag_name: ${{ github.ref_name }}
+          draft: true
+          fail_on_unmatched_files: true
+
+  finalize:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download per-artifact checksums from draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p checksums
+          gh release download "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'mosaic-cli-*.sha256' \
+            --dir checksums
+          sort checksums/*.sha256 > SHA256SUMS
+          echo "--- SHA256SUMS ---"
+          cat SHA256SUMS
+
+      - name: Upload SHA256SUMS to draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: SHA256SUMS
           tag_name: ${{ github.ref_name }}
           draft: true
           fail_on_unmatched_files: true
