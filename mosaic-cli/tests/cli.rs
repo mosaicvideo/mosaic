@@ -178,3 +178,48 @@ fn missing_input_exits_nonzero() {
     bin().args(["screenshots", "/does/not/exist.mp4"])
         .assert().failure();
 }
+
+#[test]
+fn completions_zsh_emits_compdef() {
+    bin()
+        .args(["completions", "zsh"])
+        .assert()
+        .success()
+        .stdout(predicate::str::starts_with("#compdef"));
+}
+
+#[test]
+fn completions_bash_emits_complete_builtin() {
+    bin()
+        .args(["completions", "bash"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("complete -F"));
+}
+
+#[test]
+fn completions_fish_emits_complete() {
+    bin()
+        .args(["completions", "fish"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("complete -c mosaic-cli"));
+}
+
+#[test]
+fn completions_powershell_emits_register_argumentcompleter() {
+    bin()
+        .args(["completions", "powershell"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Register-ArgumentCompleter"));
+}
+
+#[test]
+fn manpage_emits_th_header() {
+    bin()
+        .args(["manpage"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(".TH"));
+}

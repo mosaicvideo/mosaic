@@ -3,6 +3,7 @@
 // mosaic_lib::defaults so GUI and CLI stay in lockstep.
 
 use clap::{Parser, Subcommand, ValueEnum};
+use clap_complete::Shell;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -10,7 +11,7 @@ use std::path::PathBuf;
     name = "mosaic-cli",
     version,
     about = "Video contact sheets, screenshots, previews, and animated sheets",
-    after_help = "Config file: ~/.mosaic-cli.toml (auto-created on first run; override path with $MOSAIC_CLI_CONFIG).\nDocs: https://mosaicvideo.github.io/mosaic/guide.html"
+    after_help = "Config file: ~/.mosaic-cli.toml (auto-created on first run; override path with $MOSAIC_CLI_CONFIG).\nDocs: https://mosaicvideo.github.io/mosaic/cli.html"
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -24,6 +25,9 @@ pub enum Command {
     Reel(ReelArgs),
     AnimatedSheet(AnimatedSheetArgs),
     Probe(ProbeArgs),
+    Completions(CompletionsArgs),
+    #[command(about = "Emit a roff man page to stdout")]
+    Manpage,
 }
 
 #[derive(Parser)]
@@ -211,4 +215,12 @@ pub struct ProbeArgs {
     /// Video file to inspect.
     #[arg(required = true)]
     pub input: PathBuf,
+}
+
+#[derive(Parser)]
+#[command(about = "Emit a shell-completion script to stdout")]
+pub struct CompletionsArgs {
+    /// Shell to generate completions for.
+    #[arg(value_enum)]
+    pub shell: Shell,
 }
