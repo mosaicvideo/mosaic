@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CLI — Mosaic</title>
+  <meta name="description" content="Install and use mosaic-cli — the command-line interface for Mosaic contact sheets, screenshots, animated previews, and probes. One-liner install for macOS, Linux, and Windows.">
+  <meta name="theme-color" content="#060807">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="./" class="nav-brand">
+      <span class="nav-brand-text">mosaic</span>
+      <span class="nav-brand-version" id="nav-version">v0.1.4</span>
+    </a>
+    <div class="nav-links">
+      <a href="guide.html">guide</a>
+      <a href="cli.html" class="active">cli</a>
+      <a href="guide.html#faq">faq</a>
+      <a href="https://github.com/mosaicvideo/mosaic/blob/main/CHANGELOG.md">log</a>
+      <a href="https://github.com/mosaicvideo/mosaic">git</a>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="container">
+    <div class="guide-layout">
+
+      <aside class="guide-toc" aria-label="Table of contents">
+        <div class="guide-toc-heading">Contents</div>
+        <ul>
+          <li><a href="#install">Install</a>
+            <ul>
+              <li><a href="#install-unix">macOS &amp; Linux</a></li>
+              <li><a href="#install-windows">Windows</a></li>
+              <li><a href="#install-manual">Manual download</a></li>
+              <li><a href="#install-verify">Verify checksum</a></li>
+            </ul>
+          </li>
+          <li><a href="#requirements">Requirements</a></li>
+          <li><a href="#quick-start">Quick start</a></li>
+          <li><a href="#subcommands">Subcommands</a>
+            <ul>
+              <li><a href="#sub-screenshots">screenshots</a></li>
+              <li><a href="#sub-sheet">sheet</a></li>
+              <li><a href="#sub-reel">reel</a></li>
+              <li><a href="#sub-animated-sheet">animated-sheet</a></li>
+              <li><a href="#sub-probe">probe</a></li>
+              <li><a href="#sub-completions">completions</a></li>
+              <li><a href="#sub-manpage">manpage</a></li>
+            </ul>
+          </li>
+          <li><a href="#config">Config file</a></li>
+          <li><a href="#completions">Shell completions</a></li>
+          <li><a href="#manpage">Man page</a></li>
+          <li><a href="#upgrading">Upgrading</a></li>
+          <li><a href="#uninstalling">Uninstalling</a></li>
+          <li><a href="#troubleshooting">Troubleshooting</a></li>
+        </ul>
+      </aside>
+
+      <article class="guide-content">
+
+        <h1>mosaic-cli</h1>
+        <p class="lede">Every Mosaic pipeline from the terminal — scripts, CI jobs, headless servers. Same ffmpeg pipelines as the desktop app, no UI.</p>
+
+        <pre><code>mosaic-cli sheet movie.mkv</code></pre>
+
+        <h2 id="install">Install</h2>
+
+        <h3 id="install-unix">macOS &amp; Linux</h3>
+        <pre><code>curl -LsSf https://mosaicvideo.github.io/mosaic/install.sh | sh</code></pre>
+        <p>Installs to <code>~/.local/bin</code> by default. Override with <code>MOSAIC_INSTALL_DIR</code>:</p>
+        <pre><code>curl -LsSf https://mosaicvideo.github.io/mosaic/install.sh | MOSAIC_INSTALL_DIR=/usr/local/bin sh</code></pre>
+
+        <h3 id="install-windows">Windows (PowerShell)</h3>
+        <pre><code>irm https://mosaicvideo.github.io/mosaic/install.ps1 | iex</code></pre>
+        <p>Installs to <code>%LOCALAPPDATA%\Programs\mosaic-cli</code> and adds it to user PATH. Restart your terminal afterward.</p>
+
+        <h3 id="install-manual">Manual download</h3>
+        <p>If you'd rather avoid the one-liner, grab a binary directly from the latest release:</p>
+        <div class="dl-table" role="list">
+          <div class="dl-row" data-key="macos">
+            <a id="cli-btn-macos" href="https://github.com/mosaicvideo/mosaic/releases/latest" role="listitem">
+              <div class="dl-index">01.</div>
+              <div class="dl-tag">mac</div>
+              <div class="dl-path">mosaic-cli-macos-universal</div>
+              <div class="dl-size">--</div>
+            </a>
+          </div>
+          <div class="dl-row" data-key="win-x64">
+            <a id="cli-btn-win-x64" href="https://github.com/mosaicvideo/mosaic/releases/latest" role="listitem">
+              <div class="dl-index">02.</div>
+              <div class="dl-tag">windows</div>
+              <div class="dl-path">mosaic-cli-windows-x86_64.exe</div>
+              <div class="dl-size">--</div>
+            </a>
+          </div>
+          <div class="dl-row" data-key="win-arm">
+            <a id="cli-btn-win-arm" href="https://github.com/mosaicvideo/mosaic/releases/latest" role="listitem">
+              <div class="dl-index">03.</div>
+              <div class="dl-tag">win-arm</div>
+              <div class="dl-path">mosaic-cli-windows-aarch64.exe</div>
+              <div class="dl-size">--</div>
+            </a>
+          </div>
+          <div class="dl-row" data-key="linux">
+            <a id="cli-btn-linux" href="https://github.com/mosaicvideo/mosaic/releases/latest" role="listitem">
+              <div class="dl-index">04.</div>
+              <div class="dl-tag">linux</div>
+              <div class="dl-path">mosaic-cli-linux-x86_64</div>
+              <div class="dl-size">--</div>
+            </a>
+          </div>
+        </div>
+        <p>On macOS/Linux, make executable and move onto PATH:</p>
+        <pre><code>chmod +x mosaic-cli-*
+mv mosaic-cli-* ~/.local/bin/mosaic-cli</code></pre>
+
+        <h3 id="install-verify">Verify checksum</h3>
+        <p>Each release ships a <code>SHA256SUMS</code> file covering every CLI artifact. To verify:</p>
+        <pre><code>curl -LO https://github.com/mosaicvideo/mosaic/releases/latest/download/SHA256SUMS
+grep " mosaic-cli-macos-universal$" SHA256SUMS | shasum -a 256 -c -</code></pre>
+        <p>Expected output: <code>mosaic-cli-macos-universal: OK</code>. The one-liner install scripts do this automatically.</p>
+
+        <h2 id="requirements">Requirements</h2>
+        <p><code>mosaic-cli</code> shells out to <code>ffmpeg</code>, <code>ffprobe</code>, and <code>mediainfo</code> — all three must be on your <code>PATH</code>. The macOS build of <code>ffmpeg</code> from Homebrew's default bottle is missing the <code>drawtext</code> filter; install <code>ffmpeg-full</code> instead.</p>
+        <p>See <a href="guide.html#requirements">the GUI guide's Requirements section</a> for per-platform install commands.</p>
+
+        <h2 id="quick-start">Quick start</h2>
+        <pre><code># One still contact sheet
+mosaic-cli sheet movie.mkv
+
+# 12 screenshots into a specific folder
+mosaic-cli screenshots --count 12 -o shots/ movie.mkv
+
+# Animated preview reel: 10 clips at 2 seconds each
+mosaic-cli reel --count 10 --clip-length 2 movie.mkv
+
+# Animated contact sheet, 4×3 grid
+mosaic-cli animated-sheet --cols 4 --rows 3 movie.mkv</code></pre>
+        <p>Inputs can be files or directories. Directories are scanned recursively by default; pass <code>--no-recursive</code> to stay shallow. Stdout is paths-only so output pipes cleanly into <code>xargs</code>; progress and summaries go to stderr.</p>
+
+        <h2 id="subcommands">Subcommands</h2>
+
+        <h3 id="sub-screenshots"><code>screenshots</code></h3>
+        <p>Capture individual frames from a video at evenly-spaced timestamps.</p>
+        <pre><code>mosaic-cli screenshots [OPTIONS] &lt;INPUT&gt;...</code></pre>
+        <p>Common flags:</p>
+        <ul>
+          <li><code>--count N</code> — number of frames (default: <strong>8</strong>)</li>
+          <li><code>--format png|jpeg</code> — output format (default: <strong>png</strong>)</li>
+          <li><code>--quality N</code> — JPEG quality 50–100 (default: <strong>92</strong>)</li>
+          <li><code>--suffix S</code> — filename infix between stem and index (default: <strong><code>_screens_</code></strong>)</li>
+          <li><code>-o DIR</code> — output directory (default: next to each source)</li>
+        </ul>
+        <pre><code>mosaic-cli screenshots --count 20 --format jpeg --quality 90 -o shots/ movie.mkv</code></pre>
+
+        <h3 id="sub-sheet"><code>sheet</code></h3>
+        <p>Generate a still contact sheet — a grid of thumbnails with an optional metadata header.</p>
+        <pre><code>mosaic-cli sheet [OPTIONS] &lt;INPUT&gt;...</code></pre>
+        <p>Common flags:</p>
+        <ul>
+          <li><code>--cols N</code> — columns (default: <strong>3</strong>)</li>
+          <li><code>--rows N</code> — rows (default: <strong>6</strong>)</li>
+          <li><code>--width PX</code> — total sheet width (default: <strong>1920</strong>)</li>
+          <li><code>--gap PX</code> — thumbnail spacing (default: <strong>10</strong>)</li>
+          <li><code>--format png|jpeg</code> — output format (default: <strong>png</strong>)</li>
+          <li><code>--quality N</code> — JPEG quality 50–100 (default: <strong>92</strong>)</li>
+          <li><code>--theme dark|light</code> — color theme (default: <strong>dark</strong>)</li>
+          <li><code>--no-timestamps</code> / <code>--timestamps</code> — toggle per-thumbnail timestamp overlay</li>
+          <li><code>--no-header</code> / <code>--header</code> — toggle the metadata header band</li>
+          <li><code>--suffix S</code> — filename infix (default: <strong><code>_sheet</code></strong>)</li>
+        </ul>
+        <pre><code>mosaic-cli sheet --cols 4 --rows 5 --width 2400 --theme light movie.mkv</code></pre>
+
+        <h3 id="sub-reel"><code>reel</code></h3>
+        <p>Stitch short clips into a single animated preview reel (WebP/WebM/GIF).</p>
+        <pre><code>mosaic-cli reel [OPTIONS] &lt;INPUT&gt;...</code></pre>
+        <p>Common flags:</p>
+        <ul>
+          <li><code>--count N</code> — number of clips (default: <strong>15</strong>)</li>
+          <li><code>--clip-length SECS</code> — seconds per clip (default: <strong>2</strong>)</li>
+          <li><code>--height PX</code> — output height; width follows aspect ratio (default: <strong>360</strong>)</li>
+          <li><code>--fps N</code> — frame rate, capped at source fps (default: <strong>24</strong>)</li>
+          <li><code>--format webp|webm|gif</code> — output container (default: <strong>webp</strong>)</li>
+          <li><code>--quality N</code> — encoder quality 0–100 (default: <strong>75</strong>; ignored for GIF)</li>
+          <li><code>--suffix S</code> — filename infix (default: <strong><code>_reel</code></strong>)</li>
+        </ul>
+        <pre><code>mosaic-cli reel --count 8 --clip-length 3 --format gif movie.mkv</code></pre>
+
+        <h3 id="sub-animated-sheet"><code>animated-sheet</code></h3>
+        <p>Grid of animated clips — a contact sheet where every cell is a short looping WebP. Output is always WebP.</p>
+        <pre><code>mosaic-cli animated-sheet [OPTIONS] &lt;INPUT&gt;...</code></pre>
+        <p>Common flags:</p>
+        <ul>
+          <li><code>--cols N</code> — columns (default: <strong>3</strong>)</li>
+          <li><code>--rows N</code> — rows (default: <strong>6</strong>)</li>
+          <li><code>--width PX</code> — total sheet width (default: <strong>1280</strong>)</li>
+          <li><code>--gap PX</code> — thumbnail spacing (default: <strong>8</strong>)</li>
+          <li><code>--clip-length SECS</code> — seconds per animated cell (default: <strong>2</strong>)</li>
+          <li><code>--fps N</code> — animated frame rate (default: <strong>12</strong>)</li>
+          <li><code>--quality N</code> — WebP encoder quality (default: <strong>75</strong>)</li>
+          <li><code>--theme dark|light</code> — color theme (default: <strong>dark</strong>)</li>
+          <li><code>--suffix S</code> — filename infix (default: <strong><code>_animated_sheet</code></strong>)</li>
+        </ul>
+
+        <h3 id="sub-probe"><code>probe</code></h3>
+        <p>Print the parsed ffprobe result as JSON. With <code>--mediainfo</code>, wraps both ffprobe and raw MediaInfo output in an envelope.</p>
+        <pre><code>mosaic-cli probe [--mediainfo] &lt;INPUT&gt;</code></pre>
+        <pre><code>mosaic-cli probe movie.mkv | jq .duration_secs
+mosaic-cli probe --mediainfo movie.mkv | jq .ffprobe.video.color_transfer</code></pre>
+
+        <h3 id="sub-completions"><code>completions</code></h3>
+        <p>Emit a shell-completion script to stdout.</p>
+        <pre><code>mosaic-cli completions &lt;bash|zsh|fish|powershell|elvish&gt;</code></pre>
+        <p>See <a href="#completions">Shell completions</a> for setup instructions per shell.</p>
+
+        <h3 id="sub-manpage"><code>manpage</code></h3>
+        <p>Emit a roff-formatted man page to stdout.</p>
+        <pre><code>mosaic-cli manpage</code></pre>
+        <p>See <a href="#manpage">Man page</a> for install instructions.</p>
+
+        <h2 id="config">Config file</h2>
+        <p>On first run, <code>mosaic-cli</code> creates <code>~/.mosaic-cli.toml</code> with every option commented out. Uncomment any key to change its default. The full precedence is:</p>
+        <ol>
+          <li>Command-line flags (highest)</li>
+          <li>Config file at <code>$MOSAIC_CLI_CONFIG</code> (if set) or <code>~/.mosaic-cli.toml</code></li>
+          <li>Built-in defaults shown in each subcommand above</li>
+        </ol>
+        <p>Example config:</p>
+        <pre><code>[sheet]
+cols = 4
+rows = 6
+theme = "light"
+suffix = "_thumbs"
+
+[reel]
+count = 12
+clip_length_secs = 3
+format = "gif"</code></pre>
+        <p class="callout">Note: the config key for reel/animated-sheet clip duration is <code>clip_length_secs</code> (TOML convention, unit explicit), while the CLI flag is <code>--clip-length</code>. The difference is intentional.</p>
+
+        <h2 id="completions">Shell completions</h2>
+
+        <p><strong>zsh:</strong></p>
+        <pre><code>mkdir -p ~/.zfunc
+mosaic-cli completions zsh &gt; ~/.zfunc/_mosaic-cli</code></pre>
+        <p>Ensure these lines are in <code>~/.zshrc</code> before <code>compinit</code>:</p>
+        <pre><code>fpath=(~/.zfunc $fpath)
+autoload -Uz compinit &amp;&amp; compinit</code></pre>
+
+        <p><strong>bash:</strong></p>
+        <pre><code>mkdir -p ~/.local/share/bash-completion/completions
+mosaic-cli completions bash &gt; ~/.local/share/bash-completion/completions/mosaic-cli</code></pre>
+
+        <p><strong>fish:</strong></p>
+        <pre><code>mkdir -p ~/.config/fish/completions
+mosaic-cli completions fish &gt; ~/.config/fish/completions/mosaic-cli.fish</code></pre>
+
+        <p><strong>PowerShell:</strong></p>
+        <pre><code># temporarily (current session only):
+mosaic-cli completions powershell | Out-String | Invoke-Expression
+
+# persistently (append to your profile):
+mosaic-cli completions powershell | Out-String | Add-Content $PROFILE</code></pre>
+
+        <h2 id="manpage">Man page</h2>
+        <pre><code>mkdir -p ~/.local/share/man/man1
+mosaic-cli manpage &gt; ~/.local/share/man/man1/mosaic-cli.1
+man mosaic-cli</code></pre>
+        <p>If your <code>MANPATH</code> doesn't include <code>~/.local/share/man</code>, add it to your shell rc:</p>
+        <pre><code>export MANPATH="$HOME/.local/share/man:$MANPATH"</code></pre>
+
+        <h2 id="upgrading">Upgrading</h2>
+        <p>Re-run the install script. The version is resolved at runtime, so the same one-liner always fetches the latest release.</p>
+
+        <h2 id="uninstalling">Uninstalling</h2>
+        <p><strong>macOS / Linux:</strong></p>
+        <pre><code>rm ~/.local/bin/mosaic-cli
+rm ~/.mosaic-cli.toml           # optional: config file</code></pre>
+        <p><strong>Windows:</strong></p>
+        <pre><code>Remove-Item "$env:LOCALAPPDATA\Programs\mosaic-cli" -Recurse</code></pre>
+        <p>Remove the install dir from user PATH via <strong>Settings → System → About → Advanced system settings → Environment Variables</strong>.</p>
+
+        <h2 id="troubleshooting">Troubleshooting</h2>
+
+        <p><strong><code>ffmpeg not found on PATH</code></strong> — install <code>ffmpeg</code>, <code>ffprobe</code>, and <code>mediainfo</code>. See <a href="guide.html#requirements">Requirements</a>.</p>
+
+        <p><strong>Gatekeeper blocks the macOS binary</strong> — shouldn't happen (the macOS CLI is signed and notarized with the same Developer ID as the GUI). If it does, clear the quarantine attribute:</p>
+        <pre><code>xattr -d com.apple.quarantine ~/.local/bin/mosaic-cli</code></pre>
+
+        <p><strong>SmartScreen warning on Windows</strong> — the Windows CLI is unsigned. If you downloaded manually via Explorer, Windows may mark the file. Run the one-liner installer instead (programmatic download avoids Mark-of-the-Web), or unblock via PowerShell:</p>
+        <pre><code>Unblock-File -Path "$env:LOCALAPPDATA\Programs\mosaic-cli\mosaic-cli.exe"</code></pre>
+
+        <p><strong>Arch mismatch error from install.sh</strong> — Linux aarch64 builds aren't published. Build from source with <code>cargo build --release --manifest-path mosaic-cli/Cargo.toml</code> or open an issue for a prebuilt.</p>
+
+        <p><strong>Checksum mismatch</strong> — re-run the installer (network glitches can produce partial downloads). If it persists, file an issue and include the release tag + platform.</p>
+
+        <p><strong>GitHub API rate limit from install.sh</strong> — unauthenticated requests are capped at 60/hour per IP. If you're behind a shared NAT and hit the limit, pin the version:</p>
+        <pre><code>curl -LsSf https://mosaicvideo.github.io/mosaic/install.sh | MOSAIC_VERSION=v0.1.5 sh</code></pre>
+
+      </article>
+    </div>
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <span>mosaic — <a href="https://github.com/mosaicvideo/mosaic">github.com/mosaicvideo/mosaic</a></span>
+    <span>MIT license</span>
+  </div>
+</footer>
+
+<script src="assets/download.js" defer></script>
+</body>
+</html>
