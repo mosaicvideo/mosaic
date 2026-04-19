@@ -7,17 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-04-19
+
 ### Added
 
-- **One-liner install scripts for `mosaic-cli`** (`site/install.sh`, `site/install.ps1`) served via GitHub Pages. Detect OS/arch, resolve the latest release via the GitHub API, download + SHA256-verify the matching binary, install to a user-scoped directory (`~/.local/bin` or `%LOCALAPPDATA%\Programs\mosaic-cli`), and print PATH + completions hints. Usage: `curl -LsSf https://mosaicvideo.github.io/mosaic/install.sh | sh` on macOS/Linux, `irm https://mosaicvideo.github.io/mosaic/install.ps1 | iex` on Windows.
-- **`SHA256SUMS` release artifact** covering every `mosaic-cli-*` binary. Aggregated per-release in CI from per-artifact `.sha256` files uploaded by each matrix runner. Verify manually with `shasum -a 256 -c SHA256SUMS`.
-- **`mosaic-cli completions <shell>`** — emit a shell-completion script to stdout. Supports bash, zsh, fish, powershell, and elvish via `clap_complete`.
-- **`mosaic-cli manpage`** — emit a roff man page to stdout via `clap_mangen`. Install with `mosaic-cli manpage > ~/.local/share/man/man1/mosaic-cli.1`.
-- **Dedicated `cli.html` reference page** on the showcase site covering install, subcommand flag reference (with defaults pulled from `defaults.rs`), config file, shell completions, man page, upgrading, uninstalling, and troubleshooting. Linked from top nav on every site page.
+- **One-liner install scripts for `mosaic-cli`** served via GitHub Pages at `https://mosaicvideo.github.io/mosaic/install.sh` (macOS/Linux) and `install.ps1` (Windows). Detect OS/arch, resolve the latest release via the GitHub API, download + SHA256-verify the matching binary, install to a user-scoped directory, and print PATH + shell-completion hints.
+- **`SHA256SUMS` release artifact** covering every `mosaic-cli-*` binary. Aggregated in CI from per-artifact `.sha256` files uploaded by each matrix runner. Verify downloads with `shasum -a 256 -c SHA256SUMS`.
+- **`mosaic-cli completions <shell>`** — emits a shell-completion script for bash, zsh, fish, powershell, or elvish.
+- **`mosaic-cli manpage`** — emits a roff man page. Install with `mosaic-cli manpage > ~/.local/share/man/man1/mosaic-cli.1`.
+- **Dedicated CLI reference page** at `https://mosaicvideo.github.io/mosaic/cli.html` covering install, subcommand flags (defaults mirrored from `defaults.rs`), config file format, shell completions, man page, upgrading, uninstalling, and troubleshooting. Linked from the top nav on every site page.
 
 ### Fixed
 
-- **Stale `cargo install` snippet in the guide and README.** The build-from-source instruction at `guide.html#cli` and `README.md#command-line-usage` pointed at `cd src-tauri && cargo install --path . --bin mosaic-cli --features cli` — wrong since the CLI moved to the sibling `mosaic-cli/` crate. Both places now point to `cli.html`; guide's CLI section is a short pointer, README has the install one-liners.
+- **Stale `cargo install` snippet in the guide and README.** The build-from-source instruction pointed at `cd src-tauri && cargo install --path . --bin mosaic-cli --features cli` — wrong since the CLI moved to a sibling crate in v0.1.4. Both places now link to `cli.html`.
 
 ## [0.1.4] - 2026-04-18
 
@@ -105,7 +107,8 @@ v0.1.1 users: **this release requires a manual download** since v0.1.1 predates 
 - ffmpeg/ffprobe tool detection with user-friendly error state
 - macOS, Windows, and Linux support (requires ffmpeg installed separately)
 
-[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.4...HEAD
+[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/mosaicvideo/mosaic/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/mosaicvideo/mosaic/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/mosaicvideo/mosaic/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/mosaicvideo/mosaic/compare/v0.1.1...v0.1.2
