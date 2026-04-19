@@ -86,24 +86,19 @@ Commands        commands.rs  (Tauri handlers, per-file job loops, progress event
 
 ## Command-line usage
 
-In addition to the desktop app, mosaic ships a `mosaic-cli` binary for scripting and headless servers. Download the `mosaic-cli-*` asset for your platform from the [latest release](https://github.com/mosaicvideo/mosaic/releases/latest) or build locally:
+In addition to the desktop app, mosaic ships a `mosaic-cli` binary for scripts, CI pipelines, and headless servers — same ffmpeg pipelines, no UI. Install in one line:
 
-    cd src-tauri
-    cargo install --path . --bin mosaic-cli --features cli
+```sh
+# macOS / Linux
+curl -LsSf https://mosaicvideo.github.io/mosaic/install.sh | sh
 
-### Subcommands
+# Windows (PowerShell)
+irm https://mosaicvideo.github.io/mosaic/install.ps1 | iex
+```
 
-    mosaic-cli screenshots    [OPTIONS] <INPUT>...     # individual frames
-    mosaic-cli sheet          [OPTIONS] <INPUT>...     # still contact sheet
-    mosaic-cli reel           [OPTIONS] <INPUT>...     # animated preview reel
-    mosaic-cli animated-sheet [OPTIONS] <INPUT>...     # animated contact sheet
-    mosaic-cli probe          [--mediainfo] <INPUT>    # VideoInfo as JSON
+Or grab a `mosaic-cli-*` binary directly from the [latest release](https://github.com/mosaicvideo/mosaic/releases/latest) — every release ships a `SHA256SUMS` file for verification.
 
-Each subcommand supports `--help` for its full flag list.
-
-### Config file
-
-On first run, `mosaic-cli` creates `~/.mosaic-cli.toml` with every default commented out. Uncomment and edit any key to change its default; CLI flags always override the file. Point `$MOSAIC_CLI_CONFIG` at a different path to use a per-project config.
+Full subcommand reference, flag defaults, config file format, shell completions, and troubleshooting live on the [CLI page](https://mosaicvideo.github.io/mosaic/cli.html).
 
 ## Docs
 
