@@ -357,9 +357,36 @@ hr {
 }
 
 .terminal-body {
-  min-height: 440px;
   font-size: 0.92rem;
   line-height: 1.75;
+}
+
+.terminal.terminal-compact {
+  padding: 14px 20px 18px;
+}
+.terminal-compact .terminal-bar {
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+.terminal-compact .terminal-body {
+  line-height: 1.55;
+}
+.terminal-compact .tspace {
+  height: 0.5em;
+}
+
+.cli-install-hint {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.cli-install-hint a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(0, 255, 133, 0.25);
+}
+.cli-install-hint a:hover {
+  border-bottom-color: var(--accent);
 }
 
 /* A typed line inside the terminal */
@@ -521,7 +548,6 @@ hr {
 .section-sub {
   color: var(--muted);
   font-size: 0.92rem;
-  max-width: 680px;
   margin: 0;
   text-transform: none;
   letter-spacing: 0;
@@ -546,13 +572,13 @@ hr {
   color: var(--subtle);
   letter-spacing: 0.1em;
   display: grid;
-  grid-template-columns: 60px 1fr 1fr auto;
+  grid-template-columns: 60px 1fr 2fr 160px;
   gap: 20px;
   text-transform: uppercase;
 }
 .fs-row {
   display: grid;
-  grid-template-columns: 60px 1fr 1fr auto;
+  grid-template-columns: 60px 1fr 2fr 160px;
   gap: 20px;
   padding: 20px 18px;
   border-bottom: 1px solid var(--border);
@@ -588,6 +614,7 @@ hr {
   padding-top: 2px;
   text-align: right;
   line-height: 1.5;
+  white-space: nowrap;
 }
 
 @media (max-width: 720px) {

@@ -123,42 +123,25 @@
       <div class="section-head">
         <div class="section-path">~/mosaic/cli</div>
         <h2 class="section-title">Command-line binaries</h2>
-        <p class="section-sub">For scripting, headless servers, and CI. Requires <code>ffmpeg</code>, <code>ffprobe</code>, and <code>mediainfo</code> on <code>PATH</code> — same as the app. <a href="guide.html#cli">Usage docs →</a></p>
+        <p class="section-sub">For scripting, headless servers, and CI. Requires <code>ffmpeg</code>, <code>ffprobe</code>, and <code>mediainfo</code> on <code>PATH</code> — same as the app.</p>
       </div>
 
-      <div class="dl-table" role="list">
-        <div class="dl-row" data-key="cli-macos">
-          <a id="cli-btn-macos" href="https://github.com/mosaicvideo/mosaic/releases/latest" role="listitem">
-            <div class="dl-index">01.</div>
-            <div class="dl-tag">mac</div>
-            <div class="dl-path">mosaic-cli-macos-universal</div>
-            <div class="dl-size">--</div>
-          </a>
+      <div class="cli-install">
+        <div class="terminal terminal-compact">
+          <div class="terminal-bar">
+            <div class="terminal-bar-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div class="terminal-bar-title">install mosaic-cli</div>
+            <div class="terminal-bar-meta">one-liner</div>
+          </div>
+          <div class="terminal-body">
+            <span class="tline out"># macOS &amp; Linux</span>
+            <span class="tline cmd">curl -LsSf https://mosaicvideo.github.io/mosaic/install.sh | sh</span>
+            <span class="tspace"></span>
+            <span class="tline out"># Windows (PowerShell)</span>
+            <span class="tline cmd">irm https://mosaicvideo.github.io/mosaic/install.ps1 | iex</span>
+          </div>
         </div>
-        <div class="dl-row" data-key="cli-win-x64">
-          <a id="cli-btn-win-x64" href="https://github.com/mosaicvideo/mosaic/releases/latest" role="listitem">
-            <div class="dl-index">02.</div>
-            <div class="dl-tag">windows</div>
-            <div class="dl-path">mosaic-cli-windows-x86_64.exe</div>
-            <div class="dl-size">--</div>
-          </a>
-        </div>
-        <div class="dl-row" data-key="cli-win-arm">
-          <a id="cli-btn-win-arm" href="https://github.com/mosaicvideo/mosaic/releases/latest" role="listitem">
-            <div class="dl-index">03.</div>
-            <div class="dl-tag">win-arm</div>
-            <div class="dl-path">mosaic-cli-windows-aarch64.exe</div>
-            <div class="dl-size">--</div>
-          </a>
-        </div>
-        <div class="dl-row" data-key="cli-linux">
-          <a id="cli-btn-linux" href="https://github.com/mosaicvideo/mosaic/releases/latest" role="listitem">
-            <div class="dl-index">04.</div>
-            <div class="dl-tag">linux</div>
-            <div class="dl-path">mosaic-cli-linux-x86_64</div>
-            <div class="dl-size">--</div>
-          </a>
-        </div>
+        <p class="cli-install-hint">Verifies the SHA-256 checksum, installs to a user-scoped directory, and prints next steps. <a href="cli.html">Full CLI docs &amp; manual install →</a></p>
       </div>
     </div>
   </section>
@@ -198,7 +181,7 @@
           <div class="fs-idx">03.</div>
           <div class="fs-name">animated_reels/</div>
           <div class="fs-desc">Short clips stitched end-to-end into a single reel. Motion preview without opening a video player.</div>
-          <div class="fs-meta">WebP · WebM<br>GIF</div>
+          <div class="fs-meta">WebP · WebM · GIF</div>
         </div>
 
         <div class="fs-row" role="listitem">
@@ -217,7 +200,7 @@
       <div class="section-head">
         <div class="section-path">~/mosaic/flags</div>
         <h2 class="section-title">Built for real work</h2>
-        <p class="section-sub">Five decisions that shape how Mosaic behaves under load.</p>
+        <p class="section-sub">Four decisions that shape how Mosaic behaves under load.</p>
       </div>
 
       <div class="flags">
@@ -232,10 +215,6 @@
         <div class="flag">
           <div class="flag-key">local-only</div>
           <div class="flag-body">Videos never leave the machine. Zero analytics. The only network call is an update check against GitHub's public API.</div>
-        </div>
-        <div class="flag">
-          <div class="flag-key">signed-updates</div>
-          <div class="flag-body">One-click install on new releases. Every update is cryptographically verified on-device against the app's embedded public key.</div>
         </div>
         <div class="flag">
           <div class="flag-key">mosaic-cli</div>
