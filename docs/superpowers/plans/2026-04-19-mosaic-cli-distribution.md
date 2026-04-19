@@ -1010,9 +1010,9 @@ mosaic-cli animated-sheet --cols 4 --rows 3 movie.mkv</code></pre>
         <pre><code>mosaic-cli screenshots [OPTIONS] &lt;INPUT&gt;...</code></pre>
         <p>Common flags:</p>
         <ul>
-          <li><code>--count N</code> — number of frames (default: <strong>10</strong>)</li>
+          <li><code>--count N</code> — number of frames (default: <strong>8</strong>)</li>
           <li><code>--format png|jpeg</code> — output format (default: <strong>png</strong>)</li>
-          <li><code>--quality N</code> — JPEG quality 50–100 (default: <strong>85</strong>)</li>
+          <li><code>--quality N</code> — JPEG quality 50–100 (default: <strong>92</strong>)</li>
           <li><code>--suffix S</code> — filename infix between stem and index (default: <strong><code>_screens_</code></strong>)</li>
           <li><code>-o DIR</code> — output directory (default: next to each source)</li>
         </ul>
@@ -1024,11 +1024,11 @@ mosaic-cli animated-sheet --cols 4 --rows 3 movie.mkv</code></pre>
         <p>Common flags:</p>
         <ul>
           <li><code>--cols N</code> — columns (default: <strong>3</strong>)</li>
-          <li><code>--rows N</code> — rows (default: <strong>7</strong>)</li>
+          <li><code>--rows N</code> — rows (default: <strong>6</strong>)</li>
           <li><code>--width PX</code> — total sheet width (default: <strong>1920</strong>)</li>
           <li><code>--gap PX</code> — thumbnail spacing (default: <strong>10</strong>)</li>
-          <li><code>--format png|jpeg</code> — output format (default: <strong>jpeg</strong>)</li>
-          <li><code>--quality N</code> — JPEG quality 50–100 (default: <strong>85</strong>)</li>
+          <li><code>--format png|jpeg</code> — output format (default: <strong>png</strong>)</li>
+          <li><code>--quality N</code> — JPEG quality 50–100 (default: <strong>92</strong>)</li>
           <li><code>--theme dark|light</code> — color theme (default: <strong>dark</strong>)</li>
           <li><code>--no-timestamps</code> / <code>--timestamps</code> — toggle per-thumbnail timestamp overlay</li>
           <li><code>--no-header</code> / <code>--header</code> — toggle the metadata header band</li>
@@ -1041,10 +1041,10 @@ mosaic-cli animated-sheet --cols 4 --rows 3 movie.mkv</code></pre>
         <pre><code>mosaic-cli reel [OPTIONS] &lt;INPUT&gt;...</code></pre>
         <p>Common flags:</p>
         <ul>
-          <li><code>--count N</code> — number of clips (default: <strong>10</strong>)</li>
+          <li><code>--count N</code> — number of clips (default: <strong>15</strong>)</li>
           <li><code>--clip-length SECS</code> — seconds per clip (default: <strong>2</strong>)</li>
-          <li><code>--height PX</code> — output height; width follows aspect ratio (default: <strong>540</strong>)</li>
-          <li><code>--fps N</code> — frame rate, capped at source fps (default: <strong>15</strong>)</li>
+          <li><code>--height PX</code> — output height; width follows aspect ratio (default: <strong>360</strong>)</li>
+          <li><code>--fps N</code> — frame rate, capped at source fps (default: <strong>24</strong>)</li>
           <li><code>--format webp|webm|gif</code> — output container (default: <strong>webp</strong>)</li>
           <li><code>--quality N</code> — encoder quality 0–100 (default: <strong>75</strong>; ignored for GIF)</li>
           <li><code>--suffix S</code> — filename infix (default: <strong><code>_reel</code></strong>)</li>
@@ -1052,13 +1052,18 @@ mosaic-cli animated-sheet --cols 4 --rows 3 movie.mkv</code></pre>
         <pre><code>mosaic-cli reel --count 8 --clip-length 3 --format gif movie.mkv</code></pre>
 
         <h3 id="sub-animated-sheet"><code>animated-sheet</code></h3>
-        <p>Grid of animated clips — a contact sheet where every cell is a short looping WebP.</p>
+        <p>Grid of animated clips — a contact sheet where every cell is a short looping WebP. Output is always WebP.</p>
         <pre><code>mosaic-cli animated-sheet [OPTIONS] &lt;INPUT&gt;...</code></pre>
-        <p>Common flags: same as <code>sheet</code> for layout (<code>--cols</code>, <code>--rows</code>, <code>--width</code>, <code>--gap</code>) plus:</p>
+        <p>Common flags:</p>
         <ul>
+          <li><code>--cols N</code> — columns (default: <strong>3</strong>)</li>
+          <li><code>--rows N</code> — rows (default: <strong>6</strong>)</li>
+          <li><code>--width PX</code> — total sheet width (default: <strong>1280</strong>)</li>
+          <li><code>--gap PX</code> — thumbnail spacing (default: <strong>8</strong>)</li>
           <li><code>--clip-length SECS</code> — seconds per animated cell (default: <strong>2</strong>)</li>
           <li><code>--fps N</code> — animated frame rate (default: <strong>12</strong>)</li>
           <li><code>--quality N</code> — WebP encoder quality (default: <strong>75</strong>)</li>
+          <li><code>--theme dark|light</code> — color theme (default: <strong>dark</strong>)</li>
           <li><code>--suffix S</code> — filename infix (default: <strong><code>_animated_sheet</code></strong>)</li>
         </ul>
 
@@ -1325,30 +1330,26 @@ git commit -m "docs(site): add cli link to index.html top nav"
 
 ---
 
-## Task 12: Add CLI section to `README.md`
+## Task 12: Rewrite the `Command-line usage` section in `README.md`
 
 **Files:**
-- Modify: `README.md` (after the "Install" section, before "Requirements (dev)")
+- Modify: `README.md:87-107` (the existing `## Command-line usage` section)
 
-- [ ] **Step 1: Locate the insertion point**
+README already has a CLI section (lines 87-107), but it contains the same stale `cd src-tauri && cargo install --path . --bin mosaic-cli --features cli` snippet we removed from the site. Replace the section entirely.
 
-Run: `grep -n '^## ' README.md`
-Expected: a list of top-level sections. Find "Install" and "Requirements (dev)" — the new section goes between them.
+- [ ] **Step 1: Confirm the current section content**
 
-- [ ] **Step 2: Insert the CLI section**
+Run: `sed -n '87,107p' README.md`
+Expected: shows the current `## Command-line usage` block, including the stale `cargo install` snippet at lines 91-92 and the subcommands list.
 
-Find the line in `README.md` that currently reads:
+- [ ] **Step 2: Replace the section**
 
-```
-## Requirements (dev)
-```
-
-Insert before it (keeping the blank line above):
+Replace everything from the line `## Command-line usage` up to (but NOT including) the next `## Docs` heading with:
 
 ```markdown
-## Command-line interface
+## Command-line usage
 
-Mosaic ships a `mosaic-cli` binary for scripts, CI pipelines, and headless servers — same ffmpeg pipelines as the desktop app, from the terminal. Install in one line:
+In addition to the desktop app, mosaic ships a `mosaic-cli` binary for scripts, CI pipelines, and headless servers — same ffmpeg pipelines, no UI. Install in one line:
 
 ```sh
 # macOS / Linux
@@ -1358,24 +1359,29 @@ curl -LsSf https://mosaicvideo.github.io/mosaic/install.sh | sh
 irm https://mosaicvideo.github.io/mosaic/install.ps1 | iex
 ```
 
-Full subcommand reference, config file, shell completions, and troubleshooting: <https://mosaicvideo.github.io/mosaic/cli.html>.
+Or grab a `mosaic-cli-*` binary directly from the [latest release](https://github.com/mosaicvideo/mosaic/releases/latest) — every release ships a `SHA256SUMS` file for verification.
+
+Full subcommand reference, flag defaults, config file format, shell completions, and troubleshooting live on the [CLI page](https://mosaicvideo.github.io/mosaic/cli.html).
 
 ```
 
-- [ ] **Step 3: Verify markdown rendering**
+This removes the stale `cd src-tauri && cargo install ...` snippet, the duplicated subcommand list (now canonical on `cli.html`), and the config-file paragraph (also moved to `cli.html`). Contributors who want to build from source find instructions in the "Requirements (dev)" / "Run" / "Build" sections that already exist above.
 
-Run: `grep -A 15 '^## Command-line interface' README.md`
-Expected: shows the new section cleanly.
+- [ ] **Step 3: Verify the section reads cleanly**
+
+Run: `awk '/^## Command-line usage$/,/^## Docs$/' README.md`
+Expected: shows the new section ending with "CLI page](...)." followed by the `## Docs` heading.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add README.md
-git commit -m "docs(readme): add CLI install + reference section
+git commit -m "docs(readme): rewrite CLI section around install one-liners
 
-One-line install snippets per platform with a link to cli.html for
-the full reference. Closes the README gap that had no mention of the
-CLI at all."
+Drops the stale 'cd src-tauri && cargo install --path . --bin
+mosaic-cli --features cli' snippet (wrong since CLI moved to a
+sibling crate) and the duplicated subcommand list. Points at
+cli.html for the full reference."
 ```
 
 ---
