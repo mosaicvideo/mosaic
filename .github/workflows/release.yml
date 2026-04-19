@@ -105,26 +105,39 @@ jobs:
           releaseBody: |
             ## What's New
 
+            v0.1.5 focuses on making `mosaic-cli` pleasant to install and use — no package manager required. The desktop GUI is unchanged in this release.
+
             ### Added
 
-            - **Command-line interface (`mosaic-cli`)** — every pipeline now available as a subcommand (`screenshots`, `sheet`, `reel`, `animated-sheet`, `probe`). Batch-friendly for scripts and headless servers: stdout is paths-only so it pipes cleanly into `xargs`; stderr carries progress and the final `done · failed · cancelled` summary. Ctrl-C cancels gracefully; a second Ctrl-C hard-exits. Per-user config at `~/.mosaic-cli.toml` is auto-created on first run with every default commented out — uncomment to override (env `$MOSAIC_CLI_CONFIG` points at a different file). CLI flags always win over config. Signed + notarized macOS universal, plus unsigned Windows x86_64/aarch64 and Linux x86_64 binaries ship alongside the GUI installers below.
-            - **Multi-output history per queue row** — after a shots + sheet + reel run in a single Generate pass, the row now remembers all three outputs. Clicking reveals the shared parent folder so every file is visible at once; the hover tooltip lists each filename. Previously only the last pass's output was retained.
+            - **One-liner install scripts for `mosaic-cli`** served via GitHub Pages. Detect your OS and architecture, resolve this release automatically, download + SHA256-verify the matching binary, install to a user-scoped directory, and print PATH + shell-completion hints. No root, no sudo, no package manager.
+
+              ```sh
+              # macOS / Linux
+              curl -LsSf https://mosaicvideo.github.io/mosaic/install.sh | sh
+
+              # Windows (PowerShell)
+              irm https://mosaicvideo.github.io/mosaic/install.ps1 | iex
+              ```
+
+              Override the install directory with `MOSAIC_INSTALL_DIR` (Unix) or `-InstallDir` (Windows). To upgrade in the future, just re-run the same one-liner — the scripts always fetch the latest release.
+
+            - **`SHA256SUMS` release artifact** covering every `mosaic-cli-*` binary in this release. Aggregated in CI from per-artifact `.sha256` files uploaded by each matrix runner. Verify downloads manually with `shasum -a 256 -c SHA256SUMS`; the install scripts do this automatically.
+
+            - **`mosaic-cli completions <shell>`** — emits a ready-to-install shell-completion script to stdout. Supports bash, zsh, fish, powershell, and elvish. Generated on the fly via `clap_complete` — always in sync with the installed binary.
+
+            - **`mosaic-cli manpage`** — emits a roff man page. Install with `mosaic-cli manpage > ~/.local/share/man/man1/mosaic-cli.1`, then `man mosaic-cli` works.
+
+            - **Dedicated CLI reference page** at <https://mosaicvideo.github.io/mosaic/cli.html>. Covers install (all platforms), subcommand flag reference with defaults, config file format, shell-completion setup per shell, man page, upgrading, uninstalling, and troubleshooting. Linked from the top nav on every site page; the old `guide.html#cli` section is now a short pointer.
 
             ### Fixed
 
-            - **Filename-suffix default mismatch** — clearing the screenshots suffix field used to restore `_screenshot_` on the UI while the backend actually wrote `_screens_`, so the displayed default didn't match the file on disk. UI defaults now read straight from the backend constants and stay in sync.
-            - **Silent probe failures in the queue** — rows whose probe failed used to show an empty metadata cell permanently. They now show `⚠ probe failed` with the underlying error as a hover tooltip, so you can see which files were actually skipped.
-            - **Unreadable auto-update dialog** — the native update prompt no longer dumps the full GitHub release-notes markdown (which could stretch the dialog to absurd heights). It now shows just the version and install question; full notes remain one click away on the release page.
-
-            ### Changed
-
-            - **Faster multi-pass Generate** — the backend now reuses the probe the frontend already performed on queue-add instead of re-probing each file once per pass. A shots + sheet + reel run on 10 files drops from 40 redundant ffprobe + mediainfo invocations to zero.
+            - **Stale `cargo install` snippet in the guide and README.** The build-from-source instruction pointed at `cd src-tauri && cargo install --path . --bin mosaic-cli --features cli` — wrong since the CLI moved to a sibling crate in v0.1.4. Both the site guide and README now point at the new `cli.html` page.
 
             ### Requirements
 
-            **[ffmpeg](https://ffmpeg.org/) and [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) must both be installed separately.** The app checks for `ffmpeg`, `ffprobe`, and `mediainfo` on your `PATH` at startup. Install via `brew install ffmpeg-full mediainfo` (macOS), `winget install Gyan.FFmpeg MediaArea.MediaInfo.CLI` (Windows), or `apt install ffmpeg mediainfo` (Linux).
+            **[ffmpeg](https://ffmpeg.org/) and [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) must both be installed separately.** The app and the CLI check for `ffmpeg`, `ffprobe`, and `mediainfo` on your `PATH` at startup. Install via `brew install ffmpeg-full mediainfo` (macOS), `winget install Gyan.FFmpeg MediaArea.MediaInfo.CLI` (Windows), or `apt install ffmpeg mediainfo` (Linux).
 
-            **Upgrading from v0.1.3?** Auto-update handles it. **Upgrading from v0.1.1 or earlier?** Download manually — the auto-updater shipped in v0.1.2, so older versions have no way to know this release exists.
+            **Upgrading from v0.1.4?** Auto-update handles the GUI. For the CLI, re-run the install one-liner above. **Upgrading from v0.1.1 or earlier?** Download the GUI manually — the auto-updater shipped in v0.1.2, so older versions have no way to know this release exists.
 
             ### Notes
 
