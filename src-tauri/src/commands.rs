@@ -56,17 +56,33 @@ pub fn reveal_in_finder(path: String) -> Result<(), String> {
     // grandparent. Drop the select flag when the path is a directory.
     #[cfg(target_os = "macos")]
     {
-        let s = p.to_str().ok_or("non-utf8 path")?;
-        let args: &[&str] = if p.is_dir() { &[s] } else { &["-R", s] };
-        Command::new("open").args(args).spawn().map_err(|e| e.to_string())?;
+        // Pass the OsStr directly so non-UTF8 paths (rare on APFS but legal)
+        // aren't rejected by a `to_str()` guard.
+        let mut cmd = Command::new("open");
+        if !p.is_dir() { cmd.arg("-R"); }
+        cmd.arg(p.as_os_str()).spawn().map_err(|e| e.to_string())?;
     }
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         let mut cmd = Command::new("explorer");
-        if p.is_dir() { cmd.arg(p.as_os_str()); }
-        else          { cmd.arg(format!("/select,{}", p.display())); }
+        if p.is_dir() {
+            cmd.arg(p.as_os_str());
+        } else {
+            // explorer parses `/select,<path>` by splitting on the first
+            // comma. A filename containing `,` (e.g. `foo,bar.mkv`) would
+            // otherwise select the wrong sibling. Quote the path so
+            // explorer treats it as one token. Filenames can't contain `"`
+            // on Windows, so there's nothing to escape inside.
+            //
+            // `raw_arg` preserves our literal quotes — regular `arg()` would
+            // re-escape them and defeat the fix.
+            let mut token = std::ffi::OsString::from("/select,\"");
+            token.push(p.as_os_str());
+            token.push("\"");
+            cmd.raw_arg(&token);
+        }
         cmd.creation_flags(CREATE_NO_WINDOW).spawn().map_err(|e| e.to_string())?;
     }
     #[cfg(target_os = "linux")]

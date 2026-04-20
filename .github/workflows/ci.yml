@@ -25,20 +25,33 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             src-tauri/target
-          key: cargo-ci-${{ hashFiles('src-tauri/Cargo.lock') }}
+            mosaic-cli/target
+          key: cargo-ci-${{ hashFiles('src-tauri/Cargo.lock', 'mosaic-cli/Cargo.lock') }}
           restore-keys: cargo-ci-
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf ffmpeg mediainfo
 
-      - name: Clippy
+      - name: Clippy (GUI-only, default features)
         working-directory: src-tauri
+        run: cargo clippy -- -D warnings
+
+      - name: Clippy (all targets, cli + test-api)
+        working-directory: src-tauri
+        run: cargo clippy --all-targets --features test-api,cli -- -D warnings
+
+      - name: Clippy (mosaic-cli)
+        working-directory: mosaic-cli
         run: cargo clippy --all-targets -- -D warnings
 
       - name: Unit tests
         working-directory: src-tauri
+        run: cargo test --features test-api
+
+      - name: CLI integration tests
+        working-directory: mosaic-cli
         run: cargo test
 
   frontend:

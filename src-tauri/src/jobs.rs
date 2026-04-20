@@ -10,7 +10,17 @@ pub struct JobState {
 
 impl JobState {
     pub fn begin(&self) -> Result<(), String> {
-        let mut running = self.running.lock().unwrap_or_else(|e| e.into_inner());
+        // Treat mutex poison as "the previous job panicked, nothing is
+        // running now" — reset the flag so we don't block forever on a
+        // stale `running == true` left over from the panicked holder.
+        let mut running = match self.running.lock() {
+            Ok(g) => g,
+            Err(e) => {
+                let mut g = e.into_inner();
+                *g = false;
+                g
+            }
+        };
         if *running { return Err("a job is already running".into()); }
         self.cancelled.store(false, std::sync::atomic::Ordering::Relaxed);
         *running = true;
@@ -37,4 +47,32 @@ pub struct PipelineContext<'a> {
     pub reporter: &'a ProgressReporter<'a>,
     /// Whether the ffmpeg binary supports zscale (libzimg) for HDR→SDR tonemapping.
     pub has_zscale: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::thread;
+
+    #[test]
+    fn begin_returns_err_when_already_running() {
+        let state = JobState::default();
+        state.begin().unwrap();
+        assert!(state.begin().is_err());
+    }
+
+    #[test]
+    fn begin_recovers_after_panic() {
+        let state = Arc::new(JobState::default());
+        let s2 = state.clone();
+        let handle = thread::spawn(move || {
+            s2.begin().unwrap();
+            let _g = s2.running.lock().unwrap();
+            panic!("simulated job panic");
+        });
+        assert!(handle.join().is_err());
+        state.begin().expect("begin() should recover from mutex poison");
+        state.end();
+    }
 }

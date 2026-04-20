@@ -5,15 +5,21 @@ pub struct SheetLayout {
     pub total: u32,
     pub thumb_w: u32,
     pub grid_w: u32,
+    /// Even-rounded gap. ffmpeg's `pad` filter takes integer `x`/`y` offsets,
+    /// so an odd user gap produced 1px asymmetric padding (left/top floor,
+    /// right/bottom ceil) in the animated-sheet pipeline. Clamping to even
+    /// here makes `gap/2` both sides match.
+    pub gap: u32,
 }
 
 pub fn compute_sheet_layout(cols: u32, rows: u32, width: u32, gap: u32) -> SheetLayout {
+    let gap = gap & !1;
     let total = cols * rows;
     let padding = gap * (cols + 1);
     let raw = width.saturating_sub(padding) / cols;
     let thumb_w = raw - (raw % 2);
     let grid_w = padding + cols * thumb_w;
-    SheetLayout { cols, rows, total, thumb_w, grid_w }
+    SheetLayout { cols, rows, total, thumb_w, grid_w, gap }
 }
 
 /// Timestamps (in seconds) for `n` evenly-spaced samples inside (0, duration).
@@ -95,6 +101,18 @@ mod tests {
         assert_eq!(l.total, 21);
         assert_eq!(l.thumb_w, 626);
         assert_eq!(l.grid_w, 1918);
+        assert_eq!(l.gap, 10);
+    }
+
+    #[test]
+    fn odd_gap_rounds_down_to_even() {
+        // Odd gap would yield 1px asymmetric pad in animated_sheet; clamp
+        // so `gap/2` on both sides matches and cells stay symmetric.
+        let l = compute_sheet_layout(3, 2, 1920, 9);
+        assert_eq!(l.gap, 8);
+        // Grid width must be consistent with the clamped gap.
+        let padding = l.gap * (l.cols + 1);
+        assert_eq!(l.grid_w, padding + l.cols * l.thumb_w);
     }
 
     #[test]
