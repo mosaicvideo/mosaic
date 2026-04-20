@@ -97,7 +97,7 @@ pub async fn generate(
         "-i".into(), tile_input.to_string_lossy().into_owned(),
         "-vf".into(), format!(
             "tile={}x{}:margin={}:padding={}:color={}",
-            opts.cols, opts.rows, opts.gap, opts.gap, opts.theme.bg()
+            opts.cols, opts.rows, layout.gap, layout.gap, opts.theme.bg()
         ),
         "-frames:v".into(), "1".into(),
         grid.to_string_lossy().into_owned(),
@@ -111,9 +111,9 @@ pub async fn generate(
         (ctx.reporter.emit)(layout.total + 2, total_steps, "Header");
         let display = source.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
         let lines = build_header_lines(info, &display);
-        let h = header_height(opts.header_font_size, opts.gap, lines.len() as u32);
+        let h = header_height(opts.header_font_size, layout.gap, lines.len() as u32);
         let line_h = line_height(opts.header_font_size);
-        let vf = header_overlay(&lines, &font_path, opts.header_font_size, opts.theme.fontcolor(), opts.gap, line_h);
+        let vf = header_overlay(&lines, &font_path, opts.header_font_size, opts.theme.fontcolor(), layout.gap, line_h);
         let header = tmp.path().join("header.png");
         let mut args = crate::ffmpeg::base_args();
         args.extend([

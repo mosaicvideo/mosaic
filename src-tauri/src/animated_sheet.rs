@@ -188,7 +188,7 @@ pub async fn generate(
         let idx = (i as u32) + 1;
         let cell = tmp.path().join(format!("cell_{:03}.mp4", idx));
         let args = build_extract_args(
-            source, *ts, layout.thumb_w, thumb_h, opts.gap, opts.fps,
+            source, *ts, layout.thumb_w, thumb_h, layout.gap, opts.fps,
             opts.clip_length_secs, opts.show_timestamps, opts.thumb_font_size,
             opts.theme, font, &cell, hdr_filter.as_deref(),
         );
@@ -210,7 +210,7 @@ pub async fn generate(
         let line_count = lines.len() as u32;
         Some(HeaderParams {
             lines,
-            height: header_height(opts.header_font_size, opts.gap, line_count),
+            height: header_height(opts.header_font_size, layout.gap, line_count),
             line_h: line_height(opts.header_font_size),
             font_size: opts.header_font_size,
             font_ffmpeg: font_for_ffmpeg(font),
@@ -220,7 +220,7 @@ pub async fn generate(
     };
 
     let args = build_stitch_args(
-        &clips, &layout, thumb_h, opts.gap, opts.theme, header_params.as_ref(),
+        &clips, &layout, thumb_h, layout.gap, opts.theme, header_params.as_ref(),
         opts.clip_length_secs, opts.fps, opts.quality, out,
     );
     run_cancellable(ctx.ffmpeg, &args, ctx.cancelled.clone()).await?;

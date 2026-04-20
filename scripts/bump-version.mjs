@@ -3,7 +3,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execSync } from "node:child_process";
+import { execSync, execFileSync } from "node:child_process";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
@@ -97,17 +97,19 @@ if (shouldTag) {
     CLI_CARGO_TOML, CLI_CARGO_LOCK,
     SITE_INDEX, SITE_GUIDE, SITE_CLI, SRC_INDEX,
   ].map((f) => relative(root, f));
-  execSync(`git add ${files.join(" ")}`, { cwd: root, stdio: "inherit" });
+  // Use execFileSync (no shell) so a future file path with spaces or
+  // glob metachars can't break quoting.
+  execFileSync("git", ["add", "--", ...files], { cwd: root, stdio: "inherit" });
   let hasStaged = false;
-  try { execSync("git diff --cached --quiet", { cwd: root, stdio: "ignore" }); } catch { hasStaged = true; }
+  try { execFileSync("git", ["diff", "--cached", "--quiet"], { cwd: root, stdio: "ignore" }); } catch { hasStaged = true; }
   if (hasStaged) {
-    execSync(`git commit -m "chore: bump version to ${version}"`, {
+    execFileSync("git", ["commit", "-m", `chore: bump version to ${version}`], {
       cwd: root,
       stdio: "inherit",
     });
   } else {
     console.log("  No changes to commit (version already current)");
   }
-  execSync(`git tag -f v${version}`, { cwd: root, stdio: "inherit" });
+  execFileSync("git", ["tag", "-f", `v${version}`], { cwd: root, stdio: "inherit" });
   console.log(`Created tag v${version}`);
 }
