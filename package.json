@@ -10,7 +10,7 @@
     "type": "git",
     "url": "https://github.com/mosaicvideo/mosaic.git"
   },
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@11.22.0",
   "scripts": {
     "tauri": "tauri",
     "dev": "tauri dev",

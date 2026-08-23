@@ -29,7 +29,7 @@ impl Reporter {
     }
 
     /// Returns a closure suitable for `ProgressReporter::emit`.
-    pub fn emit_fn(&self) -> impl Fn(u32, u32, &str) + Send + Sync + 'static {
+    pub fn emit_fn(&self) -> impl Fn(u32, u32, &str) + Send + Sync + 'static + use<> {
         let bar = self.step.clone();
         move |pos: u32, total: u32, label: &str| {
             bar.set_length(total as u64);

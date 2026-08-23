@@ -6,7 +6,7 @@ authors = ["Abi"]
 license = "MIT"
 homepage = "https://github.com/mosaicvideo/mosaic"
 repository = "https://github.com/mosaicvideo/mosaic"
-edition = "2021"
+edition = "2024"
 
 [lib]
 name = "mosaic_lib"
