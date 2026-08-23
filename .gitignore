@@ -9,3 +9,4 @@ dist/
 !.claude/commands/
 src-tauri/gen/
 icon-source.png
+docs/

@@ -100,6 +100,10 @@ Granted permissions in `src-tauri/capabilities/default.json`: `updater:default`,
 
 ## References
 
+`docs/` is **gitignored — local-only, not in the repo**. The files below exist on the
+maintainer's machine but will be absent from a fresh clone, so don't assume they are
+there and don't treat a missing one as something to recreate.
+
 - Design spec: `docs/2026-04-14-mosaic-design.md`
 - Implementation plan: `docs/2026-04-14-mosaic-plan.md`
 - CLI spec: `docs/superpowers/specs/2026-04-18-mosaic-cli-design.md`
