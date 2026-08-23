@@ -37,11 +37,15 @@ Run these checks in order. Any failure aborts the release.
 6. **Verification gate:** run all of these from the repo root. **Every one must succeed** — do not proceed if any fails.
    ```
    (cd src-tauri && cargo check --all-targets)
-   (cd src-tauri && cargo clippy --all-targets -- -D warnings)
-   (cd src-tauri && cargo test)
+   (cd src-tauri && cargo clippy -- -D warnings)
+   (cd src-tauri && cargo clippy --all-targets --features test-api,cli -- -D warnings)
    (cd src-tauri && PATH="/opt/homebrew/opt/ffmpeg-full/bin:$PATH" cargo test --features test-api)
+   (cd mosaic-cli && cargo clippy --all-targets -- -D warnings)
+   (cd mosaic-cli && PATH="/opt/homebrew/opt/ffmpeg-full/bin:$PATH" cargo test)
    ```
-   The last command runs the integration tests that exercise real ffmpeg subprocesses. The `PATH` prefix is required on macOS because the default Homebrew `ffmpeg` bottle lacks libfreetype — the test suite needs `ffmpeg-full`. On Linux/Windows you can drop the `PATH` prefix; adapt if you're running this on a non-macOS machine.
+   This is deliberately the same set CI runs in `.github/workflows/ci.yml` — the release gate must not be weaker than CI, or you can tag a commit that CI would reject. Two things that look redundant but aren't: **both** clippy configurations are required (CLAUDE.md: the GUI-only default-feature build and the `test-api,cli` build lint differently, and a warning can exist in one and not the other), and `mosaic-cli` is a **separate crate** with its own clippy run and its own 34 tests — `cd src-tauri && cargo test` does not touch it.
+
+   The `--features test-api` run covers the plain `cargo test` unit tests as well, so there's no separate bare `cargo test` line. It also runs the integration tests that exercise real ffmpeg subprocesses. The `PATH` prefix is required on macOS because the default Homebrew `ffmpeg` bottle lacks libfreetype — the test suite needs `ffmpeg-full`. On Linux/Windows you can drop the `PATH` prefix; adapt if you're running this on a non-macOS machine.
 
    If any gate fails, abort. Do **not** offer to silence warnings, `--`-skip failing tests, or auto-fix — the user needs to decide how to handle real failures. (The v0.1.3 release had to be unwound once because the clippy gate was skipped; do not skip any gate.)
 7. **Commits since last tag exist:** `git log $(git describe --tags --abbrev=0)..HEAD --oneline` must be non-empty. If there's nothing new, abort — no point tagging an empty release.
@@ -81,13 +85,29 @@ Edit `.github/workflows/release.yml`:
 
 ## Step 6 — Bump, commit, tag
 
-1. Run `node scripts/bump-version.mjs $VERSION` **without** `--tag`. This edits `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, and regenerates `src-tauri/Cargo.lock`.
-2. Stage exactly these files:
+1. Run `node scripts/bump-version.mjs $VERSION` **without** `--tag`. It writes **ten** files: `package.json`, `src-tauri/tauri.conf.json`, both `Cargo.toml`s, both `Cargo.lock`s (via `cargo generate-lockfile`), the three `site/*.html` version strings, and `src/index.html` (via the `sync-defaults.mjs` call at the end — often a no-op).
+2. Stage those ten plus the two files you edited by hand in Steps 4 and 5:
    ```
-   git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock CHANGELOG.md .github/workflows/release.yml
+   git add package.json src-tauri/tauri.conf.json \
+           src-tauri/Cargo.toml src-tauri/Cargo.lock \
+           mosaic-cli/Cargo.toml mosaic-cli/Cargo.lock \
+           site/index.html site/guide.html site/cli.html src/index.html \
+           CHANGELOG.md .github/workflows/release.yml
    ```
-3. Commit: `git commit -m "chore: release v$VERSION"` (single commit containing the bump + the changelog + the releaseBody update — everything the tag should point at).
-4. Tag: `git tag v$VERSION`.
+   **Do not trim this list.** `mosaic-cli` carries its own `version` field, and if it isn't staged the tag points at a tree where the CLI still says the *previous* version — CI then builds and signs `mosaic-cli` binaries that report the wrong version on a release that looks otherwise correct. Nobody notices until a user runs `mosaic-cli --version`. The authoritative list is the `files` array in `bump-version.mjs`'s `--tag` branch; if the script learns about a new file, add it here too.
+3. Confirm nothing the script touched was missed — `git status --short` must show no unstaged modifications:
+   ```
+   git status --short
+   ```
+   Any ` M` (unstaged) line at this point means the list above has drifted from the script again. Stop and reconcile before committing.
+4. Verify the bump actually landed in all four version sources:
+   ```
+   grep -m1 '"version"' package.json src-tauri/tauri.conf.json
+   grep -m1 '^version' src-tauri/Cargo.toml mosaic-cli/Cargo.toml
+   ```
+   All four must read `$VERSION`.
+5. Commit: `git commit -m "chore: release v$VERSION"` (single commit containing the bump + the changelog + the releaseBody update — everything the tag should point at).
+6. Tag: `git tag v$VERSION`.
 
 ## Step 7 — Push (confirmation gate)
 
@@ -108,7 +128,7 @@ If either push fails, stop and show the error — do **not** retry with force fl
 2. Print to the user:
    - Actions run URL: `https://github.com/$OWNER_REPO/actions`.
    - Releases page URL: `https://github.com/$OWNER_REPO/releases`.
-   - Reminder: the release is created as a **draft**. After the workflow finishes (~8 min), the user must open the release on GitHub, review the auto-filled notes against `CHANGELOG.md`, and click **Publish** — otherwise `/releases/latest/download/latest.json` won't resolve and the auto-updater can't find the new version.
+   - Reminder: the release is created as a **draft**. After the workflow finishes (~15 min; v0.1.5 took 13m42s, v0.1.6 15m9s), the user must open the release on GitHub, review the auto-filled notes against `CHANGELOG.md`, and click **Publish** — otherwise `/releases/latest/download/latest.json` won't resolve and the auto-updater can't find the new version.
 
 ## Dry-run summary
 
