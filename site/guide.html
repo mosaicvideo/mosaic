@@ -28,6 +28,143 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "url": "https://mosaicvideo.github.io/mosaic/guide.html",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Do I really need ffmpeg separately? Why isn't it bundled?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Bundling ffmpeg triples the installer size and locks you into whatever build options we picked. We recommend ffmpeg-full (which ships with libfreetype + libzimg for drawtext and HDR tonemapping). Keeping ffmpeg external lets you upgrade it independently. The app checks for ffmpeg and ffprobe on your PATH at startup. If either is missing, you'll see install instructions and a Retry button."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "macOS says \"Apple could not verify Mosaic is free of malware\"",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "From v0.1.2 onward, macOS builds are Developer-ID signed and notarized. You should not see this warning. If you do on a very recent macOS: Make sure you're on v0.1.2 or later (check the window title — it shows the version). Right-click the app once → Open. Subsequent launches are fine. If the issue persists, file an issue — this shouldn't happen."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Windows SmartScreen blocks the installer",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Windows builds aren't code-signed yet (EV certificates are expensive). SmartScreen warns until enough users download and confirm the file is safe. Click More info → Run anyway. Source is open on GitHub, releases are built by GitHub Actions from tagged commits — you can verify the build chain."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Where are my output files saved?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Two choices in the output row at the bottom of the app: Next to source — outputs land in the same folder as each video, with a suffix (e.g. myvideo_sheet.jpg). Best for processing a single folder in place. Custom folder — all outputs go into one folder you pick. Best for batch runs across multiple source folders. Filenames follow {sourcename}{suffix}.{ext}. Collisions get a (1), (2) numeric suffix so nothing is overwritten."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does the auto-update work? When is it checked?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Once on every app launch, from v0.1.2 onward. Mosaic asks GitHub whether a newer release exists; if one does, a native dialog offers to install it. Accepting downloads the new version, verifies its cryptographic signature against a public key embedded in the app, installs, and relaunches — no manual download or re-install. Zero telemetry. The only request is an unauthenticated fetch of the public latest.json from this GitHub repo; nothing about your videos is ever sent. See Auto-update for the full flow."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I cancel a job mid-way?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Click Cancel in the action bar. The currently-running ffmpeg process is killed; files already completed are kept, in-flight files are cleaned up."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "My HDR video produces weird colors — what version of ffmpeg do I need?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "HDR tonemapping (HDR10, HLG) requires ffmpeg built with libzimg (the zscale filter). The default Homebrew ffmpeg on macOS lacks it — install ffmpeg-full instead, with `brew install ffmpeg-full`. Mosaic prefers ffmpeg-full automatically when present. For Dolby Vision Profile 5, a built-in IPT-PQ-C2 → BT.709 color correction runs regardless of ffmpeg build — no zscale required."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need to install MediaInfo too?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Mosaic uses MediaInfo both to build richer contact-sheet headers (HDR format, commercial audio codec name, channel layout, language) and to power the per-file metadata viewer. Mosaic checks for mediainfo on your PATH at startup and shows the same \"required tools not found\" message as it does for missing ffmpeg. Installation is a one-liner per platform: brew install mediainfo on macOS, winget install MediaArea.MediaInfo.CLI on Windows, or apt install mediainfo on Debian and Ubuntu. See Requirements for the full list."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which video formats are supported?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "45 container types — anything ffmpeg can decode. This includes common formats (MP4, MKV, MOV, AVI, WebM, M4V), broadcast (MXF, R3D), transport streams (TS, M2TS), camcorder formats (DV, WTV), and legacy containers. If ffmpeg can probe it, Mosaic can process it."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How big are the output files?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Depends on output type and settings: Contact sheets: 200 KB – 5 MB (JPEG 80–95% quality, 1920×wide). Screenshots: 50 KB – 2 MB each at full width. Animated previews (WebP): 500 KB – 10 MB for a few seconds of motion. Animated contact sheets: 1 – 20 MB depending on grid size and clip length. All dimensions and quality are configurable in settings."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Mosaic upload my videos anywhere?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Everything happens locally via ffmpeg. The only network activity is the auto-update check — a single GET to GitHub's public releases API. No analytics, no telemetry, no cloud component, no account."
+      }
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Mosaic",
+      "item": "https://mosaicvideo.github.io/mosaic/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Guide & FAQ",
+      "item": "https://mosaicvideo.github.io/mosaic/guide.html"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "Mosaic manual — install, output types and FAQ",
+  "url": "https://mosaicvideo.github.io/mosaic/guide.html",
+  "about": {
+    "@type": "SoftwareApplication",
+    "name": "Mosaic"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Mosaic",
+    "url": "https://mosaicvideo.github.io/mosaic/",
+    "sameAs": [
+      "https://github.com/mosaicvideo/mosaic"
+    ]
+  }
+}
+</script>
 </head>
 <body>
 
@@ -276,7 +413,8 @@ irm https://mosaicvideo.github.io/mosaic/install.ps1 | iex</code></pre>
           <details class="faq-item">
             <summary data-num="05">How does the auto-update work? When is it checked?</summary>
             <div class="faq-body">
-              <p>Once on every app launch. See the <a href="#auto-update">Auto-update section above</a> for the full flow. Zero telemetry — the only request is a fetch of the public <code>latest.json</code> from this GitHub repo.</p>
+              <p>Once on every app launch, from v0.1.2 onward. Mosaic asks GitHub whether a newer release exists; if one does, a native dialog offers to install it. Accepting downloads the new version, verifies its cryptographic signature against a public key embedded in the app, installs, and relaunches — no manual download or re-install.</p>
+              <p>Zero telemetry. The only request is an unauthenticated fetch of the public <code>latest.json</code> from this GitHub repo; nothing about your videos is ever sent. See <a href="#auto-update">Auto-update</a> for the full flow.</p>
             </div>
           </details>
 
@@ -300,7 +438,7 @@ irm https://mosaicvideo.github.io/mosaic/install.ps1 | iex</code></pre>
             <summary data-num="08">Do I need to install MediaInfo too?</summary>
             <div class="faq-body">
               <p>Yes. Mosaic uses MediaInfo both to build richer contact-sheet headers (HDR format, commercial audio codec name, channel layout, language) and to power the per-file metadata viewer. Mosaic checks for <code>mediainfo</code> on your <code>PATH</code> at startup and shows the same "required tools not found" message as it does for missing ffmpeg.</p>
-              <p>Installation is a one-liner per platform — see the <a href="#requirements">Requirements section</a> above.</p>
+              <p>Installation is a one-liner per platform: <code>brew install mediainfo</code> on macOS, <code>winget install MediaArea.MediaInfo.CLI</code> on Windows, or <code>apt install mediainfo</code> on Debian and Ubuntu. See <a href="#requirements">Requirements</a> for the full list.</p>
             </div>
           </details>
 
