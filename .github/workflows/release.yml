@@ -105,43 +105,47 @@ jobs:
           releaseBody: |
             ## What's New
 
-            v0.1.5 focuses on making `mosaic-cli` pleasant to install and use — no package manager required. The desktop GUI is unchanged in this release.
-
-            ### Added
-
-            - **One-liner install scripts for `mosaic-cli`** served via GitHub Pages. Detect your OS and architecture, resolve this release automatically, download + SHA256-verify the matching binary, install to a user-scoped directory, and print PATH + shell-completion hints. No root, no sudo, no package manager.
-
-              ```sh
-              # macOS / Linux
-              curl -LsSf https://mosaicvideo.github.io/mosaic/install.sh | sh
-
-              # Windows (PowerShell)
-              irm https://mosaicvideo.github.io/mosaic/install.ps1 | iex
-              ```
-
-              Override the install directory with `MOSAIC_INSTALL_DIR` (Unix) or `-InstallDir` (Windows). To upgrade in the future, just re-run the same one-liner — the scripts always fetch the latest release.
-
-            - **`SHA256SUMS` release artifact** covering every `mosaic-cli-*` binary in this release. Aggregated in CI from per-artifact `.sha256` files uploaded by each matrix runner. Verify downloads manually with `shasum -a 256 -c SHA256SUMS`; the install scripts do this automatically.
-
-            - **`mosaic-cli completions <shell>`** — emits a ready-to-install shell-completion script to stdout. Supports bash, zsh, fish, powershell, and elvish. Generated on the fly via `clap_complete` — always in sync with the installed binary.
-
-            - **`mosaic-cli manpage`** — emits a roff man page. Install with `mosaic-cli manpage > ~/.local/share/man/man1/mosaic-cli.1`, then `man mosaic-cli` works.
-
-            - **Dedicated CLI reference page** at <https://mosaicvideo.github.io/mosaic/cli.html>. Covers install (all platforms), subcommand flag reference with defaults, config file format, shell-completion setup per shell, man page, upgrading, uninstalling, and troubleshooting. Linked from the top nav on every site page; the old `guide.html#cli` section is now a short pointer.
+            v0.1.6 is a maintenance release. Five real bugs fixed, every dependency and the whole build toolchain brought up to date. No new features and no behaviour changes to the four output types — if v0.1.5 is working for you, this is a safe upgrade.
 
             ### Fixed
 
-            - **Stale `cargo install` snippet in the guide and README.** The build-from-source instruction pointed at `cd src-tauri && cargo install --path . --bin mosaic-cli --features cli` — wrong since the CLI moved to a sibling crate in v0.1.4. Both the site guide and README now point at the new `cli.html` page.
+            - **The Generate button could lock up permanently.** If a job failed in a way that panicked the worker thread, Mosaic's internal "a job is running" flag was never cleared. Every subsequent Generate then failed with "a job is already running", with no way to recover short of quitting and reopening the app. The flag is now reset correctly, with a regression test that reproduces the original lockup.
+
+            - **Windows: "Reveal in Explorer" highlighted the wrong file** when the filename contained a comma. Explorer parses `/select,<path>` by splitting on the first comma, so a file called `foo,bar.mkv` opened the right folder with a *sibling* file selected. The path is now quoted so Explorer treats it as a single token.
+
+            - **macOS: revealing a file with a non-UTF8 path failed silently** instead of opening Finder. Rare on APFS, but perfectly legal — those paths are now passed through untouched rather than rejected.
+
+            - **Animated contact sheets had one pixel of asymmetric padding on odd gap values.** ffmpeg's `pad` filter takes integer offsets, so a gap of 9 came out as 4px on the left and 5px on the right, and the same top-to-bottom. Gaps now round down to the nearest even number so both sides always match.
+
+            - **`mosaic-cli` printed winget package IDs that don't exist.** When ffmpeg or MediaInfo was missing on Windows, the install hint suggested `winget install ffmpeg MediaArea.MediaInfo.CLI` — neither ID resolves. It now prints the correct `winget install Gyan.FFmpeg MediaArea.MediaInfo`.
+
+            ### Changed
+
+            - **Every dependency updated to its latest release.** Tauri 2.11.5, Vite 8.2.2, and current versions of tokio, serde, clap, indicatif, which, thiserror and tempfile. The `toml` crate moved from 0.8 to 1.
+
+            - **Build toolchain moved to Rust edition 2024 and pnpm 11.** Internal only — no runtime behaviour change, and nothing about how the app or CLI works is affected.
+
+            - **All CI actions updated to their latest majors,** including `tauri-action` v0 to v1. Two consequences visible on this release page: the macOS `.app.tar.gz` updater artifact now carries the version number in its filename, and `latest.json` references release assets by API URL instead of browser download URL. The auto-updater handles both forms.
 
             ### Requirements
 
-            **[ffmpeg](https://ffmpeg.org/) and [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) must both be installed separately.** The app and the CLI check for `ffmpeg`, `ffprobe`, and `mediainfo` on your `PATH` at startup. Install via `brew install ffmpeg-full mediainfo` (macOS), `winget install Gyan.FFmpeg MediaArea.MediaInfo.CLI` (Windows), or `apt install ffmpeg mediainfo` (Linux).
+            **[ffmpeg](https://ffmpeg.org/) and [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) must both be installed separately.** The app and the CLI check for `ffmpeg`, `ffprobe`, and `mediainfo` on your `PATH` at startup. Install via `brew install ffmpeg-full mediainfo` (macOS), `winget install Gyan.FFmpeg MediaArea.MediaInfo` (Windows), or `apt install ffmpeg mediainfo` (Linux).
 
-            **Upgrading from v0.1.4?** Auto-update handles the GUI. For the CLI, re-run the install one-liner above. **Upgrading from v0.1.1 or earlier?** Download the GUI manually — the auto-updater shipped in v0.1.2, so older versions have no way to know this release exists.
+            **Upgrading from v0.1.5?** Auto-update handles the GUI. For the CLI, re-run the install one-liner:
+
+            ```sh
+            # macOS / Linux
+            curl -LsSf https://mosaicvideo.github.io/mosaic/install.sh | sh
+
+            # Windows (PowerShell)
+            irm https://mosaicvideo.github.io/mosaic/install.ps1 | iex
+            ```
+
+            **Upgrading from v0.1.1 or earlier?** Download the GUI manually — the auto-updater shipped in v0.1.2, so older versions have no way to know this release exists.
 
             ### Notes
 
-            **Windows:** GUI and CLI builds are not yet code-signed. SmartScreen may warn on first install and on each update — click "More info" → "Run anyway". The macOS CLI binary **is** signed with the same Developer ID as the GUI and notarized, so Gatekeeper accepts it on first run.
+            **Windows:** GUI and CLI builds are not yet code-signed. SmartScreen may warn on first install and on each update — click "More info" -> "Run anyway". The macOS CLI binary **is** signed with the same Developer ID as the GUI and notarized, so Gatekeeper accepts it on first run.
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.tauri-args }}
