@@ -9,10 +9,14 @@ const API = `https://api.github.com/repos/${REPO}/releases/latest`;
 
 const PATTERNS = {
   gui: {
-    macos:    /universal\.dmg$/,
-    winX64:   /_x64-setup\.exe$/,
-    winArm64: /_arm64-setup\.exe$/,
-    linux:    /\.AppImage$/,
+    macos:       /universal\.dmg$/,
+    winX64:      /_x64-setup\.exe$/,
+    winX64Msi:   /_x64_en-US\.msi$/,
+    winArm64:    /_arm64-setup\.exe$/,
+    winArm64Msi: /_arm64_en-US\.msi$/,
+    linux:       /\.AppImage$/,
+    linuxDeb:    /\.deb$/,
+    linuxRpm:    /\.rpm$/,
   },
   cli: {
     macos:  /mosaic-cli-macos-universal$/,
@@ -47,7 +51,7 @@ function highlightOS() {
     winArm64: 'win-arm',
     linux: 'linux',
   }[os];
-  const row = document.querySelector(`.dl-row[data-key="${key}"]`);
+  const row = document.querySelector(`.dl-card[data-key="${key}"], .dl-row[data-key="${key}"]`);
   if (row) row.classList.add('primary');
 }
 
@@ -86,10 +90,14 @@ async function upgrade() {
   const find = (p) => release.assets.find(a => p.test(a.name));
 
   // GUI app rows
-  setRow('btn-macos',   find(PATTERNS.gui.macos));
-  setRow('btn-win',     find(PATTERNS.gui.winX64));
-  setRow('btn-win-arm', find(PATTERNS.gui.winArm64));
-  setRow('btn-linux',   find(PATTERNS.gui.linux));
+  setRow('btn-macos',       find(PATTERNS.gui.macos));
+  setRow('btn-win',         find(PATTERNS.gui.winX64));
+  setRow('btn-win-msi',     find(PATTERNS.gui.winX64Msi));
+  setRow('btn-win-arm',     find(PATTERNS.gui.winArm64));
+  setRow('btn-win-arm-msi', find(PATTERNS.gui.winArm64Msi));
+  setRow('btn-linux',       find(PATTERNS.gui.linux));
+  setRow('btn-linux-deb',   find(PATTERNS.gui.linuxDeb));
+  setRow('btn-linux-rpm',   find(PATTERNS.gui.linuxRpm));
 
   // CLI binary rows
   setRow('cli-btn-macos',   find(PATTERNS.cli.macos));
@@ -102,7 +110,8 @@ async function upgrade() {
   const setText = (id, text) => { const n = document.getElementById(id); if (n) n.textContent = text; };
   setText('version-badge', `v${version}`);
   setText('nav-version', `v${version}`);
-  setText('line-version', `v${version}`);
+  // No `v` prefix — this one sits inside real `mosaic-cli --version` output.
+  setText('line-version', version);
 
   // Point CTA "download" button at the matched OS asset if we have one.
   const os = detectOS();
