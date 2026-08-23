@@ -15,7 +15,7 @@ graph TD
         PLUGINS["Plugins:<br/>dialog · store · updater · process"]
     end
 
-    subgraph BACKEND["Rust Backend — mosaic_lib (src-tauri/) · edition 2021 · Tokio"]
+    subgraph BACKEND["Rust Backend — mosaic_lib (src-tauri/) · edition 2024 · Tokio"]
         CMD["Commands<br/>commands.rs — Tauri command handlers"]
         ORCH["Orchestration<br/>contact_sheet · screenshots<br/>preview_reel · animated_sheet"]
         PURE["Pure logic (unit-tested)<br/>drawtext · layout · header<br/>output_path · video_info · mediainfo"]
@@ -43,7 +43,7 @@ graph TD
 
     subgraph OPS["Build · Distribution · Site (tooling — not in runtime flow)"]
         direction LR
-        BUILD["Tooling<br/>pnpm 10.33 · Cargo (2 crates)<br/>Vite 8 · Node scripts"]
+        BUILD["Tooling<br/>pnpm 11 · Cargo (2 crates)<br/>Vite 8 · Node scripts"]
         DIST["Distribution<br/>GitHub Actions: ci · release<br/>pages · defaults-sync-check<br/>macOS (signed+notarized)<br/>Win x64/ARM · Linux AppImage/deb/rpm<br/>Auto-updater: latest.json + ed25519/minisign"]
         SITE["Showcase site<br/>site/ static HTML/CSS/JS<br/>GitHub Pages · install.sh / install.ps1<br/>download.js"]
         BUILD --- DIST --- SITE
@@ -60,10 +60,10 @@ graph TD
 |-------|-----------|
 | **Desktop shell** | Tauri 2 (Rust core + WebView), plugins: dialog, store, updater, process |
 | **Frontend** | Vanilla HTML/CSS/JS (no framework), Vite 8 dev/build, `@tauri-apps/api` for IPC |
-| **Backend** | Rust 2021, Tokio async, serde, thiserror, which, tempfile — layered as *commands → orchestration → pure logic → subprocess I/O* |
+| **Backend** | Rust 2024, Tokio async, serde, thiserror, which, tempfile — layered as *commands → orchestration → pure logic → subprocess I/O* |
 | **CLI** | Sibling Rust crate (`mosaic-cli`) depending on `mosaic_lib` via `feature="cli"`; clap 4, clap_complete, clap_mangen, indicatif, toml |
 | **Media engine** | External `ffmpeg` / `ffprobe` / `mediainfo` subprocesses |
-| **Tooling** | pnpm 10.33 (JS), Cargo (Rust), Node build scripts |
+| **Tooling** | pnpm 11 (JS), Cargo (Rust), Node build scripts |
 | **CI/CD** | GitHub Actions (ci, release, pages, defaults-sync-check); signed multi-platform bundles; ed25519/minisign auto-updater |
 | **Site** | Static `site/` on GitHub Pages with cross-platform install scripts |
 
