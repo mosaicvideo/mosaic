@@ -1,0 +1,42 @@
+# https://mosaicvideo.github.io/mosaic/
+# Mosaic — video contact sheets, screenshots and animated previews.
+
+User-agent: *
+Allow: /
+
+# Answer-engine crawlers. Default is already "allow"; stated explicitly so the
+# intent is unambiguous to operators checking before they index.
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+Sitemap: https://mosaicvideo.github.io/mosaic/sitemap.xml
