@@ -76,12 +76,16 @@ console.log(`  mosaic-cli/Cargo.lock updated`);
 // (offline, rate-limited, JS disabled). Anchored on id= attributes so prose
 // mentions of older minimum-supported versions stay intact.
 const SITE_REPLACERS = [
-  /(id="nav-version">)v\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(<)/g,
-  /(id="line-version">)v\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(<)/g,
+  { re: /(id="nav-version">)v\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(<)/g, prefix: "v" },
+  // `line-version` sits inside real `mosaic-cli --version` output, which prints
+  // a bare version with no `v`. Keep it bare so the demo stays truthful.
+  { re: /(id="line-version">)\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(<)/g, prefix: "" },
+  // JSON-LD softwareVersion, so structured data doesn't go stale on release.
+  { re: /("softwareVersion": ")\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(")/g, prefix: "" },
 ];
 for (const f of [SITE_INDEX, SITE_GUIDE, SITE_CLI]) {
   let s = readFileSync(f, "utf8");
-  for (const re of SITE_REPLACERS) s = s.replaceAll(re, `$1v${version}$3`);
+  for (const { re, prefix } of SITE_REPLACERS) s = s.replaceAll(re, `$1${prefix}${version}$3`);
   writeFileSync(f, s);
   console.log(`  ${relative(root, f)} → ${version}`);
 }
