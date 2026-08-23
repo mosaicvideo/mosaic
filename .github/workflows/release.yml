@@ -135,10 +135,10 @@ jobs:
 
             ```sh
             # macOS / Linux
-            curl -LsSf https://mosaicvideo.github.io/mosaic/install.sh | sh
+            curl -LsSf https://mosaicvideo.github.io/install.sh | sh
 
             # Windows (PowerShell)
-            irm https://mosaicvideo.github.io/mosaic/install.ps1 | iex
+            irm https://mosaicvideo.github.io/install.ps1 | iex
             ```
 
             **Upgrading from v0.1.1 or earlier?** Download the GUI manually — the auto-updater shipped in v0.1.2, so older versions have no way to know this release exists.

@@ -2,7 +2,7 @@
 
 Cross-platform desktop app for generating video contact sheets, screenshots, animated preview reels, and animated contact sheets. Drag-and-drop batch queue, live progress, cancel support. Built with Tauri 2 + Rust + vanilla HTML/CSS/JS.
 
-Site & downloads: <https://mosaicvideo.github.io/mosaic/>
+Site & downloads: <https://mosaicvideo.github.io/>
 
 ## Features
 
@@ -90,15 +90,15 @@ In addition to the desktop app, mosaic ships a `mosaic-cli` binary for scripts, 
 
 ```sh
 # macOS / Linux
-curl -LsSf https://mosaicvideo.github.io/mosaic/install.sh | sh
+curl -LsSf https://mosaicvideo.github.io/install.sh | sh
 
 # Windows (PowerShell)
-irm https://mosaicvideo.github.io/mosaic/install.ps1 | iex
+irm https://mosaicvideo.github.io/install.ps1 | iex
 ```
 
 Or grab a `mosaic-cli-*` binary directly from the [latest release](https://github.com/mosaicvideo/mosaic/releases/latest) — every release ships a `SHA256SUMS` file for verification.
 
-Full subcommand reference, flag defaults, config file format, shell completions, and troubleshooting live on the [CLI page](https://mosaicvideo.github.io/mosaic/cli.html).
+Full subcommand reference, flag defaults, config file format, shell completions, and troubleshooting live on the [CLI page](https://mosaicvideo.github.io/cli.html).
 
 ## Docs
 

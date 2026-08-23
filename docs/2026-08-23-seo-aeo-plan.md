@@ -1,7 +1,7 @@
 # Mosaic — SEO & AEO plan
 
 **Date:** 2026-08-23
-**Site:** https://mosaicvideo.github.io/mosaic/
+**Site:** https://mosaicvideo.github.io/
 **Status:** analysis + plan, nothing implemented
 
 ---
@@ -75,43 +75,38 @@ should be the spine of the content strategy — not "contact sheet tool", but
 
 ---
 
-## 2. Answer to: can the site live at `mosaicvideo.github.io` root?
+## 2. The site now lives at the org root — DONE (2026-08-23)
 
-**Yes.** Create a repo named exactly `mosaicvideo/mosaicvideo.github.io` and
-enable Pages on it. GitHub serves org-pages repos at the org root. It coexists
-with project pages — `mosaicvideo.github.io/` and
-`mosaicvideo.github.io/mosaic/` can both be live at once.
+Originally `https://mosaicvideo.github.io/mosaic/`, a project-pages subpath. It
+now serves the org root, `https://mosaicvideo.github.io/`.
 
-Right now the root **404s** because that repo doesn't exist (the org has only
-`mosaic` and a private `bdinfo-rust`).
+**What changed:**
 
-**But rank it correctly: this is a low-SEO-impact change.** Root vs. subfolder on
-the same host is not a meaningful ranking factor for Google. The real reasons to
-do it are cosmetic and citation-shaped — a shorter URL is what AI answer engines
-print, and a 404 at your own root looks unfinished.
+1. New public repo `mosaicvideo/mosaicvideo.github.io` holds the site. GitHub
+   Pages publishes `main` directly — no build step, no deploy workflow.
+2. `site/` was removed from the `mosaic` repo, along with `pages.yml` and the
+   `shellcheck` step in `ci.yml` (that moved to the site repo's own CI).
+3. All URLs — canonicals, Open Graph, JSON-LD, sitemap, robots.txt, install
+   scripts, `README.md`, `mosaic-cli/src/cli.rs` — rewritten to the root.
+4. Pages disabled on the `mosaic` repo so no stale duplicate competes.
 
-The one genuine cost: `https://mosaicvideo.github.io/mosaic/install.sh` is baked
-into the site copy, the README, and any blog post or comment anyone has ever
-pasted. GitHub Pages has no redirect config, so those URLs must keep working.
+**No redirect stubs were left behind.** The site had no inbound links and no
+index presence, so old `/mosaic/` URLs were allowed to 404 rather than carrying
+permanent redirect machinery for traffic that does not exist. The one real
+exposure: `mosaic-cli` binaries released before this change have
+`/mosaic/cli.html` baked into their `--help` output and will now 404 on that
+link. It is cosmetic, affects only already-downloaded binaries, and is fixed
+from the next release onward.
 
-**Recommended shape if you do it:**
+**Keep expectations calibrated: this was a low-SEO-impact change.** Root vs.
+subfolder on the same host is not a meaningful ranking factor. The wins are
+cosmetic and citation-shaped — a shorter URL is what AI answer engines print,
+and a 404 at your own root looked unfinished.
 
-1. New repo `mosaicvideo.github.io` holds the marketing site → serves at root.
-2. `mosaic/site/` keeps deploying `install.sh` / `install.ps1` at the old paths
-   forever. They are static scripts, they cost nothing in SEO, and breaking them
-   breaks installs in the wild.
-3. Replace `mosaic/site/*.html` with stubs carrying
-   `<link rel="canonical" href="https://mosaicvideo.github.io/...">` plus a meta
-   refresh, so the old HTML URLs consolidate rather than compete.
-
-**Alternative worth weighing first:** a real domain (`mosaicvideo.app`,
-`getmosaic.video`, etc.). Same low direct SEO impact, but much higher *entity*
-value — AI answer engines and Wikipedia-style knowledge graphs anchor on brand
-domains, and it decouples you from GitHub forever. At four months old with
-near-zero index presence, **there is nothing to lose by moving now**, and the
-cost only rises with every month of accumulated links.
-
----
+**Still worth weighing: a real domain** (`mosaicvideo.app`, `getmosaic.video`).
+Same low direct SEO impact, but much higher *entity* value — answer engines and
+knowledge graphs anchor on brand domains, and it decouples from GitHub for good.
+Moving again later costs more than moving now.
 
 ## 3. Phased plan
 
