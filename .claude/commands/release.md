@@ -85,13 +85,13 @@ Edit `.github/workflows/release.yml`:
 
 ## Step 6 — Bump, commit, tag
 
-1. Run `node scripts/bump-version.mjs $VERSION` **without** `--tag`. It writes **ten** files: `package.json`, `src-tauri/tauri.conf.json`, both `Cargo.toml`s, both `Cargo.lock`s (via `cargo generate-lockfile`), the three `site/*.html` version strings, and `src/index.html` (via the `sync-defaults.mjs` call at the end — often a no-op).
-2. Stage those ten plus the two files you edited by hand in Steps 4 and 5:
+1. Run `node scripts/bump-version.mjs $VERSION` **without** `--tag`. It writes **seven** files: `package.json`, `src-tauri/tauri.conf.json`, both `Cargo.toml`s, both `Cargo.lock`s (via `cargo generate-lockfile`), and `src/index.html` (via the `sync-defaults.mjs` call at the end — often a no-op).
+2. Stage those seven plus the two files you edited by hand in Steps 4 and 5:
    ```
    git add package.json src-tauri/tauri.conf.json \
            src-tauri/Cargo.toml src-tauri/Cargo.lock \
            mosaic-cli/Cargo.toml mosaic-cli/Cargo.lock \
-           site/index.html site/guide.html site/cli.html src/index.html \
+           src/index.html \
            CHANGELOG.md .github/workflows/release.yml
    ```
    **Do not trim this list.** `mosaic-cli` carries its own `version` field, and if it isn't staged the tag points at a tree where the CLI still says the *previous* version — CI then builds and signs `mosaic-cli` binaries that report the wrong version on a release that looks otherwise correct. Nobody notices until a user runs `mosaic-cli --version`. The authoritative list is the `files` array in `bump-version.mjs`'s `--tag` branch; if the script learns about a new file, add it here too.
