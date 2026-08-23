@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-08-23
+
+### Fixed
+
+- **The Generate button could lock up permanently.** If a job failed in a way that panicked the worker, the internal "job running" flag was never cleared — every later Generate returned "a job is already running" until the app was restarted.
+- **Windows: "Reveal in Explorer" selected the wrong file** when the filename contained a comma. Explorer splits `/select,<path>` on the first comma, so `foo,bar.mkv` highlighted a sibling file instead.
+- **macOS: revealing a file with a non-UTF8 path failed** instead of opening Finder. Rare on APFS, but legal.
+- **Animated contact sheets had 1px asymmetric padding on odd gap values.** ffmpeg's `pad` filter takes integer offsets, so a gap of 9 produced 4px on the left and 5px on the right. Gaps now round down to even.
+- **`mosaic-cli` printed wrong winget package IDs** when ffmpeg or MediaInfo was missing — `winget install ffmpeg MediaArea.MediaInfo.CLI` matched nothing. Now `Gyan.FFmpeg MediaArea.MediaInfo`.
+
+### Changed
+
+- **Every dependency updated to latest** — Tauri 2.11.5, Vite 8.2.2, plus tokio, serde, clap, indicatif, and the `toml` crate from 0.8 to 1.
+- **Build toolchain moved to Rust edition 2024 and pnpm 11.** No runtime behavior change.
+- **All CI actions bumped to their latest majors**, including `tauri-action` v0 → v1. As a result, the macOS `.app.tar.gz` updater artifact now carries the version in its filename, and `latest.json` references release assets by API URL rather than browser download URL.
+
 ## [0.1.5] - 2026-04-19
 
 ### Added
@@ -107,7 +123,8 @@ v0.1.1 users: **this release requires a manual download** since v0.1.1 predates 
 - ffmpeg/ffprobe tool detection with user-friendly error state
 - macOS, Windows, and Linux support (requires ffmpeg installed separately)
 
-[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.5...HEAD
+[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/mosaicvideo/mosaic/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/mosaicvideo/mosaic/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/mosaicvideo/mosaic/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/mosaicvideo/mosaic/compare/v0.1.2...v0.1.3
