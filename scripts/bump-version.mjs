@@ -14,9 +14,6 @@ const CARGO_TOML = resolve(root, "src-tauri/Cargo.toml");
 const CARGO_LOCK = resolve(root, "src-tauri/Cargo.lock");
 const CLI_CARGO_TOML = resolve(root, "mosaic-cli/Cargo.toml");
 const CLI_CARGO_LOCK = resolve(root, "mosaic-cli/Cargo.lock");
-const SITE_INDEX = resolve(root, "site/index.html");
-const SITE_GUIDE = resolve(root, "site/guide.html");
-const SITE_CLI = resolve(root, "site/cli.html");
 const SRC_INDEX = resolve(root, "src/index.html");
 
 function bumpCargoToml(path, version) {
@@ -72,24 +69,6 @@ console.log(`  src-tauri/Cargo.lock updated`);
 execSync("cargo generate-lockfile", { cwd: resolve(root, "mosaic-cli"), stdio: "inherit" });
 console.log(`  mosaic-cli/Cargo.lock updated`);
 
-// Fallback version text for when download.js can't reach the Releases API
-// (offline, rate-limited, JS disabled). Anchored on id= attributes so prose
-// mentions of older minimum-supported versions stay intact.
-const SITE_REPLACERS = [
-  { re: /(id="nav-version">)v\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(<)/g, prefix: "v" },
-  // `line-version` sits inside real `mosaic-cli --version` output, which prints
-  // a bare version with no `v`. Keep it bare so the demo stays truthful.
-  { re: /(id="line-version">)\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(<)/g, prefix: "" },
-  // JSON-LD softwareVersion, so structured data doesn't go stale on release.
-  { re: /("softwareVersion": ")\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(")/g, prefix: "" },
-];
-for (const f of [SITE_INDEX, SITE_GUIDE, SITE_CLI]) {
-  let s = readFileSync(f, "utf8");
-  for (const { re, prefix } of SITE_REPLACERS) s = s.replaceAll(re, `$1${prefix}${version}$3`);
-  writeFileSync(f, s);
-  console.log(`  ${relative(root, f)} → ${version}`);
-}
-
 console.log(`\nVersion bumped to ${version}`);
 
 execSync("node scripts/sync-defaults.mjs", { cwd: root, stdio: "inherit" });
@@ -99,7 +78,7 @@ if (shouldTag) {
     PACKAGE_JSON, TAURI_CONF,
     CARGO_TOML, CARGO_LOCK,
     CLI_CARGO_TOML, CLI_CARGO_LOCK,
-    SITE_INDEX, SITE_GUIDE, SITE_CLI, SRC_INDEX,
+    SRC_INDEX,
   ].map((f) => relative(root, f));
   // Use execFileSync (no shell) so a future file path with spaces or
   // glob metachars can't break quoting.

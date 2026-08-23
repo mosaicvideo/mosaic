@@ -57,7 +57,7 @@ Tauri 2 app. Rust backend orchestrates `ffmpeg`/`ffprobe` subprocesses; vanilla 
 - Config file: `~/.mosaic-cli.toml`, auto-created on first run with every key commented out. Override path via `$MOSAIC_CLI_CONFIG`. CLI flags always take precedence over the config file.
 - Pipeline modules (`video_info`, `ffmpeg`, `contact_sheet`, etc.) are exposed publicly under **both** `feature = "test-api"` **and** `feature = "cli"` via the two-branch `cfg` pattern in `lib.rs` (`#[cfg(any(test, feature = "test-api", feature = "cli"))] pub mod`). When adding a new pipeline module that the CLI needs, match that shape — do not widen to an unconditional `pub mod`.
 - `mosaic-cli` is included in CI release builds as a separate artifact (`mosaic-cli-*`); the release workflow builds it from `mosaic-cli/` alongside the Tauri GUI bundle (they use separate `target/` directories).
-- **Install scripts.** `site/install.sh` (POSIX sh, macOS + Linux) and `site/install.ps1` (Windows PowerShell) are static scripts served via the existing `pages.yml` GitHub Pages deployment. They resolve the latest release tag via the GitHub API, download the matching `mosaic-cli-*` artifact and `SHA256SUMS`, verify the checksum, and install to a user-scoped directory. No re-deploy needed per release — the scripts don't bake version numbers. Lint with `shellcheck site/install.sh` locally; CI runs this on every push via `.github/workflows/ci.yml`. The script uses `# shellcheck disable=SC2088` / `SC2016` directives where tildes and `$PATH` are intentional literal advice text rather than paths to expand.
+- **Install scripts.** `install.sh` (POSIX sh, macOS + Linux) and `install.ps1` (Windows PowerShell) now live in the **site repo** (`mosaicvideo/mosaicvideo.github.io`), served at `https://mosaicvideo.github.io/install.sh` and `install.ps1`. They resolve the latest release tag via the GitHub API, download the matching `mosaic-cli-*` artifact and `SHA256SUMS`, verify the checksum, and install to a user-scoped directory. No re-deploy needed per release — the scripts don't bake version numbers. Shellcheck runs in that repo's own CI, not this one. The script uses `# shellcheck disable=SC2088` / `SC2016` directives where tildes and `$PATH` are intentional literal advice text rather than paths to expand.
 - **Shell completions + man page.** Runtime clap introspection via `mosaic-cli completions <shell>` and `mosaic-cli manpage`. No build-time assets, no release-asset proliferation — the binary generates its own completion script and roff man page on demand. Both subcommands short-circuit before config load and tool probe in `main.rs`, so they work on a fresh install without `~/.mosaic-cli.toml` or ffmpeg present. Deps: `clap_complete`, `clap_mangen` in `mosaic-cli/Cargo.toml`.
 
 ## ffmpeg quirks to know
@@ -76,7 +76,11 @@ Full icon set lives in `src-tauri/icons/` (`.icns`, `.ico`, plus platform PNGs g
 
 ## Showcase site
 
-`site/` is a standalone static HTML/CSS/JS site deployed to `https://mosaicvideo.github.io/mosaic/` via `.github/workflows/pages.yml`. Two pages (`index.html`, `guide.html`), no build step. `site/assets/download.js` upgrades download buttons from a GitHub Releases API fetch at runtime — falls back to `releases/latest` without JS. Preview locally with `cd site && python3 -m http.server 8000`. The site is intentionally decoupled from the app — site copy updates don't need a version bump.
+**The site lives in a separate repo: `mosaicvideo/mosaicvideo.github.io`** — cloned beside this one, not inside it. It serves the org root, `https://mosaicvideo.github.io/`, and GitHub Pages publishes `main` directly with no build step and no deploy workflow. Three pages (`index.html`, `guide.html`, `cli.html`) plus the CLI install scripts.
+
+There is no `site/` directory here any more and no `pages.yml` — don't recreate either. Site copy changes are a commit in that repo, not this one.
+
+Two things to know before editing it: `assets/download.js` fills in real release URLs, asset sizes and version strings from the GitHub Releases API at runtime, so the static version strings in the HTML are only a no-JS fallback and don't need bumping per release. And the terminal block on the landing page is **real `mosaic-cli` output** — if you change it, run the binary and paste what it actually prints.
 
 ## Releasing
 

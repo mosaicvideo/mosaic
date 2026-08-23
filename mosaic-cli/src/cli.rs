@@ -11,7 +11,7 @@ use std::path::PathBuf;
     name = "mosaic-cli",
     version,
     about = "Video contact sheets, screenshots, previews, and animated sheets",
-    after_help = "Config file: ~/.mosaic-cli.toml (auto-created on first run; override path with $MOSAIC_CLI_CONFIG).\nDocs: https://mosaicvideo.github.io/mosaic/cli.html"
+    after_help = "Config file: ~/.mosaic-cli.toml (auto-created on first run; override path with $MOSAIC_CLI_CONFIG).\nDocs: https://mosaicvideo.github.io/cli.html"
 )]
 pub struct Cli {
     #[command(subcommand)]
