@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-10-03
+
+### Added
+
+- **Dropping a folder onto the window adds the videos inside it.** Before, only the Add Folder button did.
+- **Screen-reader labels** for the progress bar, status line and MediaInfo window, and keyboard access to revealing a finished file.
+
+### Fixed
+
+- **Mosaic now checks what the installed ffmpeg can do.** Homebrew's default `ffmpeg` has no `drawtext` filter and no `libwebp` encoder, so sheets with timestamps or a header, WebP previews and animated sheets failed on every file while the startup check reported all tools present. Mosaic now warns at startup and fails once per run, naming what is missing and how to fix it. `mosaic-cli` does the same.
+- **The Generate lock-up fix in 0.1.6 didn't work.** A crashed job still left every later Generate failing with "a job is already running" until restart; entering 0 columns was one way to trigger it. Settings are now also checked before a job starts.
+- **Cancelled or failed runs left half-written files** at the output path, and the next run then saved as `name (1)`.
+- **Cancel could be lost** when clicked just as Mosaic moved to the next output type.
+- **Clearing a number field broke Generate, even after a restart.** Empty or out-of-range values now fall back to the default or the nearest limit.
+- **Files removed from the queue during a run were still processed.** Clear and the remove buttons are disabled while a run is in progress.
+- **The status said "Done" even when files failed.** It now reports counts.
+- **Folder scans skipped symlinked files and folders.**
+- **The MediaInfo window could show the previous file's output** under the new file's name.
+- **The custom output folder was forgotten** after switching to "Next to source".
+- **In the "tools missing" state, dropped files were still added** and the keyboard could reach the dimmed controls.
+- **Unchecking the last output type re-checked Screenshots** instead of the box just unchecked.
+- **`mosaic-cli --help` linked to a page that no longer exists.**
+
+### Changed
+
+- **The website and install scripts moved to `https://mosaicvideo.github.io/`.** The old `/mosaic/` paths no longer work.
+- **Every dependency updated to latest** — Tauri 2.12.1, updater plugin 2.13.1, Vite 8.3.2.
+
+### Removed
+
+- **`.iso` and `.r3d` are no longer accepted as video files.** ffmpeg can't read either.
+
 ## [0.1.6] - 2026-08-23
 
 ### Fixed
@@ -123,7 +155,8 @@ v0.1.1 users: **this release requires a manual download** since v0.1.1 predates 
 - ffmpeg/ffprobe tool detection with user-friendly error state
 - macOS, Windows, and Linux support (requires ffmpeg installed separately)
 
-[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.6...HEAD
+[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/mosaicvideo/mosaic/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/mosaicvideo/mosaic/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/mosaicvideo/mosaic/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/mosaicvideo/mosaic/compare/v0.1.3...v0.1.4
