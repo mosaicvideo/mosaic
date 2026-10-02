@@ -123,7 +123,9 @@ jobs:
 
             - **The status said "Done" even when files failed.** It now reports counts, e.g. "3 done · 2 failed".
 
-            - **Smaller fixes:** folder scans now follow symlinked files and folders; the MediaInfo window can no longer show the previous file's output under the new file's name; the custom output folder is remembered after switching to "Next to source"; in the "tools missing" state, dropped files are ignored and the keyboard can't reach the dimmed controls; unchecking the last output type re-checks that box instead of Screenshots; and `mosaic-cli --help` links to the CLI page at its new address.
+            - **Windows: `mosaic-cli sheet` and `animated-sheet` crashed ffmpeg** whenever timestamps or a header were drawn, which is the default. The CLI kept its built-in font file open while ffmpeg read it; it now closes it first.
+
+            - **Smaller fixes:** folder scans now follow symlinked files and folders; the MediaInfo window can no longer show the previous file's output under the new file's name; the custom output folder is remembered after switching to "Next to source"; in the "tools missing" state, dropped files are ignored and the keyboard can't reach the dimmed controls; unchecking the last output type re-checks that box instead of Screenshots; `mosaic-cli --help` links to the CLI page at its new address; and the Windows install command in the "required tools not found" panel now names the real winget package (`MediaArea.MediaInfo`, not `MediaArea.MediaInfo.CLI`).
 
             ### Added
 

@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- **The Windows install command in the "required tools not found" panel didn't work.** It named the winget package `MediaArea.MediaInfo.CLI`, which doesn't exist; it now reads `winget install Gyan.FFmpeg MediaArea.MediaInfo`.
-
 ## [0.1.7] - 2026-10-03
 
 ### Added
@@ -33,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **In the "tools missing" state, dropped files were still added** and the keyboard could reach the dimmed controls.
 - **Unchecking the last output type re-checked Screenshots** instead of the box just unchecked.
 - **`mosaic-cli --help` linked to a page that no longer exists.**
+- **Windows: `mosaic-cli sheet` and `animated-sheet` crashed ffmpeg** whenever timestamps or a header were drawn, which is the default.
+- **The Windows install command in the "required tools not found" panel didn't work.** It named the winget package `MediaArea.MediaInfo.CLI`, which doesn't exist; it now reads `winget install Gyan.FFmpeg MediaArea.MediaInfo`.
 
 ### Changed
 
