@@ -1,0 +1,4 @@
+# tauri-build >= 2.7 statically links the MSVC runtime from its build script,
+# stubbing out msvcrt.lib; rustc must link std statically to match.
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]

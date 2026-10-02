@@ -54,6 +54,39 @@ jobs:
         working-directory: mosaic-cli
         run: cargo test
 
+  # Lint and link on Windows: MSVC linking (static C runtime) and
+  # cfg(windows) code are invisible to the Linux job.
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+            mosaic-cli/target
+          key: cargo-ci-windows-${{ hashFiles('src-tauri/Cargo.lock', 'mosaic-cli/Cargo.lock') }}
+          restore-keys: cargo-ci-windows-
+
+      - name: Clippy (GUI-only, default features)
+        working-directory: src-tauri
+        run: cargo clippy -- -D warnings
+
+      - name: Clippy (all targets, cli + test-api)
+        working-directory: src-tauri
+        run: cargo clippy --all-targets --features test-api,cli -- -D warnings
+
+      - name: Build mosaic-cli
+        working-directory: mosaic-cli
+        run: cargo build
+
   frontend:
     runs-on: ubuntu-latest
     steps:
