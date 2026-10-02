@@ -32,7 +32,7 @@ A single image holding a grid of frames sampled evenly across a video, each stam
 - **HDR auto-tonemap** — HDR10, HLG and Dolby Vision (including Profile 5, via IPT-PQ-C2 → BT.709) produce clean SDR thumbnails with no manual tonemap step
 - **MediaInfo enrichment** — headers carry real commercial codec names (*Dolby Digital Plus*, not `eac3`), plus HDR format, bit depth, channel layout and language
 - **MediaInfo viewer** — full metadata for any queued file, in-app
-- **45 container formats** — anything `ffmpeg` can decode: MP4, MKV, MOV, AVI, WebM, MXF, R3D, TS, M2TS and more
+- **43 container formats** — anything `ffmpeg` can decode: MP4, MKV, MOV, AVI, WebM, MXF, TS, M2TS and more
 - **Local only** — videos never leave the machine. Zero analytics, zero telemetry, no account. The only network call is an update check against GitHub's public API
 - **Auto-update** — from v0.1.2 onward, new releases install in one click after on-device signature verification
 - **Configurable** — grid size, quality, fonts, themes, output suffixes and destinations
@@ -52,20 +52,20 @@ macOS builds are Developer-ID signed and notarized. **Windows builds are not cod
 
 ### Prerequisites
 
-Mosaic requires [**ffmpeg**](https://ffmpeg.org/) (with `ffprobe`) and [**MediaInfo CLI**](https://mediaarea.net/en/MediaInfo) on your `PATH`. The app checks at startup and shows the exact install command if either is missing.
+Mosaic requires [**ffmpeg**](https://ffmpeg.org/) (with `ffprobe`) and [**MediaInfo CLI**](https://mediaarea.net/en/MediaInfo) on your `PATH`. The app checks at startup and shows the exact install command if either is missing. It also checks the ffmpeg build itself and warns if it lacks a feature an output needs, such as text overlays or WebP encoding.
 
 ```sh
 # macOS
 brew install ffmpeg-full mediainfo
 
 # Windows
-winget install Gyan.FFmpeg MediaArea.MediaInfo.CLI
+winget install Gyan.FFmpeg MediaArea.MediaInfo
 
 # Debian / Ubuntu
 apt install ffmpeg mediainfo
 ```
 
-> On macOS use `ffmpeg-full`, not `ffmpeg`. The default Homebrew bottle omits **libfreetype** (needed for text overlays) and **libzimg** (needed for HDR tonemapping). Mosaic prefers `ffmpeg-full` automatically when both are installed.
+> On macOS use `ffmpeg-full`, not `ffmpeg`. The default Homebrew bottle omits **libfreetype** (needed for text overlays), **libwebp** (needed for WebP previews and animated sheets) and **libzimg** (needed for HDR tonemapping). Mosaic prefers `ffmpeg-full` automatically when both are installed.
 
 ## Command line
 
@@ -135,7 +135,7 @@ pnpm dev:cli -- sheet movie.mkv   # run the CLI from source
 cd src-tauri && cargo test --features test-api
 ```
 
-The `test-api` feature exposes internal modules so the end-to-end integration test can drive them; without it only the unit tests run, and the integration test is skipped via `required-features`. On macOS the integration test needs `ffmpeg-full` for the `drawtext` filter:
+The `test-api` feature exposes internal modules so the end-to-end integration test can drive them; without it only the unit tests run, and the integration test is skipped via `required-features`. On macOS the integration test needs `ffmpeg-full` for the `drawtext` filter and the `libwebp` encoder:
 
 ```sh
 PATH="/opt/homebrew/opt/ffmpeg-full/bin:$PATH" cargo test --features test-api

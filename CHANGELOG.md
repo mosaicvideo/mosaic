@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Windows install command in the "required tools not found" panel didn't work.** It named the winget package `MediaArea.MediaInfo.CLI`, which doesn't exist; it now reads `winget install Gyan.FFmpeg MediaArea.MediaInfo`.
+
 ## [0.1.7] - 2026-10-03
 
 ### Added
