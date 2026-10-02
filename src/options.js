@@ -49,16 +49,28 @@ const ASHEET_FIELDS = [
 function readField({ id, kind }) {
   const el = document.getElementById(id);
   if (!el) return undefined;
-  if (kind === 'int')    return parseInt(el.value, 10);
+  if (kind === 'int')    return readInt(el);
   if (kind === 'bool')   return el.checked;
   if (kind === 'select') return el.value;
   if (kind === 'text')   return el.value || '';
   throw new Error(`unknown kind: ${kind}`);
 }
 
+// A cleared or out-of-range number input would reach Rust as null or a
+// nonsense value; fall back to the HTML default and clamp to min/max, and
+// show the corrected value so the field never disagrees with what runs.
+function readInt(el) {
+  let n = parseInt(el.value, 10);
+  if (Number.isNaN(n)) n = parseInt(el.defaultValue, 10);
+  if (el.min !== '') n = Math.max(n, Number(el.min));
+  if (el.max !== '') n = Math.min(n, Number(el.max));
+  if (String(n) !== el.value) el.value = n;
+  return n;
+}
+
 function writeField({ id, kind }, v) {
   const el = document.getElementById(id);
-  if (!el) return;
+  if (!el || v === null || v === undefined) return;
   if (kind === 'bool') el.checked = !!v;
   else el.value = v;
 }
@@ -82,12 +94,18 @@ export function readPreviewOpts() { return readAll(PREVIEW_FIELDS); }
 export function readASheetOpts()  { return readAll(ASHEET_FIELDS); }
 
 export function readOutput() {
-  const mode = document.querySelector('input[name="out"]:checked').value;
-  const custom = document.getElementById('custom-folder-path').textContent;
+  const { mode, custom } = readOutputSetting();
   // If "custom" radio is selected but no folder was picked, fall back to NextToSource.
-  // Preserves prior silent-fallback UX that the backend used to handle.
   if (mode === 'custom' && custom) return { mode: 'custom', custom };
   return { mode: 'next_to_source' };
+}
+
+// What gets saved: keeps the picked folder even while "Next to source" is selected.
+export function readOutputSetting() {
+  return {
+    mode: document.querySelector('input[name="out"]:checked').value,
+    custom: document.getElementById('custom-folder-path').textContent,
+  };
 }
 
 export const PRODUCE_FIELDS = [

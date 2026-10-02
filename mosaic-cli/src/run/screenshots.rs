@@ -24,7 +24,8 @@ pub async fn run(args: ScreenshotsArgs, cfg: &Config) -> i32 {
     };
     if inputs.is_empty() { eprintln!("no input files"); return 2; }
 
-    let has_zscale = tools.detect_has_zscale();
+    let caps = tools.detect_caps();
+    let has_zscale = caps.has_zscale();
     let cancelled = Arc::new(AtomicBool::new(false));
     crate::signals::install(cancelled.clone());
 
@@ -49,6 +50,11 @@ pub async fn run(args: ScreenshotsArgs, cfg: &Config) -> i32 {
     let opts = ScreenshotsOptions {
         count, format: fmt, jpeg_quality: quality, suffix,
     };
+
+    if let Err(e) = opts.validate() {
+        eprintln!("{e}");
+        return 2;
+    }
 
     let mut done = 0u64;
     let mut failed = 0u64;

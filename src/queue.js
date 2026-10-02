@@ -16,6 +16,7 @@ export async function isVideo(path) {
 export function createQueue(root, { onReveal, onInfo, onChange } = {}) {
   const items = new Map();
   const nodes = new Map();
+  let locked = false;
 
   function reindex() {
     let n = 1;
@@ -75,7 +76,7 @@ export function createQueue(root, { onReveal, onInfo, onChange } = {}) {
     removeBtn.className = 'row-remove';
     removeBtn.textContent = '×';
     removeBtn.title = 'Remove';
-    removeBtn.disabled = it.status === 'Running';
+    removeBtn.disabled = locked || it.status === 'Running';
     removeBtn.onclick = (e) => {
       e.stopPropagation();
       items.delete(it.id);
@@ -103,6 +104,9 @@ export function createQueue(root, { onReveal, onInfo, onChange } = {}) {
       // Multi-output rows reveal the shared parent folder; single-output
       // rows still reveal the file itself (selected in its parent).
       onReveal?.(paths.length === 1 ? paths[0] : dirname(paths[0]));
+    };
+    nameEl.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); nameEl.onclick(); }
     };
 
     return { el, idxEl, nameEl, metaEl, progEl, statusCell, statusLabel, infoBtn, removeBtn, errorEl: null };
@@ -145,8 +149,16 @@ export function createQueue(root, { onReveal, onInfo, onChange } = {}) {
     if (it.status !== before.status || outputCount !== before.outputCount) {
       n.statusCell.className = `status-cell ${it.status}`;
       n.statusLabel.textContent = it.status;
-      n.removeBtn.disabled = it.status === 'Running';
-      n.nameEl.classList.toggle('revealable-name', it.status === 'Done' && outputCount > 0);
+      n.removeBtn.disabled = locked || it.status === 'Running';
+      const revealable = it.status === 'Done' && outputCount > 0;
+      n.nameEl.classList.toggle('revealable-name', revealable);
+      if (revealable) {
+        n.nameEl.tabIndex = 0;
+        n.nameEl.setAttribute('role', 'button');
+      } else {
+        n.nameEl.removeAttribute('tabindex');
+        n.nameEl.removeAttribute('role');
+      }
       n.nameEl.title = outputCount > 1
         ? `${it.path}\n\nOutputs:\n${it.outputPaths.map(p => '  ' + basename(p)).join('\n')}`
         : it.path;
@@ -181,11 +193,16 @@ export function createQueue(root, { onReveal, onInfo, onChange } = {}) {
     root.innerHTML = '';
     onChange?.();
   }
+  // While a run is in progress the backend already holds the file list, so
+  // removing a row would only hide a file that still gets processed.
+  function setLocked(on) {
+    locked = on;
+    for (const [id, n] of nodes) n.removeBtn.disabled = on || items.get(id)?.status === 'Running';
+  }
   function values() { return [...items.values()]; }
-  function pending() { return values().filter(i => i.status !== 'Done'); }
   function size() { return items.size; }
 
-  return { add, update, clear, values, pending, size };
+  return { add, update, clear, values, size, setLocked };
 }
 
 export function basename(p) {

@@ -1,7 +1,7 @@
 use crate::animated_sheet::{self, AnimatedSheetOptions};
 use crate::contact_sheet::{self, SheetOptions};
 use crate::events;
-use crate::ffmpeg::{locate_tools, run_capture, RunError, Tools};
+use crate::ffmpeg::{locate_tools, missing_message, run_capture, Need, RunError, Tools, DEFAULT_NEEDS};
 use crate::jobs::{JobState, PipelineContext, ProgressReporter};
 use crate::output_path::{animated_sheet_path, contact_sheet_path, preview_reel_path};
 use crate::preview_reel::{self, PreviewOptions};
@@ -19,9 +19,14 @@ pub async fn probe_video(path: String) -> Result<VideoInfo, String> {
     probe(&tools, &path).await
 }
 
+/// `Err` when a binary is missing. `Ok(Some(warning))` when ffmpeg lacks a
+/// feature the default outputs use: the app still runs, since screenshots and
+/// some formats work without them, but the user should know up front.
 #[tauri::command]
-pub fn check_tools() -> Result<(), String> {
-    locate_tools().map(|_| ()).map_err(|e| e.to_string())
+pub async fn check_tools() -> Result<Option<String>, String> {
+    let tools = locate_tools().map_err(|e| e.to_string())?;
+    let missing = tools.detect_caps().missing(DEFAULT_NEEDS);
+    Ok((!missing.is_empty()).then(|| missing_message(&tools.ffmpeg, &missing)))
 }
 
 #[tauri::command]
@@ -122,16 +127,17 @@ async fn run_job_loop<F>(
     tools: Tools,
     items: Vec<QueueItem>,
     output: OutputLocation,
+    needs: Vec<Need>,
     per_file: F,
 ) -> Result<(), String>
 where
     F: for<'a> Fn(&'a Path, &'a VideoInfo, &'a Path, &'a PipelineContext<'a>) -> PerFileFut<'a>,
 {
-    state.begin()?;
-    // Resolve zscale support once per batch rather than per file — spawning
-    // `ffmpeg -filters` is relatively cheap but not free, and the answer is
-    // invariant across a batch.
-    let has_zscale = tools.detect_has_zscale();
+    // Checked before the batch so a missing feature fails once, not once per file.
+    let caps = tools.detect_caps();
+    caps.require(&tools.ffmpeg, &needs)?;
+    let _job = state.begin()?;
+    let has_zscale = caps.has_zscale();
     let total = items.len();
     let mut completed = 0u32;
     let mut failed = 0u32;
@@ -180,7 +186,7 @@ where
                 }));
             }
             Err(RunError::Killed) => {
-                cancelled_count += 1;
+                cancelled_count = (total - i) as u32;
                 break;
             }
             Err(e) => {
@@ -192,7 +198,6 @@ where
         }
     }
 
-    state.end();
     let _ = app.emit(events::FINISHED, serde_json::json!({
         "completed": completed, "failed": failed, "cancelled": cancelled_count
     }));
@@ -212,7 +217,9 @@ pub async fn generate_contact_sheets(
         .map_err(|e| e.to_string())?;
     let state_inner = Arc::clone(state.inner());
 
-    run_job_loop(app.clone(), state_inner, tools, items, output,
+    opts.validate()?;
+    let needs = opts.needs();
+    run_job_loop(app.clone(), state_inner, tools, items, output, needs,
         move |source, info, out_dir, ctx| {
             let out = contact_sheet_path(source, out_dir, opts.format, &opts.suffix, &|p| p.exists());
             let opts = opts.clone();
@@ -235,7 +242,8 @@ pub async fn generate_screenshots(
     let tools = locate_tools().map_err(|e| e.to_string())?;
     let state_inner = Arc::clone(state.inner());
 
-    run_job_loop(app.clone(), state_inner, tools, items, output,
+    opts.validate()?;
+    run_job_loop(app.clone(), state_inner, tools, items, output, Vec::new(),
         move |source, info, out_dir, ctx| {
             let opts = opts.clone();
             Box::pin(async move {
@@ -256,7 +264,9 @@ pub async fn generate_preview_reels(
     let tools = locate_tools().map_err(|e| e.to_string())?;
     let state_inner = Arc::clone(state.inner());
 
-    run_job_loop(app.clone(), state_inner, tools, items, output,
+    opts.validate()?;
+    let needs = opts.needs();
+    run_job_loop(app.clone(), state_inner, tools, items, output, needs,
         move |source, info, out_dir, ctx| {
             let out = preview_reel_path(source, out_dir, opts.format, &opts.suffix, &|p| p.exists());
             let opts = opts.clone();
@@ -280,7 +290,9 @@ pub async fn generate_animated_sheets(
         .map_err(|e| e.to_string())?;
     let state_inner = Arc::clone(state.inner());
 
-    run_job_loop(app.clone(), state_inner, tools, items, output,
+    opts.validate()?;
+    let needs = opts.needs();
+    run_job_loop(app.clone(), state_inner, tools, items, output, needs,
         move |source, info, out_dir, ctx| {
             let out = animated_sheet_path(source, out_dir, &opts.suffix, &|p| p.exists());
             let opts = opts.clone();

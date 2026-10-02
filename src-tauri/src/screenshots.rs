@@ -1,6 +1,6 @@
 use crate::ffmpeg::{run_batch_cancellable, RunError};
-use crate::jobs::PipelineContext;
-use crate::layout::sample_timestamps;
+use crate::jobs::{move_into_place, PipelineContext};
+use crate::layout::{require_nonzero, sample_timestamps};
 use crate::output_path::{jpeg_qv, screenshot_path, OutputFormat};
 use crate::video_info::VideoInfo;
 use std::path::Path;
@@ -14,6 +14,12 @@ pub struct ScreenshotsOptions {
     pub suffix: String,
 }
 
+impl ScreenshotsOptions {
+    pub fn validate(&self) -> Result<(), String> {
+        require_nonzero("screenshot count", self.count)
+    }
+}
+
 pub async fn generate(
     source: &Path,
     info: &VideoInfo,
@@ -21,7 +27,8 @@ pub async fn generate(
     opts: &ScreenshotsOptions,
     ctx: &PipelineContext<'_>,
 ) -> Result<Vec<std::path::PathBuf>, RunError> {
-    std::fs::create_dir_all(out_dir)?;
+    opts.validate().map_err(RunError::Invalid)?;
+    let tmp = tempfile::TempDir::new()?;
     let timestamps = sample_timestamps(info.duration_secs, opts.count);
     let total = opts.count;
 
@@ -35,6 +42,7 @@ pub async fn generate(
 
     let mut batch = Vec::with_capacity(timestamps.len());
     let mut outputs = Vec::with_capacity(timestamps.len());
+    let mut rendered = Vec::with_capacity(timestamps.len());
     for (i, ts) in timestamps.iter().enumerate() {
         let idx = (i as u32) + 1;
         let out = screenshot_path(source, out_dir, opts.format, &opts.suffix, idx, opts.count, &|p| p.exists());
@@ -49,8 +57,10 @@ pub async fn generate(
         if matches!(opts.format, OutputFormat::Jpeg) {
             args.extend(["-q:v".into(), format!("{}", jpeg_qv(opts.jpeg_quality))]);
         }
-        args.push(out.to_string_lossy().into_owned());
+        let staged = tmp.path().join(out.file_name().unwrap_or_default());
+        args.push(staged.to_string_lossy().into_owned());
         batch.push(args);
+        rendered.push(staged);
         outputs.push(out);
     }
 
@@ -60,5 +70,8 @@ pub async fn generate(
         (ctx.reporter.emit)(done, total, &format!("Shot {}/{}", done, total));
     }).await?;
 
+    for (staged, out) in rendered.iter().zip(&outputs) {
+        move_into_place(staged, out)?;
+    }
     Ok(outputs)
 }

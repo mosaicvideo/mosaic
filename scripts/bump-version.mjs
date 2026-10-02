@@ -61,12 +61,13 @@ console.log(`  src-tauri/Cargo.toml → ${version}`);
 bumpCargoToml(CLI_CARGO_TOML, version);
 console.log(`  mosaic-cli/Cargo.toml → ${version}`);
 
-// Regenerate lockfiles so they stay in sync (no compilation needed).
+// Record only our own crates' new versions in the lockfiles. generate-lockfile
+// would re-resolve every dependency, so a release would ship untested upgrades.
 // mosaic-cli picks up src-tauri's new version via its path dep, so bump
 // src-tauri first.
-execSync("cargo generate-lockfile", { cwd: resolve(root, "src-tauri"), stdio: "inherit" });
+execSync("cargo update --workspace", { cwd: resolve(root, "src-tauri"), stdio: "inherit" });
 console.log(`  src-tauri/Cargo.lock updated`);
-execSync("cargo generate-lockfile", { cwd: resolve(root, "mosaic-cli"), stdio: "inherit" });
+execSync("cargo update --workspace", { cwd: resolve(root, "mosaic-cli"), stdio: "inherit" });
 console.log(`  mosaic-cli/Cargo.lock updated`);
 
 console.log(`\nVersion bumped to ${version}`);
@@ -93,6 +94,6 @@ if (shouldTag) {
   } else {
     console.log("  No changes to commit (version already current)");
   }
-  execFileSync("git", ["tag", "-f", `v${version}`], { cwd: root, stdio: "inherit" });
+  execFileSync("git", ["tag", `v${version}`], { cwd: root, stdio: "inherit" });
   console.log(`Created tag v${version}`);
 }

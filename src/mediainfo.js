@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { basename } from './queue.js';
 
-let modal, title, pre, copyBtn, copyTimer;
+let modal, title, pre, copyBtn, closeBtn, copyTimer;
+let requestSeq = 0;
 
 export function createMediaInfoModal() {
   modal = document.createElement('div');
@@ -14,19 +15,23 @@ export function createMediaInfoModal() {
 
   const container = document.createElement('div');
   container.className = 'modal-container';
+  container.setAttribute('role', 'dialog');
+  container.setAttribute('aria-modal', 'true');
+  container.setAttribute('aria-labelledby', 'mediainfo-title');
 
   const header = document.createElement('div');
   header.className = 'modal-header';
 
   title = document.createElement('span');
   title.className = 'modal-title';
+  title.id = 'mediainfo-title';
 
   copyBtn = document.createElement('button');
   copyBtn.className = 'secondary small';
   copyBtn.textContent = 'Copy';
   copyBtn.onclick = onCopy;
 
-  const closeBtn = document.createElement('button');
+  closeBtn = document.createElement('button');
   closeBtn.className = 'modal-close';
   closeBtn.textContent = '\u00d7';
   closeBtn.title = 'Close';
@@ -54,12 +59,16 @@ export async function openMediaInfo(path) {
   copyBtn.textContent = 'Copy';
   clearTimeout(copyTimer);
   modal.classList.remove('hidden');
+  closeBtn.focus();
 
+  const seq = ++requestSeq;
   try {
     const text = await invoke('run_mediainfo', { path });
+    if (seq !== requestSeq) return;
     pre.textContent = text;
     copyBtn.disabled = false;
   } catch (err) {
+    if (seq !== requestSeq) return;
     pre.textContent = typeof err === 'string' ? err : err?.message || 'Unknown error';
     copyBtn.disabled = true;
   }

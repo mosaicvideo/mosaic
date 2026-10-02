@@ -2,20 +2,21 @@
 // Directory walker producing the video-file list consumed by both the
 // Tauri `scan_folder` command and the CLI's positional-input expander.
 // Accepts a file or directory — directories are walked up to
-// MAX_SCAN_DEPTH (16) to guard against symlink cycles.
+// MAX_SCAN_DEPTH (16). Symlinks are followed; each real directory is visited once.
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 pub const VIDEO_EXTS: &[&str] = &[
     // Common containers
     "mp4", "mkv", "mov", "avi", "webm", "wmv", "flv", "m4v", "mpg", "mpeg",
-    "ts", "m2ts", "mts", "vob", "iso", "ogv", "ogm", "qt", "asf",
+    "ts", "m2ts", "mts", "vob", "ogv", "ogm", "qt", "asf",
     // Mobile / MP4 family
     "3gp", "3g2", "f4v", "mj2",
     // Legacy / regional
     "rm", "rmvb", "divx", "swf", "nsv",
     // Broadcast / professional
-    "mxf", "gxf", "r3d",
+    "mxf", "gxf",
     // Camcorder / capture / recording
     "dv", "dif", "wtv", "nuv", "pva",
     // Other containers
@@ -32,20 +33,23 @@ pub fn scan(path: &Path, recursive: bool) -> Result<Vec<PathBuf>, String> {
         return Ok(vec![path.to_path_buf()]);
     }
     let mut out = Vec::new();
-    walk(path, recursive, 0, &mut out);
+    walk(path, recursive, 0, &mut HashSet::new(), &mut out);
     out.sort();
     Ok(out)
 }
 
-fn walk(dir: &Path, recursive: bool, depth: u32, out: &mut Vec<PathBuf>) {
+fn walk(dir: &Path, recursive: bool, depth: u32, visited: &mut HashSet<PathBuf>, out: &mut Vec<PathBuf>) {
     if depth > MAX_SCAN_DEPTH { return; }
+    let Ok(real) = std::fs::canonicalize(dir) else { return };
+    if !visited.insert(real) { return; }
     let Ok(entries) = std::fs::read_dir(dir) else { return };
     for entry in entries.flatten() {
-        let Ok(ft) = entry.file_type() else { continue };
         let p = entry.path();
-        if ft.is_dir() {
-            if recursive { walk(&p, recursive, depth + 1, out); }
-        } else if ft.is_file() {
+        // fs::metadata follows symlinks; DirEntry::file_type would report the link itself.
+        let Ok(meta) = std::fs::metadata(&p) else { continue };
+        if meta.is_dir() {
+            if recursive { walk(&p, recursive, depth + 1, visited, out); }
+        } else if meta.is_file() {
             let ext_ok = p.extension()
                 .and_then(|e| e.to_str())
                 .map(|e| e.to_ascii_lowercase())
@@ -107,6 +111,30 @@ mod tests {
         let p = touch(tmp.path(), "solo.mkv");
         let got = scan(&p, false).unwrap();
         assert_eq!(got, vec![p]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn follows_symlinked_files_and_dirs() {
+        let tmp = TempDir::new().unwrap();
+        let real = TempDir::new().unwrap();
+        let target = touch(real.path(), "linked.mkv");
+        touch(real.path(), "dir/inner.mkv");
+        std::os::unix::fs::symlink(&target, tmp.path().join("link.mkv")).unwrap();
+        std::os::unix::fs::symlink(real.path().join("dir"), tmp.path().join("linkdir")).unwrap();
+        let got = scan(tmp.path(), true).unwrap();
+        let names: Vec<_> = got.iter().filter_map(|p| p.file_name()?.to_str()).collect();
+        assert!(names.contains(&"link.mkv"), "{names:?}");
+        assert!(names.contains(&"inner.mkv"), "{names:?}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlink_cycle_terminates() {
+        let tmp = TempDir::new().unwrap();
+        touch(tmp.path(), "a.mkv");
+        std::os::unix::fs::symlink(tmp.path(), tmp.path().join("loop")).unwrap();
+        assert_eq!(scan(tmp.path(), true).unwrap().len(), 1);
     }
 
     #[test]

@@ -1,5 +1,6 @@
-use crate::ffmpeg::{run_batch_cancellable, RunError};
-use crate::jobs::PipelineContext;
+use crate::ffmpeg::{run_batch_cancellable, Need, RunError};
+use crate::jobs::{move_into_place, PipelineContext};
+use crate::layout::require_nonzero;
 use crate::output_path::{vp9_crf, ReelFormat};
 use crate::video_info::VideoInfo;
 use std::path::{Path, PathBuf};
@@ -15,6 +16,24 @@ pub struct PreviewOptions {
     pub suffix: String,
     #[serde(default)]
     pub format: ReelFormat,
+}
+
+impl PreviewOptions {
+    pub fn validate(&self) -> Result<(), String> {
+        require_nonzero("clip count", self.count)?;
+        require_nonzero("clip length", self.clip_length_secs)?;
+        require_nonzero("fps", self.fps)?;
+        if self.height < 2 { return Err("height must be at least 2px".into()); }
+        Ok(())
+    }
+
+    pub fn needs(&self) -> Vec<Need> {
+        match self.format {
+            ReelFormat::Webp => vec![Need::Libx264, Need::Libwebp],
+            ReelFormat::Webm => vec![Need::Libx264, Need::LibvpxVp9],
+            ReelFormat::Gif => vec![Need::Libx264],
+        }
+    }
 }
 
 pub fn build_extract_args(
@@ -134,7 +153,9 @@ pub fn render_concat_list(paths: &[PathBuf]) -> String {
         // collide with a real directory separator in a contrived path. This is
         // a known, accepted trade-off for cross-platform correctness.
         let s = p.to_string_lossy().replace('\\', "/");
-        let escaped = s.replace('\'', "\\'");
+        // Inside ffmpeg's single quotes nothing is special, so a literal quote
+        // must close the string, be backslash-escaped, then reopen it.
+        let escaped = s.replace('\'', "'\\''");
         out.push_str("file '");
         out.push_str(&escaped);
         out.push_str("'\n");
@@ -149,19 +170,13 @@ pub async fn generate(
     opts: &PreviewOptions,
     ctx: &PipelineContext<'_>,
 ) -> Result<(), RunError> {
-    if let Some(parent) = out.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-
+    opts.validate().map_err(RunError::Invalid)?;
     let timestamps = crate::layout::sample_clip_timestamps(info.duration_secs, opts.count, opts.clip_length_secs as f64);
     if timestamps.is_empty() {
-        return Err(RunError::NonZero {
-            code: -1,
-            stderr: format!(
-                "source duration ({:.2}s) is too short for {} clips of {}s each",
-                info.duration_secs, opts.count, opts.clip_length_secs
-            ),
-        });
+        return Err(RunError::Invalid(format!(
+            "source duration ({:.2}s) is too short for {}s clips",
+            info.duration_secs, opts.clip_length_secs
+        )));
     }
     let total_steps = (timestamps.len() as u32) + 1;
 
@@ -187,9 +202,10 @@ pub async fn generate(
     let concat_list = tmp.path().join("concat.txt");
     std::fs::write(&concat_list, render_concat_list(&clips))?;
 
-    let args = build_stitch_args(&concat_list, opts.fps, opts.quality, opts.format, out);
+    let staged = tmp.path().join(format!("reel.{}", opts.format.ext()));
+    let args = build_stitch_args(&concat_list, opts.fps, opts.quality, opts.format, &staged);
     crate::ffmpeg::run_cancellable(ctx.ffmpeg, &args, ctx.cancelled.clone()).await?;
-
+    move_into_place(&staged, out)?;
     Ok(())
 }
 
@@ -447,17 +463,9 @@ mod tests {
 
     #[test]
     fn concat_list_escapes_single_quote_normalizes_backslash() {
-        // render_concat_list normalizes `\` → `/` before quoting (for
-        // cross-platform ffmpeg concat demuxer compatibility on Windows).
-        // A literal `\` in a Unix filename (legal but rare) gets converted to
-        // `/`; that is an accepted trade-off documented in the implementation.
-        // Single quotes are still backslash-escaped inside the ffmpeg value.
         let list = render_concat_list(&[
-            // This path has a literal backslash inside the directory segment
-            // (after the leading /) and a single-quote in the stem.
             PathBuf::from("/tmp/o'brien\\videos/clip.mp4"),
         ]);
-        // Backslash is normalized to `/`; single-quote is escaped to `\'`.
-        assert_eq!(list, "file '/tmp/o\\'brien/videos/clip.mp4'\n");
+        assert_eq!(list, "file '/tmp/o'\\''brien/videos/clip.mp4'\n");
     }
 }

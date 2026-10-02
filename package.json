@@ -18,7 +18,6 @@
     "dev:web": "vite",
     "build:web": "vite build",
     "dev:cli": "cargo run --manifest-path mosaic-cli/Cargo.toml --bin mosaic-cli --",
-    "dev:site": "cd site && python3 -m http.server 8088",
     "version:bump": "node scripts/bump-version.mjs",
     "sync:defaults": "node scripts/sync-defaults.mjs"
   },

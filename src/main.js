@@ -5,7 +5,7 @@ import { Store } from '@tauri-apps/plugin-store';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { createQueue, isVideo, getVideoExts, basename, dirname } from './queue.js';
-import { readSheetOpts, readShotsOpts, readPreviewOpts, readASheetOpts, readOutput, readProduce, applyOpts, applyProduce, updateOutputModeUI, PRODUCE_FIELDS } from './options.js';
+import { readSheetOpts, readShotsOpts, readPreviewOpts, readASheetOpts, readOutput, readOutputSetting, readProduce, applyOpts, applyProduce, updateOutputModeUI, PRODUCE_FIELDS } from './options.js';
 import { wireDropzone } from './dropzone.js';
 import { createMediaInfoModal, openMediaInfo, closeMediaInfo, isMediaInfoOpen } from './mediainfo.js';
 import * as E from './events.js';
@@ -37,13 +37,14 @@ let store;
 let saveTimer = null;
 let running = false;
 let userCancelled = false;
+let runTotals = { completed: 0, failed: 0 };
 
 async function init() {
   window.addEventListener('error', (e) => showBanner(`JS error: ${e.message}`));
   window.addEventListener('unhandledrejection', (e) => showBanner(`Promise rejection: ${e.reason?.message || e.reason}`));
   document.addEventListener('contextmenu', (e) => e.preventDefault());
   wireButtons();
-  wireDropzone(document.getElementById('dropzone'), addPaths);
+  wireDropzone(document.getElementById('dropzone'), (paths) => { if (toolsOk) addPaths(paths); });
   await wireEvents();
   updateQualityVisibility();
   refreshActionBar();
@@ -103,6 +104,10 @@ let toolsOk = false;
 function setToolsOk(ok) {
   toolsOk = ok;
   document.getElementById('app').classList.toggle('tools-missing', !ok);
+  // pointer-events:none in the CSS doesn't stop keyboard focus; inert does.
+  for (const sel of ['#dropzone', '#run-options', '#action-bar', '.icon-btn']) {
+    document.querySelectorAll(sel).forEach(el => { el.inert = !ok; });
+  }
   document.getElementById('tools-error').classList.toggle('hidden', ok);
   document.getElementById('queue').classList.toggle('hidden', !ok);
   document.querySelector('.queue-head').classList.toggle('hidden', !ok);
@@ -110,8 +115,11 @@ function setToolsOk(ok) {
 }
 
 async function checkTools() {
-  try { await invoke('check_tools'); setToolsOk(true); }
-  catch (_) { setToolsOk(false); }
+  let warning;
+  try { warning = await invoke('check_tools'); }
+  catch (_) { setToolsOk(false); return; }
+  setToolsOk(true);
+  if (warning) showBanner(`${warning} Until then, some outputs will fail.`);
 }
 
 function wireButtons() {
@@ -127,7 +135,7 @@ function wireButtons() {
     if (!paths.length) { showBanner(`No videos found in ${dir}`); return; }
     addPaths(paths);
   });
-  document.getElementById('btn-clear').onclick = () => queue.clear();
+  document.getElementById('btn-clear').onclick = () => { if (!running) queue.clear(); };
   document.getElementById('btn-generate').onclick = guard(onGenerate);
   document.getElementById('btn-cancel').onclick = guard(() => {
     userCancelled = true;
@@ -161,7 +169,7 @@ function wireButtons() {
   document.querySelectorAll(selectors).forEach(el => {
     el.addEventListener('change', () => {
       updateQualityVisibility();
-      enforceProduceAtLeastOne();
+      enforceProduceAtLeastOne(el);
       refreshActionBar();
       saveSettings();
     });
@@ -223,14 +231,21 @@ async function doSave() {
   await store.set('shots', readShotsOpts());
   await store.set('preview', readPreviewOpts());
   await store.set('asheet', readASheetOpts());
-  await store.set('out', readOutput());
+  await store.set('out', readOutputSetting());
   await store.set('produce', readProduce());
   await store.save();
 }
 
 async function addPaths(paths) {
   const checks = await Promise.all(paths.map(isVideo));
-  const vids = paths.filter((_, i) => checks[i]);
+  const vids = [];
+  for (const [i, p] of paths.entries()) {
+    if (checks[i]) { vids.push(p); continue; }
+    // Not a video by extension: a dropped folder expands to the videos inside
+    // it; anything else (a stray file) is rejected by scan_folder and ignored.
+    try { vids.push(...await invoke('scan_folder', { path: p, recursive: true })); }
+    catch (_) { /* not a directory */ }
+  }
   const added = queue.add(vids);
   if (!added.length) return;
   for (const it of added) {
@@ -255,16 +270,21 @@ async function wireEvents() {
       updateOverall(p.index, p.total);
     },
     [E.FILE_FAILED]: p => queue.update(p.fileId, { status: 'Failed', error: p.error }),
-    [E.FINISHED]: () => { /* totals surfaced by onGenerate once all passes complete */ },
+    [E.FINISHED]: p => {
+      runTotals.completed += p.completed;
+      runTotals.failed += p.failed;
+    },
   };
   await Promise.all(Object.entries(handlers).map(
     ([ev, fn]) => listen(ev, ({ payload }) => fn(payload))
   ));
 }
 
-function enforceProduceAtLeastOne() {
+function enforceProduceAtLeastOne(changed) {
   const boxes = PRODUCE_FIELDS.map(f => document.getElementById(f.id));
-  if (!boxes.some(b => b?.checked)) boxes[0].checked = true;
+  if (boxes.some(b => b?.checked)) return;
+  if (boxes.includes(changed)) changed.checked = true;
+  else boxes[0].checked = true;
 }
 
 function updateOverall(done, total) {
@@ -320,6 +340,9 @@ async function onGenerate() {
 
   running = true;
   userCancelled = false;
+  runTotals = { completed: 0, failed: 0 };
+  queue.setLocked(true);
+  document.getElementById('btn-clear').disabled = true;
   refreshActionBar();
   document.getElementById('btn-cancel').disabled = false;
 
@@ -329,15 +352,22 @@ async function onGenerate() {
 
   try {
     await runPasses(passes, candidates, output, statusEl);
-    statusEl.textContent = userCancelled
-      ? 'Cancelled'
-      : (passes.length > 1 ? 'All passes complete' : 'Done');
+    statusEl.textContent = userCancelled ? 'Cancelled' : finishedText(passes.length);
   } finally {
     sweepRunningToCancelled(); // post-sweep anything still Running after cancel
     running = false;
+    queue.setLocked(false);
+    document.getElementById('btn-clear').disabled = false;
     document.getElementById('btn-cancel').disabled = true;
     refreshActionBar();
   }
+}
+
+function finishedText(passCount) {
+  const { completed, failed } = runTotals;
+  if (failed === 0) return passCount > 1 ? 'All passes complete' : 'Done';
+  if (completed === 0) return `All ${failed} failed`;
+  return `${completed} done · ${failed} failed`;
 }
 
 function showBanner(msg) {

@@ -22,6 +22,29 @@ pub fn compute_sheet_layout(cols: u32, rows: u32, width: u32, gap: u32) -> Sheet
     SheetLayout { cols, rows, total, thumb_w, grid_w, gap }
 }
 
+/// Smallest thumbnail width a grid may produce; below this the cells are unreadable.
+pub const MIN_THUMB_W: u32 = 16;
+
+/// [`compute_sheet_layout`] for user-supplied values: rejects a zero grid
+/// (which would divide by zero) and a width too narrow for the gaps.
+pub fn checked_sheet_layout(cols: u32, rows: u32, width: u32, gap: u32) -> Result<SheetLayout, String> {
+    if cols == 0 || rows == 0 {
+        return Err(format!("columns and rows must be at least 1 (got {cols}×{rows})"));
+    }
+    let layout = compute_sheet_layout(cols, rows, width, gap);
+    if layout.thumb_w < MIN_THUMB_W {
+        return Err(format!(
+            "width {width}px is too narrow for {cols} columns with a {gap}px gap; widen the sheet, or reduce the columns or gap"
+        ));
+    }
+    Ok(layout)
+}
+
+/// `Err` naming `field` when `value` is zero.
+pub fn require_nonzero(field: &str, value: u32) -> Result<(), String> {
+    if value == 0 { Err(format!("{field} must be at least 1")) } else { Ok(()) }
+}
+
 /// Timestamps (in seconds) for `n` evenly-spaced samples inside (0, duration).
 /// Matches the original script: `interval = duration / (n + 1)`, `ts_i = i * interval`.
 pub fn sample_timestamps(duration_secs: f64, n: u32) -> Vec<f64> {
@@ -102,6 +125,23 @@ mod tests {
         assert_eq!(l.thumb_w, 626);
         assert_eq!(l.grid_w, 1918);
         assert_eq!(l.gap, 10);
+    }
+
+    #[test]
+    fn checked_layout_rejects_zero_grid() {
+        assert!(checked_sheet_layout(0, 6, 1920, 10).is_err());
+        assert!(checked_sheet_layout(3, 0, 1920, 10).is_err());
+    }
+
+    #[test]
+    fn checked_layout_rejects_width_too_narrow_for_gaps() {
+        let err = checked_sheet_layout(32, 1, 320, 200).unwrap_err();
+        assert!(err.contains("too narrow"), "{err}");
+    }
+
+    #[test]
+    fn checked_layout_accepts_defaults() {
+        assert_eq!(checked_sheet_layout(3, 7, 1920, 10).unwrap(), compute_sheet_layout(3, 7, 1920, 10));
     }
 
     #[test]
