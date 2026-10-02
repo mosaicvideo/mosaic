@@ -31,7 +31,7 @@ impl TestEnv {
             ffmpeg: &self.tools.ffmpeg,
             cancelled: Arc::new(AtomicBool::new(false)),
             reporter,
-            has_zscale: self.tools.detect_has_zscale(),
+            has_zscale: self.tools.detect_caps().has_zscale(),
         }
     }
 }

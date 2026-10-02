@@ -1,8 +1,8 @@
 use crate::drawtext::{font_for_ffmpeg, format_hms_escaped, header_overlay, timestamp_overlay};
-use crate::ffmpeg::{run_batch_cancellable, run_cancellable, RunError};
+use crate::ffmpeg::{run_batch_cancellable, run_cancellable, Need, RunError};
 use crate::header::build_header_lines;
-use crate::jobs::PipelineContext;
-use crate::layout::{compute_sheet_layout, header_height, line_height, sample_timestamps, thumb_height};
+use crate::jobs::{move_into_place, PipelineContext};
+use crate::layout::{checked_sheet_layout, compute_sheet_layout, header_height, line_height, sample_timestamps, thumb_height};
 use crate::output_path::{jpeg_qv, OutputFormat, SheetTheme};
 use crate::video_info::VideoInfo;
 use std::path::{Path, PathBuf};
@@ -30,6 +30,16 @@ pub struct SheetOptions {
     pub theme: SheetTheme,
 }
 
+impl SheetOptions {
+    pub fn validate(&self) -> Result<(), String> {
+        checked_sheet_layout(self.cols, self.rows, self.width, self.gap).map(|_| ())
+    }
+
+    pub fn needs(&self) -> Vec<Need> {
+        if self.show_timestamps || self.show_header { vec![Need::Drawtext] } else { Vec::new() }
+    }
+}
+
 pub async fn generate(
     source: &Path,
     info: &VideoInfo,
@@ -38,6 +48,7 @@ pub async fn generate(
     font: &Path,
     ctx: &PipelineContext<'_>,
 ) -> Result<(), RunError> {
+    opts.validate().map_err(RunError::Invalid)?;
     let layout = compute_sheet_layout(opts.cols, opts.rows, opts.width, opts.gap);
     let timestamps = sample_timestamps(info.duration_secs, layout.total);
     let tmp = TempDir::new()?;
@@ -163,9 +174,7 @@ pub async fn generate(
         }
     }
 
-    // 5. Move final into place
-    std::fs::create_dir_all(output_path.parent().unwrap_or(Path::new(".")))?;
-    std::fs::rename(&final_src, output_path).or_else(|_| std::fs::copy(&final_src, output_path).map(|_| ()))?;
+    move_into_place(&final_src, output_path)?;
     Ok(())
 }
 

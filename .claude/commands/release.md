@@ -85,7 +85,7 @@ Edit `.github/workflows/release.yml`:
 
 ## Step 6 — Bump, commit, tag
 
-1. Run `node scripts/bump-version.mjs $VERSION` **without** `--tag`. It writes **seven** files: `package.json`, `src-tauri/tauri.conf.json`, both `Cargo.toml`s, both `Cargo.lock`s (via `cargo generate-lockfile`), and `src/index.html` (via the `sync-defaults.mjs` call at the end — often a no-op).
+1. Run `node scripts/bump-version.mjs $VERSION` **without** `--tag`. It writes **seven** files: `package.json`, `src-tauri/tauri.conf.json`, both `Cargo.toml`s, both `Cargo.lock`s (via `cargo update --workspace`, which touches only our own crates), and `src/index.html` (via the `sync-defaults.mjs` call at the end — often a no-op).
 2. Stage those seven plus the two files you edited by hand in Steps 4 and 5:
    ```
    git add package.json src-tauri/tauri.conf.json \

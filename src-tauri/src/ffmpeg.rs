@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 pub(crate) const BASE_ARGS: &[&str] = &["-hide_banner", "-loglevel", "error", "-y"];
@@ -99,14 +100,91 @@ pub struct Tools {
 }
 
 impl Tools {
-    /// Whether the located ffmpeg has the `zscale` filter (libzimg). When
-    /// false, HDR→SDR tonemapping is silently skipped. Probing this requires
-    /// spawning `ffmpeg -filters` so we don't eager-cache on the `Tools`
-    /// struct — call it once at pipeline-setup time, not in per-file hot
-    /// paths like `probe_video` or `run_mediainfo`.
-    pub fn detect_has_zscale(&self) -> bool {
-        has_filter(&self.ffmpeg, "zscale")
+    /// Lists the located ffmpeg's filters and encoders. Spawns ffmpeg twice,
+    /// so call it once per batch, not in per-file hot paths.
+    pub fn detect_caps(&self) -> FfmpegCaps {
+        FfmpegCaps {
+            filters: list_names(&self.ffmpeg, "-filters"),
+            encoders: list_names(&self.ffmpeg, "-encoders"),
+        }
     }
+}
+
+/// An ffmpeg feature some output needs. Not every ffmpeg build has them all —
+/// Homebrew's default `ffmpeg` bottle ships without drawtext and libwebp.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Need {
+    Drawtext,
+    Libx264,
+    Libwebp,
+    LibvpxVp9,
+}
+
+impl Need {
+    fn present_in(self, caps: &FfmpegCaps) -> bool {
+        match self {
+            Self::Drawtext => caps.filters.contains("drawtext"),
+            Self::Libx264 => caps.encoders.contains("libx264"),
+            Self::Libwebp => caps.encoders.contains("libwebp"),
+            Self::LibvpxVp9 => caps.encoders.contains("libvpx-vp9"),
+        }
+    }
+
+    pub fn describe(self) -> &'static str {
+        match self {
+            Self::Drawtext => "drawtext filter (timestamps and header text)",
+            Self::Libx264 => "libx264 encoder (animated clips)",
+            Self::Libwebp => "libwebp encoder (WebP previews and animated sheets)",
+            Self::LibvpxVp9 => "libvpx-vp9 encoder (WebM previews)",
+        }
+    }
+}
+
+/// Every feature the shipping defaults use. The GUI warns at startup when any is missing.
+pub const DEFAULT_NEEDS: &[Need] = &[Need::Drawtext, Need::Libx264, Need::Libwebp];
+
+#[derive(Debug, Default, Clone)]
+pub struct FfmpegCaps {
+    filters: HashSet<String>,
+    encoders: HashSet<String>,
+}
+
+impl FfmpegCaps {
+    /// Whether ffmpeg has `zscale` (libzimg). Without it, HDR→SDR tonemapping is skipped.
+    pub fn has_zscale(&self) -> bool {
+        self.filters.contains("zscale")
+    }
+
+    pub fn missing(&self, needs: &[Need]) -> Vec<Need> {
+        needs.iter().copied().filter(|n| !n.present_in(self)).collect()
+    }
+
+    /// `Err` naming every missing feature and how to get them, or `Ok` when all are present.
+    pub fn require(&self, ffmpeg: &std::path::Path, needs: &[Need]) -> Result<(), String> {
+        let missing = self.missing(needs);
+        if missing.is_empty() { return Ok(()); }
+        Err(missing_message(ffmpeg, &missing))
+    }
+}
+
+pub fn missing_message(ffmpeg: &std::path::Path, missing: &[Need]) -> String {
+    let list = missing.iter().map(|n| n.describe()).collect::<Vec<_>>().join(", ");
+    let fix = if cfg!(target_os = "macos") {
+        "Install a full build with `brew install ffmpeg-full`; Mosaic picks it up automatically."
+    } else {
+        "Install an ffmpeg build that includes them."
+    };
+    format!("{} is missing: {}. {}", ffmpeg.display(), list, fix)
+}
+
+/// Names from `ffmpeg -filters` / `ffmpeg -encoders` output: each entry line
+/// is a flags column followed by the name. Header lines never have a second
+/// token that collides with a real filter or encoder name.
+pub(crate) fn parse_names(stdout: &str) -> HashSet<String> {
+    stdout.lines()
+        .filter_map(|l| l.split_whitespace().nth(1))
+        .map(str::to_owned)
+        .collect()
 }
 
 #[derive(Debug, thiserror::Error, serde::Serialize)]
@@ -152,10 +230,9 @@ pub fn locate_tools() -> Result<Tools, ToolsError> {
     Ok(Tools { ffmpeg, ffprobe, mediainfo })
 }
 
-/// Check whether the given ffmpeg binary supports a specific filter.
-fn has_filter(ffmpeg: &std::path::Path, name: &str) -> bool {
+fn list_names(ffmpeg: &std::path::Path, flag: &str) -> HashSet<String> {
     let mut cmd = std::process::Command::new(ffmpeg);
-    cmd.args(["-filters", "-hide_banner"])
+    cmd.args([flag, "-hide_banner"])
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null());
@@ -166,10 +243,8 @@ fn has_filter(ffmpeg: &std::path::Path, name: &str) -> bool {
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
     cmd.output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).lines().any(|l| {
-            l.split_whitespace().nth(1) == Some(name)
-        }))
-        .unwrap_or(false)
+        .map(|o| parse_names(&String::from_utf8_lossy(&o.stdout)))
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -268,6 +343,41 @@ mod tests {
         assert_eq!(a, b);
     }
 
+    const FILTERS_SAMPLE: &str = "Filters:\n  T.. = Timeline support\n  ------\n .S xstack            N->V       Stack video inputs into custom layout.\n TSC zscale            V->V       Apply resizing, colorspace and bit depth conversion.\n";
+    const ENCODERS_SAMPLE: &str = "Encoders:\n V..... = Video\n ------\n V....D libx264              libx264 H.264\n V....D libvpx-vp9           libvpx VP9 (codec vp9)\n";
+
+    fn sample_caps() -> FfmpegCaps {
+        FfmpegCaps { filters: parse_names(FILTERS_SAMPLE), encoders: parse_names(ENCODERS_SAMPLE) }
+    }
+
+    #[test]
+    fn parse_names_reads_second_column() {
+        let names = parse_names(FILTERS_SAMPLE);
+        assert!(names.contains("xstack"));
+        assert!(names.contains("zscale"));
+        assert!(!names.contains("drawtext"));
+    }
+
+    #[test]
+    fn missing_reports_only_absent_features() {
+        let caps = sample_caps();
+        assert!(caps.has_zscale());
+        assert_eq!(caps.missing(DEFAULT_NEEDS), vec![Need::Drawtext, Need::Libwebp]);
+        assert!(caps.missing(&[Need::Libx264, Need::LibvpxVp9]).is_empty());
+    }
+
+    #[test]
+    fn require_names_every_missing_feature() {
+        let err = sample_caps()
+            .require(std::path::Path::new("/usr/bin/ffmpeg"), DEFAULT_NEEDS)
+            .unwrap_err();
+        assert!(err.starts_with("/usr/bin/ffmpeg is missing: "));
+        assert!(err.contains("drawtext"));
+        assert!(err.contains("libwebp"));
+        assert!(!err.contains("libx264"));
+        assert!(sample_caps().require(std::path::Path::new("ffmpeg"), &[]).is_ok());
+    }
+
     #[test]
     fn locate_tools_populates_mediainfo_when_installed() {
         // Smoke test: on a dev machine with all three tools, `Tools.mediainfo`
@@ -325,6 +435,8 @@ pub enum RunError {
     NonZero { code: i32, stderr: String },
     #[error("process killed")]
     Killed,
+    #[error("{0}")]
+    Invalid(String),
 }
 
 pub async fn run_capture(exe: &std::path::Path, args: &[&str]) -> Result<String, RunError> {
@@ -358,7 +470,7 @@ pub async fn run_cancellable(
     let mut cmd = Command::new(exe);
     cmd.args(args.iter().map(|s| s.as_str()))
         .stdin(Stdio::null())
-        .stdout(Stdio::piped())
+        .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
     hide_window(&mut cmd);

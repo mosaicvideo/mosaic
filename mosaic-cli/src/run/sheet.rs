@@ -29,7 +29,8 @@ pub async fn run(args: SheetArgs, cfg: &Config) -> i32 {
         Ok(p) => p, Err(e) => { eprintln!("font extract failed: {e}"); return 2; }
     };
 
-    let has_zscale = tools.detect_has_zscale();
+    let caps = tools.detect_caps();
+    let has_zscale = caps.has_zscale();
     let cancelled = Arc::new(AtomicBool::new(false));
     crate::signals::install(cancelled.clone());
 
@@ -60,6 +61,11 @@ pub async fn run(args: SheetArgs, cfg: &Config) -> i32 {
         suffix,
         theme:            resolve_theme(&args.theme, cfg.sheet.theme.as_deref(), defaults::sheet::THEME),
     };
+
+    if let Err(e) = opts.validate().and_then(|()| caps.require(&tools.ffmpeg, &opts.needs())) {
+        eprintln!("{e}");
+        return 2;
+    }
 
     let mut done = 0u64;
     let mut failed = 0u64;

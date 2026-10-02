@@ -1,8 +1,8 @@
 use crate::drawtext::{font_for_ffmpeg, format_hms_escaped, header_overlay, timestamp_overlay};
-use crate::ffmpeg::{run_batch_cancellable, run_cancellable, RunError};
+use crate::ffmpeg::{run_batch_cancellable, run_cancellable, Need, RunError};
 use crate::header::build_header_lines;
-use crate::jobs::PipelineContext;
-use crate::layout::{compute_sheet_layout, header_height, line_height, sample_clip_timestamps, thumb_height, xstack_layout, SheetLayout};
+use crate::jobs::{move_into_place, PipelineContext};
+use crate::layout::{checked_sheet_layout, compute_sheet_layout, header_height, line_height, require_nonzero, sample_clip_timestamps, thumb_height, xstack_layout, SheetLayout};
 use crate::output_path::SheetTheme;
 use crate::video_info::VideoInfo;
 use std::path::{Path, PathBuf};
@@ -30,6 +30,26 @@ pub struct AnimatedSheetOptions {
     pub suffix: String,
     #[serde(default)]
     pub theme: SheetTheme,
+}
+
+impl AnimatedSheetOptions {
+    pub fn validate(&self) -> Result<(), String> {
+        let layout = checked_sheet_layout(self.cols, self.rows, self.width, self.gap)?;
+        if layout.total < MIN_CELLS || layout.total > MAX_CELLS {
+            return Err(format!(
+                "animated contact sheet requires {}..={} cells; requested {} (cols={}, rows={})",
+                MIN_CELLS, MAX_CELLS, layout.total, self.cols, self.rows
+            ));
+        }
+        require_nonzero("clip length", self.clip_length_secs)?;
+        require_nonzero("fps", self.fps)
+    }
+
+    pub fn needs(&self) -> Vec<Need> {
+        let mut needs = vec![Need::Libx264, Need::Libwebp];
+        if self.show_timestamps || self.show_header { needs.push(Need::Drawtext); }
+        needs
+    }
 }
 
 pub(crate) struct HeaderParams {
@@ -151,31 +171,16 @@ pub async fn generate(
     font: &Path,
     ctx: &PipelineContext<'_>,
 ) -> Result<(), RunError> {
-    if let Some(parent) = out.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-
+    opts.validate().map_err(RunError::Invalid)?;
     let layout = compute_sheet_layout(opts.cols, opts.rows, opts.width, opts.gap);
-    if layout.total < MIN_CELLS || layout.total > MAX_CELLS {
-        return Err(RunError::NonZero {
-            code: -1,
-            stderr: format!(
-                "animated contact sheet requires {}..={} cells; requested {} (cols={}, rows={})",
-                MIN_CELLS, MAX_CELLS, layout.total, opts.cols, opts.rows
-            ),
-        });
-    }
 
     let thumb_h = thumb_height(layout.thumb_w, info.video.width, info.video.height);
     let timestamps = sample_clip_timestamps(info.duration_secs, layout.total, opts.clip_length_secs as f64);
     if timestamps.is_empty() {
-        return Err(RunError::NonZero {
-            code: -1,
-            stderr: format!(
-                "source duration ({:.2}s) is too short for {} clips of {}s each",
-                info.duration_secs, layout.total, opts.clip_length_secs
-            ),
-        });
+        return Err(RunError::Invalid(format!(
+            "source duration ({:.2}s) is too short for {}s clips",
+            info.duration_secs, opts.clip_length_secs
+        )));
     }
 
     let total_steps = layout.total + 1;
@@ -219,12 +224,13 @@ pub async fn generate(
         None
     };
 
+    let staged = tmp.path().join("sheet.webp");
     let args = build_stitch_args(
         &clips, &layout, thumb_h, layout.gap, opts.theme, header_params.as_ref(),
-        opts.clip_length_secs, opts.fps, opts.quality, out,
+        opts.clip_length_secs, opts.fps, opts.quality, &staged,
     );
     run_cancellable(ctx.ffmpeg, &args, ctx.cancelled.clone()).await?;
-
+    move_into_place(&staged, out)?;
     Ok(())
 }
 
@@ -428,7 +434,7 @@ mod tests {
     #[test]
     fn generate_rejects_over_32_cells() {
         match invoke_generate_with_grid(6, 6) {
-            Err(RunError::NonZero { stderr, .. }) => {
+            Err(RunError::Invalid(stderr)) => {
                 assert!(stderr.contains("requires 2..=32"), "stderr: {}", stderr);
                 assert!(stderr.contains("requested 36"), "stderr: {}", stderr);
             }
@@ -439,7 +445,7 @@ mod tests {
     #[test]
     fn generate_rejects_single_cell() {
         match invoke_generate_with_grid(1, 1) {
-            Err(RunError::NonZero { stderr, .. }) => {
+            Err(RunError::Invalid(stderr)) => {
                 assert!(stderr.contains("requires 2..=32"), "stderr: {}", stderr);
                 assert!(stderr.contains("requested 1"), "stderr: {}", stderr);
             }
