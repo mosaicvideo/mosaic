@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-10-11
+
+### Added
+
+- **`mosaic-cli probe` reports `duration_source`**: `container`, `stream`, `mediainfo` or `frame_count`.
+
+### Fixed
+
+- **Files whose container reports no length failed with "missing duration".** Mosaic now falls back to the stream's duration, then MediaInfo's, then frame count ÷ frame rate.
+- **Files with no timestamps at all** (a bare video stream with no container) now get an error saying to remux them, instead of a sheet of the same frame repeated: ffmpeg can't seek in them.
+
 ## [0.1.7] - 2026-10-03
 
 ### Added
@@ -157,7 +168,8 @@ v0.1.1 users: **this release requires a manual download** since v0.1.1 predates 
 - ffmpeg/ffprobe tool detection with user-friendly error state
 - macOS, Windows, and Linux support (requires ffmpeg installed separately)
 
-[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.7...HEAD
+[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/mosaicvideo/mosaic/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/mosaicvideo/mosaic/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/mosaicvideo/mosaic/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/mosaicvideo/mosaic/compare/v0.1.4...v0.1.5
