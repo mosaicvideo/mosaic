@@ -49,6 +49,7 @@ pub async fn generate(
     ctx: &PipelineContext<'_>,
 ) -> Result<(), RunError> {
     opts.validate().map_err(RunError::Invalid)?;
+    info.require_seekable().map_err(RunError::Invalid)?;
     let layout = compute_sheet_layout(opts.cols, opts.rows, opts.width, opts.gap);
     let timestamps = sample_timestamps(info.duration_secs, layout.total);
     let tmp = TempDir::new()?;

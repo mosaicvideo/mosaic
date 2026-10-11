@@ -173,6 +173,35 @@ fn first_run_creates_config() {
     assert!(cfg_path.exists(), "config template should be auto-created on first run");
 }
 
+fn elementary_stream(dir: &TempDir) -> std::path::PathBuf {
+    let out = dir.path().join("raw.m4v");
+    let status = std::process::Command::new("ffmpeg")
+        .args(["-v", "error", "-y", "-i"]).arg(sample())
+        .args(["-an", "-c:v", "mpeg4", "-f", "m4v"]).arg(&out)
+        .status().unwrap();
+    assert!(status.success());
+    out
+}
+
+#[test]
+fn probe_estimates_duration_of_stream_without_container() {
+    let dir = TempDir::new().unwrap();
+    let assert = bin().args(["probe"]).arg(elementary_stream(&dir)).assert().success();
+    let info: serde_json::Value = serde_json::from_slice(&assert.get_output().stdout).unwrap();
+    assert!(info["duration_secs"].as_f64().unwrap() > 0.0);
+    assert_eq!(info["duration_source"], "frame_count");
+}
+
+#[test]
+fn sheet_refuses_stream_without_timestamps() {
+    let dir = TempDir::new().unwrap();
+    let input = elementary_stream(&dir);
+    bin().args(["sheet", "-o"]).arg(dir.path()).arg(&input)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("remux"));
+}
+
 #[test]
 fn missing_input_exits_nonzero() {
     bin().args(["screenshots", "/does/not/exist.mp4"])

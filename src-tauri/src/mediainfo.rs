@@ -65,6 +65,20 @@ pub fn parse_enrichment(json: &str) -> Option<Enrichment> {
     Some(e)
 }
 
+/// General-track `Duration`, else the first video track's, in seconds.
+/// For a file without timestamps this is MediaInfo's bitrate estimate.
+pub fn parse_duration(json: &str) -> Option<f64> {
+    let root: Value = serde_json::from_str(json).ok()?;
+    let tracks = root.get("media")?.get("track")?.as_array()?;
+    let secs = |kind: &str| {
+        tracks.iter()
+            .filter(|t| track_type(t) == Some(kind))
+            .find_map(|t| str_field(t, "Duration")?.parse::<f64>().ok())
+            .filter(|d| d.is_finite() && *d > 0.0)
+    };
+    secs("General").or_else(|| secs("Video"))
+}
+
 fn track_type(t: &Value) -> Option<&str> {
     t.get("@type").and_then(Value::as_str)
 }
@@ -154,6 +168,29 @@ mod tests {
 
     fn fixture(name: &str) -> String {
         std::fs::read_to_string(format!("tests/fixtures/{}", name)).unwrap()
+    }
+
+    #[test]
+    fn duration_prefers_general_track() {
+        let json = r#"{"media":{"track":[
+            {"@type":"General","Duration":"1422.000"},
+            {"@type":"Video","Duration":"1400.000"}]}}"#;
+        assert_eq!(parse_duration(json), Some(1422.0));
+    }
+
+    #[test]
+    fn duration_falls_back_to_video_track() {
+        let json = r#"{"media":{"track":[
+            {"@type":"General"},
+            {"@type":"Video","Duration":"60.5"}]}}"#;
+        assert_eq!(parse_duration(json), Some(60.5));
+    }
+
+    #[test]
+    fn duration_absent_or_zero_is_none() {
+        assert_eq!(parse_duration(r#"{"media":{"track":[{"@type":"General","Duration":"0"}]}}"#), None);
+        assert_eq!(parse_duration(r#"{"media":{"track":[{"@type":"General"}]}}"#), None);
+        assert_eq!(parse_duration("not json"), None);
     }
 
     #[test]

@@ -28,6 +28,7 @@ pub async fn generate(
     ctx: &PipelineContext<'_>,
 ) -> Result<Vec<std::path::PathBuf>, RunError> {
     opts.validate().map_err(RunError::Invalid)?;
+    info.require_seekable().map_err(RunError::Invalid)?;
     let tmp = tempfile::TempDir::new()?;
     let timestamps = sample_timestamps(info.duration_secs, opts.count);
     let total = opts.count;

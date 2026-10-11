@@ -1,0 +1,4 @@
+{
+  "streams": [{ "codec_type": "video", "codec_name": "mpeg4", "profile": "Simple Profile", "width": 1920, "height": 1080, "r_frame_rate": "25/1" }],
+  "format": { "filename": "/tmp/raw.m4v", "size": "317097335" }
+}

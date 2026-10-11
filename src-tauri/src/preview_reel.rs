@@ -171,6 +171,7 @@ pub async fn generate(
     ctx: &PipelineContext<'_>,
 ) -> Result<(), RunError> {
     opts.validate().map_err(RunError::Invalid)?;
+    info.require_seekable().map_err(RunError::Invalid)?;
     let timestamps = crate::layout::sample_clip_timestamps(info.duration_secs, opts.count, opts.clip_length_secs as f64);
     if timestamps.is_empty() {
         return Err(RunError::Invalid(format!(
@@ -217,6 +218,7 @@ mod tests {
         VideoInfo {
             filename: String::new(),
             duration_secs: duration,
+            duration_source: Default::default(),
             size_bytes: None,
             bit_rate: None,
             video: crate::video_info::VideoStream {

@@ -52,6 +52,8 @@ pub struct AudioStream {
 pub struct VideoInfo {
     pub filename: String,
     pub duration_secs: f64,
+    #[serde(default)]
+    pub duration_source: DurationSource,
     pub size_bytes: Option<u64>,
     pub bit_rate: Option<u64>,
     pub video: VideoStream,
@@ -63,6 +65,43 @@ pub struct VideoInfo {
     /// ffprobe fields above remain the primary source of truth.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enrichment: Option<crate::mediainfo::Enrichment>,
+}
+
+/// Where `duration_secs` came from. Only `Container` and `Stream` are read
+/// from timestamps; the others are estimates for files without any (a bare
+/// elementary stream), where ffmpeg's `-ss` cannot seek.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DurationSource {
+    #[default]
+    Container,
+    Stream,
+    Mediainfo,
+    FrameCount,
+}
+
+impl DurationSource {
+    pub fn is_estimate(self) -> bool {
+        matches!(self, DurationSource::Mediainfo | DurationSource::FrameCount)
+    }
+}
+
+impl VideoInfo {
+    pub fn require_seekable(&self) -> Result<(), String> {
+        if !self.duration_source.is_estimate() {
+            return Ok(());
+        }
+        Err("no timestamps to seek by (the duration is only an estimate); \
+             remux it into a container first, e.g. ffmpeg -i <file> -c copy out.mkv"
+            .to_string())
+    }
+}
+
+/// Duration sources outside ffprobe's JSON, tried when it has none.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DurationHints {
+    pub mediainfo_secs: Option<f64>,
+    pub packet_count: Option<u64>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -96,6 +135,8 @@ struct RawStream {
     width: Option<u32>,
     height: Option<u32>,
     r_frame_rate: Option<String>,
+    duration: Option<String>,
+    nb_frames: Option<String>,
     sample_rate: Option<String>,
     channels: Option<u32>,
     bit_rate: Option<String>,
@@ -155,16 +196,33 @@ fn displayed_dims(encoded_w: u32, encoded_h: u32, sar: Option<(u32, u32)>, rotat
     if swap { (h, w) } else { (w, h) }
 }
 
-pub fn parse(json: &str) -> Result<VideoInfo, ProbeParseError> {
-    let root: RawRoot = serde_json::from_str(json)?;
+fn positive_secs(raw: Option<&str>) -> Option<f64> {
+    raw?.parse::<f64>().ok().filter(|d| d.is_finite() && *d > 0.0)
+}
 
-    let duration_secs = root
-        .format
-        .duration
-        .as_deref()
-        .and_then(|s| s.parse::<f64>().ok())
-        .filter(|d| *d > 0.0)
-        .ok_or(ProbeParseError::MissingDuration)?;
+fn resolve_duration(
+    format_secs: Option<f64>,
+    stream_secs: Option<f64>,
+    hints: DurationHints,
+    frame_count: Option<u64>,
+    fps: f64,
+) -> Option<(f64, DurationSource)> {
+    let from_frames = frame_count
+        .filter(|n| *n > 0 && fps > 0.0)
+        .map(|n| n as f64 / fps);
+    format_secs.map(|d| (d, DurationSource::Container))
+        .or_else(|| stream_secs.map(|d| (d, DurationSource::Stream)))
+        .or_else(|| hints.mediainfo_secs.filter(|d| d.is_finite() && *d > 0.0).map(|d| (d, DurationSource::Mediainfo)))
+        .or_else(|| from_frames.map(|d| (d, DurationSource::FrameCount)))
+}
+
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
+pub fn parse(json: &str) -> Result<VideoInfo, ProbeParseError> {
+    parse_with_hints(json, DurationHints::default())
+}
+
+pub fn parse_with_hints(json: &str, hints: DurationHints) -> Result<VideoInfo, ProbeParseError> {
+    let root: RawRoot = serde_json::from_str(json)?;
 
     let filename = root.format.filename.unwrap_or_default();
     let size_bytes = root.format.size.as_deref().and_then(|s| s.parse().ok());
@@ -182,6 +240,17 @@ pub fn parse(json: &str) -> Result<VideoInfo, ProbeParseError> {
         .find(|s| s.codec_type == "video" && s.width.unwrap_or(0) > 0 && s.height.unwrap_or(0) > 0)
         .or_else(|| root.streams.iter().find(|s| s.codec_type == "video"))
         .ok_or(ProbeParseError::NoVideo)?;
+
+    let fps = v.r_frame_rate.as_deref().and_then(parse_fraction).unwrap_or(0.0);
+    let frame_count = v.nb_frames.as_deref().and_then(|s| s.parse().ok()).or(hints.packet_count);
+    let (duration_secs, duration_source) = resolve_duration(
+        positive_secs(root.format.duration.as_deref()),
+        positive_secs(v.duration.as_deref()),
+        hints,
+        frame_count,
+        fps,
+    )
+    .ok_or(ProbeParseError::MissingDuration)?;
 
     let dovi_record = v.side_data_list.as_ref().and_then(|list|
         list.iter().find(|sd| sd.side_data_type.as_deref() == Some(SIDE_DATA_DOVI))
@@ -207,7 +276,7 @@ pub fn parse(json: &str) -> Result<VideoInfo, ProbeParseError> {
         profile: v.profile.clone(),
         width: disp_w,
         height: disp_h,
-        fps: v.r_frame_rate.as_deref().and_then(parse_fraction).unwrap_or(0.0),
+        fps,
         bit_rate: v.bit_rate.as_deref().and_then(|s| s.parse().ok()),
         is_hdr,
         color_transfer: v.color_transfer.clone(),
@@ -224,7 +293,7 @@ pub fn parse(json: &str) -> Result<VideoInfo, ProbeParseError> {
         bit_rate: a.bit_rate.as_deref().and_then(|s| s.parse().ok()),
     });
 
-    Ok(VideoInfo { filename, duration_secs, size_bytes, bit_rate, video, audio, enrichment: None })
+    Ok(VideoInfo { filename, duration_secs, duration_source, size_bytes, bit_rate, video, audio, enrichment: None })
 }
 
 #[cfg(test)]
@@ -265,7 +334,68 @@ mod tests {
     #[test]
     fn fails_when_duration_missing() {
         let err = parse(&fixture("ffprobe_missing_duration.json")).unwrap_err();
-        matches!(err, ProbeParseError::MissingDuration);
+        assert!(matches!(err, ProbeParseError::MissingDuration));
+    }
+
+    #[test]
+    fn container_duration_wins_over_every_fallback() {
+        let json = r#"{"streams":[{"codec_type":"video","width":2,"height":2,"r_frame_rate":"25/1","duration":"50.0","nb_frames":"10"}],
+                       "format":{"duration":"100.0"}}"#;
+        let info = parse_with_hints(json, DurationHints { mediainfo_secs: Some(70.0), packet_count: Some(5) }).unwrap();
+        assert_eq!((info.duration_secs, info.duration_source), (100.0, DurationSource::Container));
+    }
+
+    #[test]
+    fn stream_duration_fills_in_for_missing_container_duration() {
+        let json = r#"{"streams":[{"codec_type":"video","width":2,"height":2,"r_frame_rate":"25/1","duration":"50.0"}],
+                       "format":{"duration":"N/A"}}"#;
+        let info = parse_with_hints(json, DurationHints { mediainfo_secs: Some(70.0), packet_count: None }).unwrap();
+        assert_eq!((info.duration_secs, info.duration_source), (50.0, DurationSource::Stream));
+        assert!(info.require_seekable().is_ok());
+    }
+
+    #[test]
+    fn elementary_stream_takes_mediainfo_duration() {
+        let hints = DurationHints { mediainfo_secs: Some(1422.0), packet_count: Some(29_683) };
+        let info = parse_with_hints(&fixture("ffprobe_elementary_stream.json"), hints).unwrap();
+        assert_eq!((info.duration_secs, info.duration_source), (1422.0, DurationSource::Mediainfo));
+    }
+
+    #[test]
+    fn elementary_stream_without_mediainfo_counts_frames() {
+        let hints = DurationHints { mediainfo_secs: None, packet_count: Some(29_683) };
+        let info = parse_with_hints(&fixture("ffprobe_elementary_stream.json"), hints).unwrap();
+        assert!((info.duration_secs - 29_683.0 / 25.0).abs() < 1e-9);
+        assert_eq!(info.duration_source, DurationSource::FrameCount);
+    }
+
+    #[test]
+    fn stream_frame_count_is_used_before_a_packet_count() {
+        let json = r#"{"streams":[{"codec_type":"video","width":2,"height":2,"r_frame_rate":"30/1","nb_frames":"300"}],"format":{}}"#;
+        let info = parse_with_hints(json, DurationHints { mediainfo_secs: None, packet_count: Some(600) }).unwrap();
+        assert!((info.duration_secs - 10.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn frame_count_needs_a_frame_rate() {
+        let json = r#"{"streams":[{"codec_type":"video","width":2,"height":2,"r_frame_rate":"0/0","nb_frames":"300"}],"format":{}}"#;
+        assert!(matches!(parse(json), Err(ProbeParseError::MissingDuration)));
+    }
+
+    #[test]
+    fn estimated_duration_is_not_seekable() {
+        let hints = DurationHints { mediainfo_secs: Some(1422.0), packet_count: None };
+        let info = parse_with_hints(&fixture("ffprobe_elementary_stream.json"), hints).unwrap();
+        assert!(info.require_seekable().unwrap_err().contains("remux"));
+    }
+
+    #[test]
+    fn duration_source_defaults_to_container_when_absent_from_json() {
+        let info = parse(&fixture("ffprobe_typical.json")).unwrap();
+        let mut value = serde_json::to_value(&info).unwrap();
+        value.as_object_mut().unwrap().remove("duration_source");
+        let back: VideoInfo = serde_json::from_value(value).unwrap();
+        assert_eq!(back.duration_source, DurationSource::Container);
     }
 
     #[test]

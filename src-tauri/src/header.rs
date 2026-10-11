@@ -106,6 +106,7 @@ mod tests {
         VideoInfo {
             filename: "/tmp/x.mkv".into(),
             duration_secs: 3723.0, // 01:02:03
+            duration_source: Default::default(),
             size_bytes: Some(1_073_741_824), // 1.00 GiB
             bit_rate: Some(5_000_000),
             video: VideoStream {

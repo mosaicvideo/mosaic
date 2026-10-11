@@ -172,6 +172,7 @@ pub async fn generate(
     ctx: &PipelineContext<'_>,
 ) -> Result<(), RunError> {
     opts.validate().map_err(RunError::Invalid)?;
+    info.require_seekable().map_err(RunError::Invalid)?;
     let layout = compute_sheet_layout(opts.cols, opts.rows, opts.width, opts.gap);
 
     let thumb_h = thumb_height(layout.thumb_w, info.video.width, info.video.height);
@@ -244,6 +245,7 @@ mod tests {
         VideoInfo {
             filename: String::new(),
             duration_secs: duration,
+            duration_source: Default::default(),
             size_bytes: None,
             bit_rate: None,
             video: crate::video_info::VideoStream {
