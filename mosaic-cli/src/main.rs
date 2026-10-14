@@ -7,6 +7,7 @@ mod hints;
 mod progress;
 mod run;
 mod signals;
+mod temp;
 
 use clap::Parser;
 
@@ -33,6 +34,13 @@ async fn main() {
             return;
         }
         _ => {}
+    }
+
+    if let Some(path) = &parsed.tmp_dir
+        && let Err(e) = temp::configure(path)
+    {
+        eprintln!("invalid --tmp-dir '{}': {e}", path.display());
+        std::process::exit(2);
     }
 
     let cfg = match config::resolve_path() {

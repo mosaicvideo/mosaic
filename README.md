@@ -102,6 +102,19 @@ Paths go to **stdout** and the run summary to **stderr**, so output pipes straig
 mosaic-cli sheet ~/films/ -o ./sheets | xargs -n1 basename
 ```
 
+Use `--tmp-dir PATH` before or after the subcommand to place temporary media and
+embedded fonts in an existing, writable directory. For example, use a disk-backed
+scratch directory when the system temporary directory is a small RAM-backed mount:
+
+```sh
+mosaic-cli --tmp-dir /mnt/disk/scratch sheet movie.mkv -o ./sheets
+```
+
+The option does not change final output locations (`-o` still controls those).
+Omitting it retains the platform's default temporary storage. Mosaic does not
+create the requested directory or guarantee that it has enough free space for a
+render. Help, completions, and man-page generation do not access this directory.
+
 Full flag reference, config file format, shell completions and troubleshooting: **[CLI page](https://mosaicvideo.github.io/cli.html)**.
 
 ## Why another contact sheet tool?

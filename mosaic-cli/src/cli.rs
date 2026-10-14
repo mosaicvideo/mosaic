@@ -14,6 +14,10 @@ use std::path::PathBuf;
     after_help = "Config file: ~/.mosaic-cli.toml (auto-created on first run; override path with $MOSAIC_CLI_CONFIG).\nDocs: https://mosaicvideo.github.io/cli.html"
 )]
 pub struct Cli {
+    /// Directory for temporary media and fonts (must exist and be writable).
+    /// Use a disk-backed directory when system temp space is small; final output paths are unchanged.
+    #[arg(long, global = true, value_name = "PATH")]
+    pub tmp_dir: Option<PathBuf>,
     #[command(subcommand)]
     pub command: Command,
 }
