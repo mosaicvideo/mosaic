@@ -101,7 +101,10 @@ pub async fn generate(
     // 2. Tile
     (ctx.reporter.emit)(layout.total + 1, total_steps, "Tiling grid");
     let grid = tmp.path().join("grid.png");
-    let tile_input = tmp.path().join(format!("thumb_%0{}d.png", width_digits));
+    // image2 parses percent directives across the whole path, including the
+    // user-selected temporary directory. Only the thumbnail index is a pattern.
+    let tile_input = PathBuf::from(tmp.path().to_string_lossy().replace('%', "%%"))
+        .join(format!("thumb_%0{}d.png", width_digits));
     let mut args = crate::ffmpeg::base_args();
     args.extend([
         "-framerate".into(), TILE_INPUT_FPS.into(),
@@ -125,7 +128,13 @@ pub async fn generate(
         let lines = build_header_lines(info, &display);
         let h = header_height(opts.header_font_size, layout.gap, lines.len() as u32);
         let line_h = line_height(opts.header_font_size);
-        let vf = header_overlay(&lines, &font_path, opts.header_font_size, opts.theme.fontcolor(), layout.gap, line_h);
+        // Keep literal text out of the graph; the job TempDir owns its lifetime.
+        let textfiles = lines.iter().enumerate().map(|(i, line)| {
+            let path = tmp.path().join(format!("header_{i}.txt"));
+            std::fs::write(&path, line)?;
+            Ok(path)
+        }).collect::<std::io::Result<Vec<_>>>()?;
+        let vf = header_overlay(&textfiles, &font_path, opts.header_font_size, opts.theme.fontcolor(), layout.gap, line_h);
         let header = tmp.path().join("header.png");
         let mut args = crate::ffmpeg::base_args();
         args.extend([

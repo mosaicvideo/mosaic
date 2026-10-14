@@ -12,11 +12,14 @@ fn bin(root: &TempDir) -> Command {
 #[test]
 fn tmp_dir_routes_all_renderers_and_embedded_font() {
     let root = TempDir::new().unwrap();
-    let scratch = root.path().join("scratch space");
+    let scratch_name = "Miki's ☆ [x],; 50% scratch";
+    let scratch = root.path().join(scratch_name);
     fs::create_dir(&scratch).unwrap();
     let scratch = scratch.canonicalize().unwrap();
-    let sample = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../src-tauri/tests/fixtures/sample.mp4");
+    let sample = root.path().join("Miki's ☆ [x],; 50% %{pts}.mp4");
+    fs::copy(fixture, &sample).unwrap();
 
     for (command, args) in [
         ("screenshots", vec!["--count", "1"]),
@@ -33,25 +36,15 @@ fn tmp_dir_routes_all_renderers_and_embedded_font() {
             .current_dir(root.path())
             .arg(command)
             .args(args)
-            // Relative path containing spaces also tests resolution and global parsing.
-            .args(["--tmp-dir", "scratch space", "--verbose", "-o"])
+            // Relative punctuation/Unicode path exercises filters as well as argv.
+            .args(["--tmp-dir", scratch_name, "--verbose", "-o"])
             .arg(&out)
             .arg(&sample)
             .assert()
             .success();
         let stderr = String::from_utf8_lossy(&result.get_output().stderr);
         let scratch_prefix = format!("{}{}", scratch.display(), std::path::MAIN_SEPARATOR);
-        // Font filters use forward slashes and an escaped drive colon on Windows,
-        // unlike native media arguments (see drawtext::font_for_ffmpeg).
-        #[cfg(windows)]
-        let font_prefix = scratch_prefix
-            .strip_prefix(r"\\?\")
-            .filter(|path| path.as_bytes().get(1) == Some(&b':'))
-            .unwrap_or(&scratch_prefix)
-            .replace('\\', "/")
-            .replace(':', r"\:");
-        #[cfg(not(windows))]
-        let font_prefix = &scratch_prefix;
+        let font_prefix = mosaic_lib::drawtext::font_for_ffmpeg(std::path::Path::new(&scratch_prefix));
         let render_lines: Vec<_> = stderr
             .lines()
             .filter(|line| {
@@ -70,7 +63,7 @@ fn tmp_dir_routes_all_renderers_and_embedded_font() {
             .any(|e| fs::metadata(e.unwrap().path()).unwrap().len() > 0));
         if command == "sheet" || command == "animated-sheet" {
             assert!(
-                stderr.contains(&format!("fontfile='{font_prefix}")),
+                stderr.contains(&format!("fontfile={font_prefix}")),
                 "{stderr}"
             );
             // Static font storage survives process exit; verify real extracted bytes,

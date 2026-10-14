@@ -53,7 +53,7 @@ impl AnimatedSheetOptions {
 }
 
 pub(crate) struct HeaderParams {
-    pub(crate) lines: Vec<String>,
+    pub(crate) textfiles: Vec<PathBuf>,
     pub(crate) height: u32,
     pub(crate) line_h: u32,
     pub(crate) font_size: u32,
@@ -106,7 +106,7 @@ pub fn build_extract_args(
 ///   1. xstacks N pre-padded cells into a grid,
 ///   2. pads the grid by gap/2 on all sides so outer margin matches the still
 ///      contact sheet (total width = `layout.grid_w`),
-///   3. optionally composites a header panel (color source + two drawtexts) on
+///   3. optionally composites a header panel (color source + per-line drawtext) on
 ///      top via vstack.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn build_stitch_args(
@@ -142,7 +142,7 @@ pub(crate) fn build_stitch_args(
     );
 
     let final_label = if let Some(h) = header {
-        let hdr_draw = header_overlay(&h.lines, &h.font_ffmpeg, h.font_size, theme.fontcolor(), gap, h.line_h);
+        let hdr_draw = header_overlay(&h.textfiles, &h.font_ffmpeg, h.font_size, theme.fontcolor(), gap, h.line_h);
         graph.push_str(&format!(
             ";color=c={}:s={}x{}:d={}:r={},{}[hdr];[hdr][grid]vstack[out]",
             bg, grid_w, h.height, clip_length_secs, fps, hdr_draw
@@ -214,8 +214,14 @@ pub async fn generate(
         let display = source.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
         let lines = build_header_lines(info, &display);
         let line_count = lines.len() as u32;
+        // These files remain in the job TempDir until the stitch process returns.
+        let textfiles = lines.iter().enumerate().map(|(i, line)| {
+            let path = tmp.path().join(format!("header_{i}.txt"));
+            std::fs::write(&path, line)?;
+            Ok(path)
+        }).collect::<std::io::Result<Vec<_>>>()?;
         Some(HeaderParams {
-            lines,
+            textfiles,
             height: header_height(opts.header_font_size, layout.gap, line_count),
             line_h: line_height(opts.header_font_size),
             font_size: opts.header_font_size,
@@ -358,7 +364,7 @@ mod tests {
         let layout = compute_sheet_layout(2, 2, 800, 10);
         let clips: Vec<PathBuf> = (0..4).map(|i| PathBuf::from(format!("/tmp/c{}.mp4", i))).collect();
         let header = HeaderParams {
-            lines: vec!["movie.mkv".into(), "Duration: 00:01:30 | 1920x1080".into()],
+            textfiles: vec!["/tmp/header_0.txt".into(), "/tmp/header_1.txt".into()],
             height: 72, line_h: 26, font_size: 20,
             font_ffmpeg: "/f/font.ttf".into(),
         };
@@ -369,7 +375,7 @@ mod tests {
         let fc = args.iter().position(|a| a == "-filter_complex").unwrap();
         let graph = &args[fc + 1];
         assert!(graph.contains("color=c=0x000000"));
-        assert!(graph.contains("drawtext=text='movie.mkv'"));
+        assert!(graph.contains("drawtext=textfile=/tmp/header_0.txt:expansion=none"));
         assert!(graph.contains("vstack"));
         assert!(graph.ends_with("[out]"));
         let map_pos = args.iter().position(|a| a == "-map").unwrap();
@@ -381,7 +387,7 @@ mod tests {
         let layout = compute_sheet_layout(2, 2, 800, 10);
         let clips: Vec<PathBuf> = (0..4).map(|i| PathBuf::from(format!("/tmp/c{}.mp4", i))).collect();
         let header = HeaderParams {
-            lines: vec!["m.mkv".into(), "x".into()],
+            textfiles: vec!["/tmp/header_0.txt".into(), "/tmp/header_1.txt".into()],
             height: 50, line_h: 20, font_size: 16,
             font_ffmpeg: "/f.ttf".into(),
         };

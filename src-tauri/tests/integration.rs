@@ -18,6 +18,114 @@ fn font_path() -> PathBuf {
     [env!("CARGO_MANIFEST_DIR"), "assets", "fonts", "DejaVuSans.ttf"].iter().collect()
 }
 
+/// Compare the production graph against a reference with simple relative paths.
+/// The text and font bytes are identical; only option-path escaping differs.
+#[test]
+fn literal_header_textfiles_render_with_punctuation_paths() {
+    use mosaic_lib::drawtext::{font_for_ffmpeg, header_overlay};
+    let ffmpeg = which::which("ffmpeg").expect("ffmpeg with drawtext required");
+    let root = tempfile::tempdir().unwrap();
+    #[cfg(unix)]
+    let dirname = r"Miki's ☆ : \ [x],; 50%";
+    #[cfg(not(unix))]
+    let dirname = "Miki's ☆ [x],; 50%";
+    let dir = root.path().join(dirname);
+    std::fs::create_dir(&dir).unwrap();
+    let font = dir.join("font.ttf");
+    std::fs::copy(font_path(), &font).unwrap();
+    std::fs::copy(font_path(), root.path().join("reference.ttf")).unwrap();
+    let textfile = dir.join("line.txt");
+    let render = |graph: &str| {
+        let out = std::process::Command::new(&ffmpeg)
+            .current_dir(root.path())
+            .args(["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
+                "color=black:s=1024x64:d=1", "-vf", graph, "-frames:v", "1",
+                "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"])
+            .output().unwrap();
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        assert!(out.stderr.is_empty(), "{}", String::from_utf8_lossy(&out.stderr));
+        out.stdout
+    };
+    let graph = header_overlay(std::slice::from_ref(&textfile), &font_for_ffmpeg(&font), 20, "white", 5, 26);
+    let reference = "drawtext=textfile=reference.txt:expansion=none:fontfile=reference.ttf:fontsize=20:fontcolor=white:x=5:y=5";
+    for text in ["Miki's ☆", r"a\b:c,[d];", "50% %{pts} %{eif:1+1:d}", "Duration: 01:10:30 | Bitrate: 5.0 Mb/s"] {
+        std::fs::write(&textfile, text).unwrap();
+        std::fs::write(root.path().join("reference.txt"), text).unwrap();
+        assert_eq!(std::fs::read_to_string(&textfile).unwrap(), text);
+        let pixels = render(&graph);
+        assert_eq!(pixels, render(reference), "literal reference differs for {text}");
+        assert!(pixels.iter().any(|&v| v != 0), "header must not be blank");
+        // A successful process alone is not enough: dropping punctuation or
+        // expanding percent expressions must produce a different raster.
+        std::fs::write(root.path().join("reference.txt"), "Mikis abcd 50 0.000000 2").unwrap();
+        assert_ne!(pixels, render(reference));
+    }
+    std::fs::write(&textfile, "%{pts}").unwrap();
+    std::fs::write(root.path().join("reference.txt"), "%{pts}").unwrap();
+    assert_ne!(render(&graph), render(&reference.replace("expansion=none", "expansion=normal")));
+}
+
+#[tokio::test]
+async fn both_header_pipelines_render_literal_synthetic_filename_and_cancel() {
+    use std::sync::atomic::Ordering;
+    let tools = mosaic_lib::ffmpeg_test_hook_locate().expect("media tools required");
+    let tmp = tempfile::tempdir().unwrap();
+    #[cfg(unix)]
+    let filename = r"Miki's ☆ : \ [x],; 50% %{pts}.mp4";
+    #[cfg(not(unix))]
+    let filename = "Miki's ☆ [x],; 50% %{pts}.mp4";
+    let source = tmp.path().join(filename);
+    let result = std::process::Command::new(&tools.ffmpeg)
+        .args(["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
+            "color=black:s=160x90:r=8:d=3", "-c:v", "libx264"])
+        .arg(&source).output().unwrap();
+    assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+    let mut info = mosaic_lib::ffmpeg_test_hook_probe(&tools, &source.to_string_lossy()).await.unwrap();
+    // Include untrusted metadata fields as well as the filename.
+    info.video.profile = Some("it's [a],; profile: 50% ☆".into());
+    let sheet = SheetOptions {
+        cols: 2, rows: 1, width: 1024, gap: 4,
+        thumb_font_size: 14, header_font_size: 16,
+        show_timestamps: true, show_header: true,
+        format: OutputFormat::Png, jpeg_quality: 92,
+        suffix: String::new(), theme: SheetTheme::Dark,
+    };
+    let animated = AnimatedSheetOptions {
+        cols: 2, rows: 1, width: 1024, gap: 4, clip_length_secs: 1, fps: 4, quality: 60,
+        thumb_font_size: 14, header_font_size: 16, show_timestamps: true, show_header: true,
+        suffix: String::new(), theme: SheetTheme::Dark,
+    };
+    for cancel_at_header in [false, true] {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let emit = |_: u32, _: u32, label: &str| {
+            if cancel_at_header && matches!(label, "Header" | "Stitching sheet") {
+                cancelled.store(true, Ordering::SeqCst);
+            }
+        };
+        let reporter = ProgressReporter { emit: &emit };
+        let ctx = PipelineContext { ffmpeg: &tools.ffmpeg, cancelled: cancelled.clone(), reporter: &reporter, has_zscale: false };
+        let out = tmp.path().join(format!("sheet-{cancel_at_header}.png"));
+        let result = contact_sheet::generate(&source, &info, &out, &sheet, &font_path(), &ctx).await;
+        if cancel_at_header {
+            assert!(matches!(result, Err(mosaic_lib::ffmpeg::RunError::Killed)));
+            assert!(!out.exists());
+        } else {
+            result.unwrap();
+            assert!(std::fs::metadata(out).unwrap().len() > 1000);
+        }
+        cancelled.store(false, Ordering::SeqCst);
+        let out = tmp.path().join(format!("animated-{cancel_at_header}.webp"));
+        let result = animated_sheet::generate(&source, &info, &out, &animated, &font_path(), &ctx).await;
+        if cancel_at_header {
+            assert!(matches!(result, Err(mosaic_lib::ffmpeg::RunError::Killed)));
+            assert!(!out.exists());
+        } else {
+            result.unwrap();
+            assert_animated_webp(&std::fs::read(out).unwrap());
+        }
+    }
+}
+
 struct TestEnv {
     tools: mosaic_lib::ffmpeg::Tools,
     fixture: PathBuf,

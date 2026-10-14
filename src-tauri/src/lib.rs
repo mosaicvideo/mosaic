@@ -13,6 +13,9 @@ pub mod input_scan;
 #[cfg(not(any(test, feature = "test-api", feature = "cli")))]
 mod input_scan;
 
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
+pub mod drawtext;
+#[cfg(not(any(test, feature = "test-api", feature = "cli")))]
 mod drawtext;
 mod layout;
 

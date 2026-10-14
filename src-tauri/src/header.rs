@@ -1,4 +1,4 @@
-use crate::drawtext::{escape_drawtext, format_hms_plain};
+use crate::drawtext::format_hms_plain;
 use crate::video_info::VideoInfo;
 
 fn format_gib(bytes: u64) -> String {
@@ -13,8 +13,8 @@ fn format_kbps(bps: u64) -> String {
     format!("{} kb/s", bps / 1000)
 }
 
-/// Build the lines that compose a contact-sheet header. Each element is a
-/// fully drawtext-escaped string ready to be concatenated into a filter graph.
+/// Build the plain UTF-8 lines that compose a contact-sheet header. Callers
+/// write these verbatim to textfiles rather than embedding them in a filter graph.
 ///
 /// Layout, when audio is present and default (no enrichment):
 /// 1. filename
@@ -33,13 +33,13 @@ pub fn build_header_lines(info: &VideoInfo, display_filename: &str) -> Vec<Strin
     // title (e.g. "Awaken (2018) UHD Disc Sample") is much more informative
     // than a mangled filename, so it's worth surfacing when available.
     let title = enrich.and_then(|e| e.title.as_deref());
-    lines.push(escape_drawtext(title.unwrap_or(display_filename)));
+    lines.push(title.unwrap_or(display_filename).to_string());
 
     let mut file_parts: Vec<String> = Vec::new();
     if let Some(sz) = info.size_bytes { file_parts.push(format!("Size: {}", format_gib(sz))); }
     file_parts.push(format!("Duration: {}", format_hms_plain(info.duration_secs)));
     if let Some(br) = info.bit_rate { file_parts.push(format!("Bitrate: {}", format_mbps(br))); }
-    lines.push(escape_drawtext(&file_parts.join(" | ")));
+    lines.push(file_parts.join(" | "));
 
     let v = &info.video;
     let v_profile = v.profile.as_deref().map(|p| format!(" ({})", p)).unwrap_or_default();
@@ -54,7 +54,7 @@ pub fn build_header_lines(info: &VideoInfo, display_filename: &str) -> Vec<Strin
     }
     if let Some(b) = v.bit_rate { v_parts.push(format_kbps(b)); }
     v_parts.push(format!("{:.2} fps", v.fps));
-    lines.push(escape_drawtext(&v_parts.join(" | ")));
+    lines.push(v_parts.join(" | "));
 
     if let Some(a) = &info.audio {
         // Codec label: prefer MediaInfo's commercial name ("DTS-HD MA",
@@ -91,7 +91,7 @@ pub fn build_header_lines(info: &VideoInfo, display_filename: &str) -> Vec<Strin
         if let Some(lang) = enrich.and_then(|e| e.audio_language.as_deref()) {
             audio_line.push_str(&format!(" [{}]", lang));
         }
-        lines.push(escape_drawtext(&audio_line));
+        lines.push(audio_line);
     }
 
     lines
@@ -134,9 +134,10 @@ mod tests {
     }
 
     #[test]
-    fn filename_line_is_escaped() {
-        let lines = build_header_lines(&make_info(), "it's : a test.mkv");
-        assert_eq!(lines[0], r"it\'s \: a test.mkv");
+    fn filename_line_is_literal_utf8() {
+        let filename = r"Miki's ☆ : 50% %{pts} \ [x],;.mkv";
+        let lines = build_header_lines(&make_info(), filename);
+        assert_eq!(lines[0], filename);
     }
 
     #[test]
@@ -145,7 +146,7 @@ mod tests {
         let l = &lines[1];
         assert!(l.contains("Size"));
         assert!(l.contains("1.00 GiB"));
-        assert!(l.contains(r"01\:02\:03"));
+        assert!(l.contains("01:02:03"));
         assert!(l.contains("5.0 Mb/s"));
     }
 
@@ -253,7 +254,7 @@ mod tests {
         let mut info = make_info();
         info.enrichment = Some(enrichment_full());
         let lines = build_header_lines(&info, "x.mkv");
-        assert!(lines[3].contains(r"\[en\]"), "language tag should be bracketed, got: {}", lines[3]);
+        assert!(lines[3].contains("[en]"), "language tag should be bracketed, got: {}", lines[3]);
     }
 
     #[test]
