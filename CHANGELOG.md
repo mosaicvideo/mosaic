@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-10-20
+
 ### Added
 
 - **Option to put the file's embedded title in the header**: "Title from metadata" in both sheet settings, `--header-title` in `mosaic-cli sheet` and `animated-sheet`, and `header_title` in `~/.mosaic-cli.toml`. Off by default.
@@ -176,7 +178,8 @@ v0.1.1 users: **this release requires a manual download** since v0.1.1 predates 
 - ffmpeg/ffprobe tool detection with user-friendly error state
 - macOS, Windows, and Linux support (requires ffmpeg installed separately)
 
-[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.8...HEAD
+[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.9...HEAD
+[0.1.9]: https://github.com/mosaicvideo/mosaic/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/mosaicvideo/mosaic/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/mosaicvideo/mosaic/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/mosaicvideo/mosaic/compare/v0.1.5...v0.1.6

@@ -105,19 +105,21 @@ jobs:
           releaseBody: |
             ## What's New
 
-            v0.1.8 is a small bug-fix release: Mosaic now handles video files that have no container timestamps, instead of rejecting them with "missing duration".
+            v0.1.9 changes what the contact-sheet header shows on its first line: the file's name, not the title embedded in it.
 
-            ### Fixed
+            ### Changed
 
-            - **`mosaic-cli probe` and the queue no longer fail with "missing duration"** on files whose container reports no length. Mosaic now falls back to the video stream's own duration, then MediaInfo's, then the frame count divided by the frame rate. `mosaic-cli probe` output has a new `duration_source` field (`container`, `stream`, `mediainfo` or `frame_count`) saying which one was used.
+            - **The header shows the filename, not the embedded title.** Release groups and source sites often put a website URL in a video's title field, so sheets showed a domain like "www.example.com" where the filename belonged. Both still and animated contact sheets, in the app and in `mosaic-cli`, now show the filename.
 
-            - **Files with no timestamps at all get a clear error instead of a wrong sheet.** A bare video stream with no container (sometimes misnamed `.wmv` or `.avi`) only has an estimated duration, and ffmpeg can't seek in it — every thumbnail would be the same frame. Sheets, screenshots, preview reels and animated sheets now refuse such a file and say to remux it first, e.g. `ffmpeg -i <file> -c copy out.mkv`.
+            ### Added
+
+            - **Opt back in to the embedded title.** Turn on "Title from metadata" in the Contact Sheet or Animated Contact Sheet settings, pass `--header-title` to `mosaic-cli sheet` or `animated-sheet`, or set `header_title = true` in `~/.mosaic-cli.toml`. Files without a title still show the filename.
 
             ### Requirements
 
             **[ffmpeg](https://ffmpeg.org/) and [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) must both be installed separately.** The app and the CLI check for `ffmpeg`, `ffprobe`, and `mediainfo` on your `PATH` at startup. Install via `brew install ffmpeg-full mediainfo` (macOS), `winget install Gyan.FFmpeg MediaArea.MediaInfo` (Windows), or `apt install ffmpeg mediainfo` (Linux).
 
-            **Upgrading from v0.1.7?** Auto-update handles the GUI. For the CLI, re-run the install one-liner:
+            **Upgrading from v0.1.8?** Auto-update handles the GUI. For the CLI, re-run the install one-liner:
 
             ```sh
             # macOS / Linux
