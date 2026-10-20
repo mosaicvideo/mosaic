@@ -17,7 +17,7 @@ fn format_kbps(bps: u64) -> String {
 /// fully drawtext-escaped string ready to be concatenated into a filter graph.
 ///
 /// Layout, when audio is present and default (no enrichment):
-/// 1. filename
+/// 1. filename, or the container title when `use_title` is set and the file has one
 /// 2. Size | Duration | Bitrate
 /// 3. Video: codec (profile) | WxH | bitrate | fps
 /// 4. Audio: codec (profile) | Hz | channels | bitrate
@@ -25,14 +25,12 @@ fn format_kbps(bps: u64) -> String {
 /// The audio line is omitted entirely when `info.audio` is `None`. One section
 /// per line keeps narrow grids (e.g. the animated sheet's 1280px default) from
 /// clipping the text at the right edge.
-pub fn build_header_lines(info: &VideoInfo, display_filename: &str) -> Vec<String> {
+pub fn build_header_lines(info: &VideoInfo, display_filename: &str, use_title: bool) -> Vec<String> {
     let enrich = info.enrichment.as_ref();
     let mut lines: Vec<String> = Vec::with_capacity(4);
 
-    // Line 1: Prefer the MediaInfo title when present. A good container-level
-    // title (e.g. "Awaken (2018) UHD Disc Sample") is much more informative
-    // than a mangled filename, so it's worth surfacing when available.
-    let title = enrich.and_then(|e| e.title.as_deref());
+    // Opt-in only: release groups and source sites often put a website URL in the title.
+    let title = enrich.and_then(|e| e.title.as_deref()).filter(|_| use_title);
     lines.push(escape_drawtext(title.unwrap_or(display_filename)));
 
     let mut file_parts: Vec<String> = Vec::new();
@@ -135,13 +133,13 @@ mod tests {
 
     #[test]
     fn filename_line_is_escaped() {
-        let lines = build_header_lines(&make_info(), "it's : a test.mkv");
+        let lines = build_header_lines(&make_info(), "it's : a test.mkv", false);
         assert_eq!(lines[0], r"it\'s \: a test.mkv");
     }
 
     #[test]
     fn file_line_includes_size_duration_bitrate() {
-        let lines = build_header_lines(&make_info(), "x.mkv");
+        let lines = build_header_lines(&make_info(), "x.mkv", false);
         let l = &lines[1];
         assert!(l.contains("Size"));
         assert!(l.contains("1.00 GiB"));
@@ -151,7 +149,7 @@ mod tests {
 
     #[test]
     fn video_line_includes_codec_dims_bitrate_fps() {
-        let lines = build_header_lines(&make_info(), "x.mkv");
+        let lines = build_header_lines(&make_info(), "x.mkv", false);
         let l = &lines[2];
         assert!(l.contains("h264 (High)"));
         assert!(l.contains("1920x1080"));
@@ -161,7 +159,7 @@ mod tests {
 
     #[test]
     fn audio_line_includes_codec_rate_layout_bitrate() {
-        let lines = build_header_lines(&make_info(), "x.mkv");
+        let lines = build_header_lines(&make_info(), "x.mkv", false);
         let l = &lines[3];
         assert!(l.contains("aac (LC)"));
         assert!(l.contains("48000 Hz"));
@@ -173,7 +171,7 @@ mod tests {
     fn audio_line_omitted_when_no_audio() {
         let mut info = make_info();
         info.audio = None;
-        let lines = build_header_lines(&info, "x.mkv");
+        let lines = build_header_lines(&info, "x.mkv", false);
         assert_eq!(lines.len(), 3);
         assert!(!lines.iter().any(|l| l.contains("Audio")));
     }
@@ -182,13 +180,13 @@ mod tests {
     fn audio_line_renders_multichannel_count() {
         let mut info = make_info();
         info.audio.as_mut().unwrap().channels = Some(6);
-        let lines = build_header_lines(&info, "x.mkv");
+        let lines = build_header_lines(&info, "x.mkv", false);
         assert!(lines[3].contains("6 ch"));
     }
 
     #[test]
     fn four_lines_emitted_when_audio_present() {
-        let lines = build_header_lines(&make_info(), "x.mkv");
+        let lines = build_header_lines(&make_info(), "x.mkv", false);
         assert_eq!(lines.len(), 4, "filename + file info + video + audio");
     }
 
@@ -205,18 +203,29 @@ mod tests {
     }
 
     #[test]
-    fn filename_line_uses_title_when_enriched() {
+    fn filename_line_ignores_container_title_by_default() {
+        let mut info = make_info();
+        info.enrichment = Some(crate::mediainfo::Enrichment {
+            title: Some("www.example.com".into()),
+            ..enrichment_full()
+        });
+        let lines = build_header_lines(&info, "movie.mkv", false);
+        assert_eq!(lines[0], "movie.mkv");
+    }
+
+    #[test]
+    fn filename_line_uses_container_title_when_asked() {
         let mut info = make_info();
         info.enrichment = Some(enrichment_full());
-        let lines = build_header_lines(&info, "ignored-filename.mkv");
+        let lines = build_header_lines(&info, "movie.mkv", true);
         assert_eq!(lines[0], "My Movie Title");
     }
 
     #[test]
-    fn filename_line_falls_back_when_enrichment_has_no_title() {
+    fn filename_line_falls_back_to_filename_when_asked_but_untitled() {
         let mut info = make_info();
         info.enrichment = Some(crate::mediainfo::Enrichment::default());
-        let lines = build_header_lines(&info, "fallback.mkv");
+        let lines = build_header_lines(&info, "fallback.mkv", true);
         assert_eq!(lines[0], "fallback.mkv");
     }
 
@@ -224,7 +233,7 @@ mod tests {
     fn video_line_injects_bit_depth_and_hdr() {
         let mut info = make_info();
         info.enrichment = Some(enrichment_full());
-        let lines = build_header_lines(&info, "x.mkv");
+        let lines = build_header_lines(&info, "x.mkv", false);
         let l = &lines[2];
         assert!(l.contains("10-bit"));
         assert!(l.contains("Dolby Vision / HDR10"));
@@ -240,7 +249,7 @@ mod tests {
     fn audio_line_prefers_commercial_name_and_layout() {
         let mut info = make_info();
         info.enrichment = Some(enrichment_full());
-        let lines = build_header_lines(&info, "x.mkv");
+        let lines = build_header_lines(&info, "x.mkv", false);
         let l = &lines[3];
         assert!(l.contains("DTS-HD MA"));
         assert!(l.contains("5.1"));
@@ -252,7 +261,7 @@ mod tests {
     fn audio_line_appends_language_suffix() {
         let mut info = make_info();
         info.enrichment = Some(enrichment_full());
-        let lines = build_header_lines(&info, "x.mkv");
+        let lines = build_header_lines(&info, "x.mkv", false);
         assert!(lines[3].contains(r"\[en\]"), "language tag should be bracketed, got: {}", lines[3]);
     }
 
@@ -260,7 +269,7 @@ mod tests {
     fn audio_line_preserves_ffprobe_channels_when_enrichment_has_no_layout() {
         let mut info = make_info();
         info.enrichment = Some(crate::mediainfo::Enrichment::default());
-        let lines = build_header_lines(&info, "x.mkv");
+        let lines = build_header_lines(&info, "x.mkv", false);
         assert!(lines[3].contains("stereo"));
     }
 
@@ -269,7 +278,7 @@ mod tests {
         // Regression: the legacy layout concatenated sections with "  |  ";
         // the new layout puts each section on its own line so no line should
         // contain the doubled pipe separator.
-        let lines = build_header_lines(&make_info(), "x.mkv");
+        let lines = build_header_lines(&make_info(), "x.mkv", false);
         for l in &lines {
             assert!(!l.contains(r"  \|  "), "doubled pipe leaked into line: {}", l);
         }

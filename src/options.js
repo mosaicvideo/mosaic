@@ -7,6 +7,7 @@ const SHEET_FIELDS = [
   { key: 'header_font_size', id: 'sheet-header-font', kind: 'int'    },
   { key: 'show_timestamps',  id: 'sheet-timestamps',  kind: 'bool'   },
   { key: 'show_header',      id: 'sheet-header',      kind: 'bool'   },
+  { key: 'header_title',     id: 'sheet-header-title', kind: 'bool'   },
   { key: 'format',           id: 'sheet-format',      kind: 'select' },
   { key: 'theme',            id: 'sheet-theme',       kind: 'select' },
   { key: 'jpeg_quality',     id: 'sheet-quality',     kind: 'int'    },
@@ -42,6 +43,7 @@ const ASHEET_FIELDS = [
   { key: 'header_font_size', id: 'asheet-header-font',  kind: 'int'    },
   { key: 'show_timestamps',  id: 'asheet-timestamps',   kind: 'bool'   },
   { key: 'show_header',      id: 'asheet-header',       kind: 'bool'   },
+  { key: 'header_title',     id: 'asheet-header-title', kind: 'bool'   },
   { key: 'theme',            id: 'asheet-theme',        kind: 'select' },
   { key: 'suffix',           id: 'asheet-suffix',       kind: 'text'   },
 ];

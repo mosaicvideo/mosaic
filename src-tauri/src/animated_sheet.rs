@@ -27,6 +27,8 @@ pub struct AnimatedSheetOptions {
     pub show_timestamps: bool,
     pub show_header: bool,
     #[serde(default)]
+    pub header_title: bool,
+    #[serde(default)]
     pub suffix: String,
     #[serde(default)]
     pub theme: SheetTheme,
@@ -212,7 +214,7 @@ pub async fn generate(
 
     let header_params = if opts.show_header {
         let display = source.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-        let lines = build_header_lines(info, &display);
+        let lines = build_header_lines(info, &display, opts.header_title);
         let line_count = lines.len() as u32;
         Some(HeaderParams {
             lines,
@@ -415,7 +417,7 @@ mod tests {
             cols, rows, width: 1280, gap: 4,
             clip_length_secs: 1, fps: 8, quality: 75,
             thumb_font_size: 14, header_font_size: 18,
-            show_timestamps: false, show_header: false,
+            show_timestamps: false, show_header: false, header_title: false,
             suffix: String::new(),
             theme: SheetTheme::Dark,
         };

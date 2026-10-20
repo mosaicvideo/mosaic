@@ -56,6 +56,7 @@ pub async fn run(args: SheetArgs, cfg: &Config) -> i32 {
         header_font_size: args.header_font.or(cfg.sheet.header_font).unwrap_or(defaults::sheet::HEADER_FONT),
         show_timestamps:  resolve_bool(args.timestamps, args.no_timestamps, cfg.sheet.show_timestamps, true),
         show_header:      resolve_bool(args.header, args.no_header, cfg.sheet.show_header, true),
+        header_title:     resolve_bool(args.header_title, args.no_header_title, cfg.sheet.header_title, false),
         format:           resolve_img_format(&args.format, cfg.sheet.format.as_deref(), defaults::sheet::FORMAT),
         jpeg_quality:     args.quality.or(cfg.sheet.quality).unwrap_or(defaults::sheet::JPEG_QUALITY),
         suffix,

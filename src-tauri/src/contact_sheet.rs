@@ -22,6 +22,8 @@ pub struct SheetOptions {
     pub header_font_size: u32,
     pub show_timestamps: bool,
     pub show_header: bool,
+    #[serde(default)]
+    pub header_title: bool,
     pub format: OutputFormat,
     pub jpeg_quality: u32,
     #[serde(default)]
@@ -122,7 +124,7 @@ pub async fn generate(
     if opts.show_header {
         (ctx.reporter.emit)(layout.total + 2, total_steps, "Header");
         let display = source.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-        let lines = build_header_lines(info, &display);
+        let lines = build_header_lines(info, &display, opts.header_title);
         let h = header_height(opts.header_font_size, layout.gap, lines.len() as u32);
         let line_h = line_height(opts.header_font_size);
         let vf = header_overlay(&lines, &font_path, opts.header_font_size, opts.theme.fontcolor(), layout.gap, line_h);

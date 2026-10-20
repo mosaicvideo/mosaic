@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Option to put the file's embedded title in the header**: "Title from metadata" in both sheet settings, `--header-title` in `mosaic-cli sheet` and `animated-sheet`, and `header_title` in `~/.mosaic-cli.toml`. Off by default.
+
+### Changed
+
+- **The contact-sheet header now shows the filename on its first line**, not the title embedded in the file. Release groups and source sites often put a website URL in that title, so sheets showed a domain like "www.example.com" where the filename belonged.
+
 ## [0.1.8] - 2026-10-11
 
 ### Added

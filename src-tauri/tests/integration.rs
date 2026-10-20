@@ -67,7 +67,7 @@ async fn all_pipelines_preserve_aspect_on_anamorphic_sample() {
     let sheet_opts = SheetOptions {
         cols: 2, rows: 2, width: 640, gap: 6,
         thumb_font_size: 14, header_font_size: 16,
-        show_timestamps: false, show_header: false,
+        show_timestamps: false, show_header: false, header_title: false,
         format: OutputFormat::Png, jpeg_quality: 92,
         suffix: String::new(), theme: SheetTheme::Dark,
     };
@@ -92,7 +92,7 @@ async fn all_pipelines_preserve_aspect_on_anamorphic_sample() {
         cols: 2, rows: 2, width: 640, gap: 6,
         clip_length_secs: 1, fps: 8, quality: 60,
         thumb_font_size: 14, header_font_size: 16,
-        show_timestamps: false, show_header: false,
+        show_timestamps: false, show_header: false, header_title: false,
         suffix: String::new(), theme: SheetTheme::Dark,
     };
     animated_sheet::generate(&env.fixture, &env.info, &anim_out, &anim_opts, &font, &ctx)
@@ -136,7 +136,7 @@ async fn landscape_source_still_renders_landscape() {
     contact_sheet::generate(&env.fixture, &env.info, &sheet_out, &SheetOptions {
         cols: 2, rows: 2, width: 640, gap: 4,
         thumb_font_size: 14, header_font_size: 16,
-        show_timestamps: false, show_header: false,
+        show_timestamps: false, show_header: false, header_title: false,
         format: OutputFormat::Png, jpeg_quality: 92,
         suffix: String::new(), theme: SheetTheme::Dark,
     }, &font, &ctx).await.expect("sheet");
@@ -197,7 +197,7 @@ async fn end_to_end_contact_sheet_and_screenshots() {
     let opts = SheetOptions {
         cols: 2, rows: 2, width: 640, gap: 8,
         thumb_font_size: 14, header_font_size: 16,
-        show_timestamps: true, show_header: true,
+        show_timestamps: true, show_header: true, header_title: false,
         format: OutputFormat::Png, jpeg_quality: 92,
         suffix: String::new(), theme: SheetTheme::Dark,
     };
@@ -267,7 +267,7 @@ async fn end_to_end_animated_contact_sheet() {
         cols: 2, rows: 2, width: 640, gap: 8,
         clip_length_secs: 1, fps: 8, quality: 60,
         thumb_font_size: 12, header_font_size: 14,
-        show_timestamps: true, show_header: true,
+        show_timestamps: true, show_header: true, header_title: false,
         suffix: String::new(), theme: SheetTheme::Dark,
     };
     animated_sheet::generate(&env.fixture, &env.info, &out, &opts, &font, &ctx).await.unwrap();
@@ -289,7 +289,7 @@ async fn end_to_end_animated_contact_sheet_no_header() {
         cols: 2, rows: 2, width: 480, gap: 0,
         clip_length_secs: 1, fps: 6, quality: 60,
         thumb_font_size: 12, header_font_size: 14,
-        show_timestamps: false, show_header: false,
+        show_timestamps: false, show_header: false, header_title: false,
         suffix: String::new(), theme: SheetTheme::Light,
     };
     animated_sheet::generate(&env.fixture, &env.info, &out, &opts, &font, &ctx).await.unwrap();

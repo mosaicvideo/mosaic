@@ -59,6 +59,7 @@ pub async fn run(args: AnimatedSheetArgs, cfg: &Config) -> i32 {
         header_font_size: args.header_font.or(cfg.animated_sheet.header_font).unwrap_or(defaults::animated_sheet::HEADER_FONT),
         show_timestamps:  resolve_bool(args.timestamps, args.no_timestamps, cfg.animated_sheet.show_timestamps, true),
         show_header:      resolve_bool(args.header, args.no_header, cfg.animated_sheet.show_header, true),
+        header_title:     resolve_bool(args.header_title, args.no_header_title, cfg.animated_sheet.header_title, false),
         suffix,
         theme:            resolve_theme(&args.theme, cfg.animated_sheet.theme.as_deref(), defaults::animated_sheet::THEME),
     };

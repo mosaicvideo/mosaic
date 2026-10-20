@@ -110,6 +110,12 @@ pub struct SheetArgs {
     /// Omit the metadata header above the grid.
     #[arg(long = "no-header")]
     pub no_header: bool,
+    /// Header's first line shows the title embedded in the file instead of the filename.
+    #[arg(long = "header-title", conflicts_with = "no_header_title")]
+    pub header_title: bool,
+    /// Header's first line shows the filename (overrides config).
+    #[arg(long = "no-header-title")]
+    pub no_header_title: bool,
     /// Output image format.
     #[arg(long, value_enum)]
     pub format: Option<ImgFormat>,
@@ -196,6 +202,12 @@ pub struct AnimatedSheetArgs {
     /// Omit the metadata header above the grid.
     #[arg(long = "no-header")]
     pub no_header: bool,
+    /// Header's first line shows the title embedded in the file instead of the filename.
+    #[arg(long = "header-title", conflicts_with = "no_header_title")]
+    pub header_title: bool,
+    /// Header's first line shows the filename (overrides config).
+    #[arg(long = "no-header-title")]
+    pub no_header_title: bool,
     /// Color theme for background and text.
     #[arg(long, value_enum)]
     pub theme: Option<Theme>,
