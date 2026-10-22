@@ -100,6 +100,7 @@ async function loadSettings() {
 }
 
 let toolsOk = false;
+let installing = false;
 
 function setToolsOk(ok) {
   toolsOk = ok;
@@ -112,6 +113,77 @@ function setToolsOk(ok) {
   document.getElementById('queue').classList.toggle('hidden', !ok);
   document.querySelector('.queue-head').classList.toggle('hidden', !ok);
   refreshActionBar();
+  if (!ok) renderInstallHint();
+}
+
+async function renderInstallHint() {
+  let hint;
+  try { hint = await invoke('install_hint'); }
+  catch (e) { console.error('install_hint failed:', e); return; }
+  const rows = document.getElementById('te-installs');
+  rows.replaceChildren(...hint.commands.map(cmd => {
+    const row = document.createElement('div');
+    row.className = 'te-install';
+    const code = document.createElement('code');
+    code.textContent = cmd;
+    const copy = document.createElement('button');
+    copy.className = 'link';
+    copy.textContent = 'Copy';
+    copy.setAttribute('aria-label', `Copy ${cmd}`);
+    copy.onclick = () => copyCommand(code, copy);
+    row.append(code, copy);
+    return row;
+  }));
+  document.getElementById('te-note').textContent =
+    !hint.commands.length ? 'Install ffmpeg and mediainfo with your package manager, then click Retry.'
+    : hint.requires ? `Install ${hint.requires} first, then run the command and click Retry.`
+    : hint.runnable ? 'Click Install to run it here, or run it in a terminal and click Retry.'
+    : 'Run it in a terminal, then click Retry.';
+  if (!installing) document.getElementById('btn-install-tools').classList.toggle('hidden', !hint.runnable);
+}
+
+async function copyCommand(code, button) {
+  try {
+    await navigator.clipboard.writeText(code.textContent);
+    button.textContent = 'Copied';
+    setTimeout(() => { button.textContent = 'Copy'; }, 1500);
+  } catch (_) {
+    // Some webviews refuse clipboard writes; selecting the text leaves ⌘C/Ctrl+C.
+    getSelection().selectAllChildren(code);
+  }
+}
+
+function appendInstallLog(line) {
+  const log = document.getElementById('te-log');
+  log.textContent += `${line}\n`;
+  log.scrollTop = log.scrollHeight;
+}
+
+async function onInstallTools() {
+  if (installing) { await invoke('cancel_job'); return; }
+  installing = true;
+  const button = document.getElementById('btn-install-tools');
+  const retry = document.getElementById('btn-retry-tools');
+  const log = document.getElementById('te-log');
+  log.textContent = '';
+  log.classList.remove('hidden');
+  button.textContent = 'Cancel';
+  retry.disabled = true;
+  const unlisten = await listen(E.INSTALL_OUTPUT, ({ payload }) => appendInstallLog(payload));
+  let failed = false;
+  try {
+    await invoke('install_tools');
+  } catch (e) {
+    failed = true;
+    appendInstallLog(`${e?.message || e}`);
+  } finally {
+    unlisten();
+    installing = false;
+    button.textContent = 'Install';
+    retry.disabled = false;
+  }
+  await checkTools();
+  if (!toolsOk && !failed) appendInstallLog("The install finished, but Mosaic still can't find the tools. Check the output above.");
 }
 
 async function checkTools() {
@@ -150,6 +222,7 @@ function wireButtons() {
     }
   });
   document.getElementById('btn-retry-tools').onclick = checkTools;
+  document.getElementById('btn-install-tools').onclick = guard(onInstallTools);
   document.getElementById('btn-settings').onclick = openSettings;
   document.getElementById('btn-settings-close').onclick = closeSettings;
   document.addEventListener('keydown', (e) => {

@@ -1,7 +1,11 @@
 use crate::animated_sheet::{self, AnimatedSheetOptions};
 use crate::contact_sheet::{self, SheetOptions};
 use crate::events;
-use crate::ffmpeg::{locate_tools, missing_message, run_capture, Need, RunError, Tools, DEFAULT_NEEDS};
+use crate::ffmpeg::{
+    find_tool, locate_tools, missing_message, missing_tools, run_capture, run_streaming, Need, RunError, Tools,
+    DEFAULT_NEEDS,
+};
+use crate::install_hint::{install_plan, Platform, Step};
 use crate::jobs::{JobState, PipelineContext, ProgressReporter};
 use crate::output_path::{animated_sheet_path, contact_sheet_path, preview_reel_path};
 use crate::preview_reel::{self, PreviewOptions};
@@ -27,6 +31,53 @@ pub async fn check_tools() -> Result<Option<String>, String> {
     let tools = locate_tools().map_err(|e| e.to_string())?;
     let missing = tools.detect_caps().missing(DEFAULT_NEEDS);
     Ok((!missing.is_empty()).then(|| missing_message(&tools.ffmpeg, &missing)))
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallHint {
+    commands: Vec<String>,
+    /// Whether the Install button can run `commands` on this machine.
+    runnable: bool,
+    /// Set when the package manager itself must be installed first.
+    requires: Option<&'static str>,
+}
+
+#[tauri::command]
+pub async fn install_hint() -> InstallHint {
+    let plan = install_plan(Platform::current(), &missing_tools());
+    let manager_missing = plan.runnable && plan.steps.iter().any(|s| find_tool(s.program).is_none());
+    InstallHint {
+        commands: plan.steps.iter().map(Step::display).collect(),
+        runnable: plan.runnable && !manager_missing && !plan.steps.is_empty(),
+        requires: if manager_missing { plan.manager } else { None },
+    }
+}
+
+/// Installs the missing tools with the platform's package manager, streaming
+/// its output as `install:output` events. Holds the job slot, so Cancel stops
+/// it and no generate pass can start while packages are changing.
+#[tauri::command]
+pub async fn install_tools(app: AppHandle, state: State<'_, Arc<JobState>>) -> Result<(), String> {
+    let _guard = state.begin()?;
+    let plan = install_plan(Platform::current(), &missing_tools());
+    if !plan.runnable {
+        return Err("Mosaic can't install packages on this system. Run the command in a terminal.".into());
+    }
+    for step in &plan.steps {
+        let exe = find_tool(step.program).ok_or_else(|| format!("{} not found", step.program))?;
+        let _ = app.emit(events::INSTALL_OUTPUT, format!("$ {}", step.display()));
+        run_streaming(&exe, &step.run_args(), state.cancelled.clone(), |line| {
+            let _ = app.emit(events::INSTALL_OUTPUT, line);
+        })
+        .await
+        .map_err(|e| match e {
+            RunError::Killed => "Install cancelled.".to_string(),
+            RunError::NonZero { code, .. } => format!("{} exited with code {code}.", step.display()),
+            e => e.to_string(),
+        })?;
+    }
+    Ok(())
 }
 
 #[tauri::command]

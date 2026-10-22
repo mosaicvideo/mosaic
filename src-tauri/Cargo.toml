@@ -46,3 +46,6 @@ which = "8"
 [[test]]
 name = "integration"
 required-features = ["test-api"]
+
+[target."cfg(windows)".dependencies]
+windows-registry = "0.100.0"

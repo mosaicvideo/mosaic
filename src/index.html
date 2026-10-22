@@ -53,15 +53,16 @@
                 </svg>
                 <div>
                   <h3>Required tools not found</h3>
-                  <p>Mosaic needs <code>ffmpeg</code>, <code>ffprobe</code>, and <code>mediainfo</code> on your <code>PATH</code>. Install the missing one(s) and click Retry.</p>
+                  <p>Mosaic needs <code>ffmpeg</code>, <code>ffprobe</code>, and <code>mediainfo</code> on your <code>PATH</code>.</p>
                 </div>
               </div>
-              <div class="te-installs">
-                <div class="te-install"><span class="te-os">macOS</span><code>brew install ffmpeg-full mediainfo</code></div>
-                <div class="te-install"><span class="te-os">Windows</span><code>winget install Gyan.FFmpeg MediaArea.MediaInfo</code></div>
-                <div class="te-install"><span class="te-os">Linux</span><code>apt install ffmpeg mediainfo</code></div>
+              <div class="te-installs" id="te-installs"></div>
+              <p class="te-note" id="te-note" aria-live="polite"></p>
+              <pre class="te-log hidden" id="te-log"></pre>
+              <div class="te-actions">
+                <button id="btn-install-tools" class="primary small hidden">Install</button>
+                <button id="btn-retry-tools" class="secondary small">Retry</button>
               </div>
-              <button id="btn-retry-tools" class="secondary small">Retry</button>
             </div>
           </div>
         </section>

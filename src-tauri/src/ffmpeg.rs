@@ -197,7 +197,30 @@ pub enum ToolsError {
     MediaInfo,
 }
 
-pub fn locate_tools() -> Result<Tools, ToolsError> {
+/// One of the binaries Mosaic shells out to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tool {
+    Ffmpeg,
+    Ffprobe,
+    MediaInfo,
+}
+
+impl Tool {
+    pub const ALL: [Tool; 3] = [Tool::Ffmpeg, Tool::Ffprobe, Tool::MediaInfo];
+
+    pub fn binary(self) -> &'static str {
+        match self {
+            Self::Ffmpeg => "ffmpeg",
+            Self::Ffprobe => "ffprobe",
+            Self::MediaInfo => "mediainfo",
+        }
+    }
+}
+
+/// Resolves a binary the way the app needs it found, which is wider than the
+/// process `PATH`: macOS GUI apps don't inherit the shell's `PATH`, and on
+/// Windows an install made while the app is open only reaches the registry.
+pub fn find_tool(name: &str) -> Option<PathBuf> {
     // ffmpeg-full (brew keg-only) first on macOS — it has drawtext/libfreetype,
     // which the default brew ffmpeg bottle lacks.
     let priority_paths: &[&str] = if cfg!(target_os = "macos") {
@@ -211,23 +234,76 @@ pub fn locate_tools() -> Result<Tools, ToolsError> {
         &[]
     };
 
-    let find = |name: &str| -> Option<PathBuf> {
-        for ep in priority_paths {
-            let candidate = std::path::Path::new(ep).join(name);
-            if candidate.is_file() { return Some(candidate); }
+    for ep in priority_paths {
+        let candidate = std::path::Path::new(ep).join(name);
+        if candidate.is_file() { return Some(candidate); }
+    }
+    if let Ok(p) = which::which(name) { return Some(p); }
+    for ep in extra_paths {
+        let candidate = std::path::Path::new(ep).join(name);
+        if candidate.is_file() { return Some(candidate); }
+    }
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(path) = registry_path() {
+            return which::which_in(name, Some(path), std::env::temp_dir()).ok();
         }
-        if let Ok(p) = which::which(name) { return Some(p); }
-        for ep in extra_paths {
-            let candidate = std::path::Path::new(ep).join(name);
-            if candidate.is_file() { return Some(candidate); }
-        }
-        None
-    };
+    }
+    None
+}
 
-    let ffmpeg = find("ffmpeg").ok_or(ToolsError::Ffmpeg)?;
-    let ffprobe = find("ffprobe").ok_or(ToolsError::Ffprobe)?;
-    let mediainfo = find("mediainfo").ok_or(ToolsError::MediaInfo)?;
+pub fn locate_tools() -> Result<Tools, ToolsError> {
+    let ffmpeg = find_tool("ffmpeg").ok_or(ToolsError::Ffmpeg)?;
+    let ffprobe = find_tool("ffprobe").ok_or(ToolsError::Ffprobe)?;
+    let mediainfo = find_tool("mediainfo").ok_or(ToolsError::MediaInfo)?;
     Ok(Tools { ffmpeg, ffprobe, mediainfo })
+}
+
+/// Every tool that can't be found, where `locate_tools` stops at the first.
+pub fn missing_tools() -> Vec<Tool> {
+    Tool::ALL.into_iter().filter(|t| find_tool(t.binary()).is_none()).collect()
+}
+
+/// The user and machine `PATH` as currently saved, with `%VAR%` references expanded.
+#[cfg(target_os = "windows")]
+fn registry_path() -> Option<String> {
+    use windows_registry::{CURRENT_USER, LOCAL_MACHINE};
+    let user = CURRENT_USER.open("Environment").and_then(|k| k.get_string("Path"));
+    let machine = LOCAL_MACHINE
+        .open(r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment")
+        .and_then(|k| k.get_string("Path"));
+    let joined = [machine.ok(), user.ok()].into_iter().flatten().collect::<Vec<_>>().join(";");
+    (!joined.is_empty()).then(|| expand_env_vars(&joined, |v| std::env::var(v).ok()))
+}
+
+/// Expands `%NAME%` references. Unknown names and a lone `%` stay as written,
+/// matching how Windows treats them.
+#[cfg(any(target_os = "windows", test))]
+fn expand_env_vars(s: &str, lookup: impl Fn(&str) -> Option<String>) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut rest = s;
+    while let Some(start) = rest.find('%') {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 1..];
+        match after.find('%') {
+            Some(end) => match lookup(&after[..end]) {
+                Some(value) => {
+                    out.push_str(&value);
+                    rest = &after[end + 1..];
+                }
+                None => {
+                    out.push('%');
+                    rest = after;
+                }
+            },
+            None => {
+                out.push_str(&rest[start..]);
+                rest = "";
+            }
+        }
+    }
+    out.push_str(rest);
+    out
 }
 
 fn list_names(ffmpeg: &std::path::Path, flag: &str) -> HashSet<String> {
@@ -250,6 +326,67 @@ fn list_names(ffmpeg: &std::path::Path, flag: &str) -> HashSet<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn fake_env(name: &str) -> Option<String> {
+        match name {
+            "LOCALAPPDATA" => Some(r"C:\Users\you\AppData\Local".into()),
+            "SystemRoot" => Some(r"C:\Windows".into()),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn expand_env_vars_substitutes_known_names() {
+        assert_eq!(
+            expand_env_vars(r"%SystemRoot%\system32;%LOCALAPPDATA%\Microsoft\WinGet\Links", fake_env),
+            r"C:\Windows\system32;C:\Users\you\AppData\Local\Microsoft\WinGet\Links",
+        );
+    }
+
+    #[test]
+    fn expand_env_vars_leaves_unknown_names_and_stray_percents() {
+        assert_eq!(expand_env_vars(r"%NOPE%\bin", fake_env), r"%NOPE%\bin");
+        assert_eq!(expand_env_vars("100%", fake_env), "100%");
+        assert_eq!(expand_env_vars(r"C:\plain", fake_env), r"C:\plain");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn run_streaming_splits_output_on_newlines_and_carriage_returns() {
+        let mut lines = Vec::new();
+        let script = r"printf 'one\rtwo\n|\n'; printf '  three' >&2".to_string();
+        run_streaming(std::path::Path::new("/bin/sh"), &["-c".into(), script], Arc::default(), |l| {
+            lines.push(l.to_owned())
+        })
+        .await
+        .unwrap();
+        lines.sort();
+        assert_eq!(lines, ["  three", "one", "two"]);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn run_streaming_reports_the_last_line_when_the_process_fails() {
+        let script = "echo first; echo 'Error: no such formula'; exit 3".to_string();
+        let err = run_streaming(std::path::Path::new("/bin/sh"), &["-c".into(), script], Arc::default(), |_| {})
+            .await
+            .unwrap_err();
+        assert!(matches!(err, RunError::NonZero { code: 3, ref stderr } if stderr == "Error: no such formula"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn run_streaming_stops_when_cancelled() {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let flag = cancelled.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            flag.store(true, Ordering::Relaxed);
+        });
+        let args = ["-c".to_string(), "sleep 30".to_string()];
+        let err = run_streaming(std::path::Path::new("/bin/sh"), &args, cancelled, |_| {}).await.unwrap_err();
+        assert!(matches!(err, RunError::Killed));
+    }
 
     #[test]
     fn base_args_returns_standard_ffmpeg_prelude() {
@@ -509,6 +646,89 @@ pub async fn run_cancellable(
             if let Some(h) = stderr_task { h.abort(); }
             Err(RunError::Killed)
         }
+    }
+}
+
+/// Like `run_cancellable`, but hands each line of stdout and stderr to
+/// `on_line` as it arrives. Package managers redraw progress with `\r`, so
+/// that ends a line too.
+pub async fn run_streaming(
+    exe: &std::path::Path,
+    args: &[String],
+    cancelled: Arc<AtomicBool>,
+    mut on_line: impl FnMut(&str),
+) -> Result<(), RunError> {
+    if cancelled.load(Ordering::Relaxed) { return Err(RunError::Killed); }
+    maybe_log_argv(exe, args);
+    let mut cmd = Command::new(exe);
+    cmd.args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+    hide_window(&mut cmd);
+    let mut child = cmd.spawn()?;
+
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+    if let Some(out) = child.stdout.take() { forward_lines(out, tx.clone()); }
+    if let Some(err) = child.stderr.take() { forward_lines(err, tx.clone()); }
+    drop(tx);
+
+    let mut last = String::new();
+    let mut emit = |line: String| {
+        on_line(&line);
+        last = line;
+    };
+    let status = loop {
+        tokio::select! {
+            Some(line) = rx.recv() => emit(line),
+            status = child.wait() => break status?,
+            _ = async {
+                while !cancelled.load(Ordering::Relaxed) {
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                }
+            } => {
+                let _ = child.kill().await;
+                return Err(RunError::Killed);
+            }
+        }
+    };
+    // A grandchild that outlives the process can hold the pipes open, so stop
+    // draining once output goes quiet instead of waiting for EOF.
+    while let Ok(Some(line)) = tokio::time::timeout(std::time::Duration::from_secs(1), rx.recv()).await {
+        emit(line);
+    }
+    if !status.success() {
+        return Err(RunError::NonZero { code: status.code().unwrap_or(-1), stderr: last });
+    }
+    Ok(())
+}
+
+fn forward_lines<R>(mut reader: R, tx: tokio::sync::mpsc::UnboundedSender<String>)
+where
+    R: tokio::io::AsyncRead + Unpin + Send + 'static,
+{
+    tokio::spawn(async move {
+        use tokio::io::AsyncReadExt;
+        let mut buf = [0u8; 4096];
+        let mut pending = Vec::new();
+        while let Ok(n @ 1..) = reader.read(&mut buf).await {
+            pending.extend_from_slice(&buf[..n]);
+            while let Some(i) = pending.iter().position(|b| *b == b'\n' || *b == b'\r') {
+                let line: Vec<u8> = pending.drain(..=i).collect();
+                send_line(&tx, &line[..i]);
+            }
+        }
+        send_line(&tx, &pending);
+    });
+}
+
+fn send_line(tx: &tokio::sync::mpsc::UnboundedSender<String>, bytes: &[u8]) {
+    let line = String::from_utf8_lossy(bytes);
+    let line = line.trim_end();
+    // Spinner frames and progress bars carry no letters or digits.
+    if line.chars().any(char::is_alphanumeric) {
+        let _ = tx.send(line.to_owned());
     }
 }
 

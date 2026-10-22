@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The "Required tools not found" panel shows only your system's install command, and can run it for you.** It names just the missing packages, with a Copy button. On macOS (Homebrew) and Windows (winget), Install runs the command inside Mosaic, shows its output, and turns the app back on when it finishes. On Linux it shows the command for your distro's package manager to run in a terminal. The command-line tool prints the same single command.
+
 ### Fixed
+
+- **Mosaic on Windows finds tools installed while it's open.** It now also searches the `PATH` saved in the registry, so a fresh winget install works after Retry instead of needing a restart.
 
 - **The install commands in the "Required tools not found" panel can be selected and copied.** They inherited the app-wide no-select style, so you had to type them out.
 

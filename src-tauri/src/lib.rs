@@ -58,6 +58,11 @@ pub mod jobs;
 #[cfg(not(any(test, feature = "test-api", feature = "cli")))]
 mod jobs;
 
+#[cfg(any(test, feature = "test-api", feature = "cli"))]
+pub mod install_hint;
+#[cfg(not(any(test, feature = "test-api", feature = "cli")))]
+mod install_hint;
+
 mod commands;
 pub mod events;
 
@@ -100,6 +105,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::probe_video,
             commands::check_tools,
+            commands::install_hint,
+            commands::install_tools,
             commands::run_mediainfo,
             commands::get_video_exts,
             commands::reveal_in_finder,

@@ -5,6 +5,7 @@ pub const STEP:        &str = "job:step";
 pub const FILE_DONE:   &str = "job:file-done";
 pub const FILE_FAILED: &str = "job:file-failed";
 pub const FINISHED:    &str = "job:finished";
+pub const INSTALL_OUTPUT: &str = "install:output";
 
 #[cfg(test)]
 mod tests {
@@ -21,6 +22,7 @@ mod tests {
             ("FILE_DONE",   FILE_DONE),
             ("FILE_FAILED", FILE_FAILED),
             ("FINISHED",    FINISHED),
+            ("INSTALL_OUTPUT", INSTALL_OUTPUT),
         ] {
             assert!(js.contains(name),
                 "src/events.js missing export name `{name}`");

@@ -3,3 +3,4 @@ export const STEP        = 'job:step';
 export const FILE_DONE   = 'job:file-done';
 export const FILE_FAILED = 'job:file-failed';
 export const FINISHED    = 'job:finished';
+export const INSTALL_OUTPUT = 'install:output';
