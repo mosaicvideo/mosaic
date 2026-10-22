@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-10-23
+
 ### Added
 
-- **The "Required tools not found" panel shows only your system's install command, and can run it for you.** It names just the missing packages, with a Copy button. On macOS (Homebrew) and Windows (winget), Install runs the command inside Mosaic, shows its output, and turns the app back on when it finishes. On Linux it shows the command for your distro's package manager to run in a terminal. The command-line tool prints the same single command.
+- **The "Required tools not found" panel shows only your system's install command, and can run it for you.** It names just the missing packages, with a Copy button. On macOS (Homebrew) and Windows (winget), Install runs the command inside Mosaic, shows its output, and turns the app back on when it finishes. On Linux it shows the command for your distro's package manager (apt, dnf, pacman or zypper) to run in a terminal. `mosaic-cli` prints the same single command.
 
 ### Fixed
 
@@ -17,8 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A quote in the folder holding Mosaic's font broke timestamps and headers.** That folder is under your user folder on Windows, so a username like `O'Brien` would have hit it on every file.
 - **A line break in a filename no longer draws the header's second line on top of the next one.**
 - **Mosaic on Windows finds tools installed while it's open.** It now also searches the `PATH` saved in the registry, so a fresh winget install works after Retry instead of needing a restart.
-
-- **The install commands in the "Required tools not found" panel can be selected and copied.** They inherited the app-wide no-select style, so you had to type them out.
 
 ## [0.1.9] - 2026-10-20
 
@@ -191,7 +191,8 @@ v0.1.1 users: **this release requires a manual download** since v0.1.1 predates 
 - ffmpeg/ffprobe tool detection with user-friendly error state
 - macOS, Windows, and Linux support (requires ffmpeg installed separately)
 
-[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.9...HEAD
+[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.10...HEAD
+[0.1.10]: https://github.com/mosaicvideo/mosaic/compare/v0.1.9...v0.1.10
 [0.1.9]: https://github.com/mosaicvideo/mosaic/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/mosaicvideo/mosaic/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/mosaicvideo/mosaic/compare/v0.1.6...v0.1.7

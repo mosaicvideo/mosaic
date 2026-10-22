@@ -105,21 +105,24 @@ jobs:
           releaseBody: |
             ## What's New
 
-            v0.1.9 changes what the contact-sheet header shows on its first line: the file's name, not the title embedded in it.
-
-            ### Changed
-
-            - **The header shows the filename, not the embedded title.** Release groups and source sites often put a website URL in a video's title field, so sheets showed a domain like "www.example.com" where the filename belonged. Both still and animated contact sheets, in the app and in `mosaic-cli`, now show the filename.
+            v0.1.10 makes missing ffmpeg or MediaInfo a one-click fix, and stops filenames with an apostrophe from failing contact sheets.
 
             ### Added
 
-            - **Opt back in to the embedded title.** Turn on "Title from metadata" in the Contact Sheet or Animated Contact Sheet settings, pass `--header-title` to `mosaic-cli sheet` or `animated-sheet`, or set `header_title = true` in `~/.mosaic-cli.toml`. Files without a title still show the filename.
+            - **Install missing tools from inside Mosaic.** The "Required tools not found" panel now shows a single command for your system, naming only what's missing, with a Copy button. On macOS (Homebrew) and Windows (winget), click **Install** to run it right there: the output streams into the panel, and the app turns back on as soon as the tools are found. On Linux the panel shows the command for your package manager (apt, dnf, pacman or zypper) to run in a terminal. `mosaic-cli` prints the same single command when a tool is missing.
+
+            ### Fixed
+
+            - **Filenames with an apostrophe no longer fail.** Contact sheets and animated contact sheets failed with "No option name near…" for a file like `Now You Don't (2025).mkv`, because the header text broke ffmpeg's filter parsing. A `%` in the filename failed the same way, and a backslash went missing from the header. Thanks to the reporter of [#3](https://github.com/mosaicvideo/mosaic/issues/3).
+            - **An apostrophe in your user folder no longer breaks sheets.** Mosaic's font lives under your user folder on Windows, so a username like `O'Brien` broke timestamps and headers on every file.
+            - **A line break in a filename** no longer draws the header's first line over the second.
+            - **On Windows, tools installed while Mosaic is open are found after Retry**, without restarting the app.
 
             ### Requirements
 
             **[ffmpeg](https://ffmpeg.org/) and [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) must both be installed separately.** The app and the CLI check for `ffmpeg`, `ffprobe`, and `mediainfo` on your `PATH` at startup. Install via `brew install ffmpeg-full mediainfo` (macOS), `winget install Gyan.FFmpeg MediaArea.MediaInfo` (Windows), or `apt install ffmpeg mediainfo` (Linux).
 
-            **Upgrading from v0.1.8?** Auto-update handles the GUI. For the CLI, re-run the install one-liner:
+            **Upgrading from v0.1.9?** Auto-update handles the GUI. For the CLI, re-run the install one-liner:
 
             ```sh
             # macOS / Linux
