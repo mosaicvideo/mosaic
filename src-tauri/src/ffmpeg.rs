@@ -388,6 +388,44 @@ mod tests {
         assert!(matches!(err, RunError::Killed));
     }
 
+    #[cfg(windows)]
+    fn cmd(script: &str) -> (std::path::PathBuf, Vec<String>) {
+        (which::which("cmd").unwrap(), vec!["/c".into(), script.into()])
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn run_streaming_splits_crlf_output_into_lines() {
+        let (exe, args) = cmd("echo one& echo two& echo three 1>&2");
+        let mut lines = Vec::new();
+        run_streaming(&exe, &args, Arc::default(), |l| lines.push(l.to_owned())).await.unwrap();
+        lines.sort();
+        assert_eq!(lines, ["one", "three", "two"]);
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn run_streaming_reports_the_last_line_when_the_process_fails() {
+        let (exe, args) = cmd("echo first& echo Error: no package found& exit /b 3");
+        let err = run_streaming(&exe, &args, Arc::default(), |_| {}).await.unwrap_err();
+        assert!(matches!(err, RunError::NonZero { code: 3, ref stderr } if stderr == "Error: no package found"));
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn run_streaming_stops_when_cancelled() {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let flag = cancelled.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            flag.store(true, Ordering::Relaxed);
+        });
+        let exe = which::which("ping").unwrap();
+        let args = ["-n".to_string(), "30".to_string(), "127.0.0.1".to_string()];
+        let err = run_streaming(&exe, &args, cancelled, |_| {}).await.unwrap_err();
+        assert!(matches!(err, RunError::Killed));
+    }
+
     #[test]
     fn base_args_returns_standard_ffmpeg_prelude() {
         let args = base_args();
