@@ -214,6 +214,64 @@ async fn end_to_end_contact_sheet_and_screenshots() {
     for p in outs { assert!(p.exists()); }
 }
 
+/// Renders `text` with drawtext twice, once escaped inline and once read
+/// raw from a file with expansion off, and returns both frames' pixels.
+fn render_both_ways(ffmpeg: &std::path::Path, dir: &std::path::Path, text: &str) -> (Vec<u8>, Vec<u8>) {
+    let font = mosaic_lib::drawtext::font_for_ffmpeg(&font_path());
+    let raw = dir.join("raw.txt");
+    std::fs::write(&raw, text).unwrap();
+    let render = |filter: String| {
+        let out = std::process::Command::new(ffmpeg)
+            .args(["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=black:s=900x40"])
+            .args(["-frames:v", "1", "-vf", &filter, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "{text:?}: {}", String::from_utf8_lossy(&out.stderr));
+        out.stdout
+    };
+    let style = format!("fontfile='{font}':fontsize=20:fontcolor=white:x=5:y=5");
+    let raw_path = mosaic_lib::drawtext::font_for_ffmpeg(&raw);
+    let expected = render(format!("drawtext=textfile='{raw_path}':expansion=none:{style}"));
+    let escaped = render(format!("drawtext=text='{}':{style}", mosaic_lib::drawtext::escape_drawtext(text)));
+    (escaped, expected)
+}
+
+#[tokio::test]
+async fn escaped_drawtext_renders_special_characters_literally() {
+    let Some(env) = setup("sample.mp4").await else { return };
+    for text in [
+        "Now You See Me Now You Don't (2025) [WEBDL-2160p-AV1-Opus].mkv",
+        "it's 100% done",
+        r"back\slash and %{pts}",
+        "Size: 1 | a,b;c[d]",
+    ] {
+        let (escaped, expected) = render_both_ways(&env.tools.ffmpeg, env.tmp.path(), text);
+        assert!(escaped == expected, "{text:?} rendered differently from the raw text");
+    }
+}
+
+#[tokio::test]
+async fn contact_sheet_handles_quotes_and_percent_in_the_filename_and_font_path() {
+    let Some(env) = setup("sample.mp4").await else { return };
+    let video = env.tmp.path().join("Now You Don't, 100% (2025).mp4");
+    std::fs::copy(&env.fixture, &video).unwrap();
+    let font = env.tmp.path().join("O'Brien's fonts").join("DejaVuSans.ttf");
+    std::fs::create_dir(font.parent().unwrap()).unwrap();
+    std::fs::copy(font_path(), &font).unwrap();
+    let reporter = ProgressReporter { emit: &|_, _, _| {} };
+    let ctx = env.ctx(&reporter);
+    let out = env.tmp.path().join("sheet.png");
+    let opts = SheetOptions {
+        cols: 2, rows: 2, width: 640, gap: 8,
+        thumb_font_size: 14, header_font_size: 16,
+        show_timestamps: true, show_header: true, header_title: false,
+        format: OutputFormat::Png, jpeg_quality: 92,
+        suffix: String::new(), theme: SheetTheme::Dark,
+    };
+    contact_sheet::generate(&video, &env.info, &out, &opts, &font, &ctx).await.unwrap();
+    assert!(out.exists());
+}
+
 #[tokio::test]
 async fn end_to_end_animated_preview_reel() {
     let Some(env) = setup("sample.mp4").await else { return };

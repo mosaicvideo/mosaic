@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Contact sheets and animated sheets failed when the filename contained an apostrophe** ([#3](https://github.com/mosaicvideo/mosaic/issues/3)). The header line broke ffmpeg's filter parsing, so `Now You Don't (2025).mkv` failed with "No option name near…". A `%` in the filename failed the same way, and a backslash went missing from the header.
+- **A quote in the folder holding Mosaic's font broke timestamps and headers.** That folder is under your user folder on Windows, so a username like `O'Brien` would have hit it on every file.
+- **A line break in a filename no longer draws the header's second line on top of the next one.**
 - **Mosaic on Windows finds tools installed while it's open.** It now also searches the `PATH` saved in the registry, so a fresh winget install works after Retry instead of needing a restart.
 
 - **The install commands in the "Required tools not found" panel can be selected and copied.** They inherited the app-wide no-select style, so you had to type them out.

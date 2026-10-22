@@ -134,7 +134,7 @@ mod tests {
     #[test]
     fn filename_line_is_escaped() {
         let lines = build_header_lines(&make_info(), "it's : a test.mkv", false);
-        assert_eq!(lines[0], r"it\'s \: a test.mkv");
+        assert_eq!(lines[0], r"it\'\''s \: a test.mkv");
     }
 
     #[test]

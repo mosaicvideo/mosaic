@@ -1,20 +1,25 @@
 /// Escape a string so it can appear inside a drawtext `text='...'` argument.
-/// Handles backslash, colon, single-quote, and percent. Additionally escapes
-/// filter-graph separators (`,` `[` `]` `;`) as defense-in-depth so that a
-/// malicious filename cannot break out and inject filters if quoting is ever
-/// bypassed in a future refactor.
+///
+/// The text is unescaped three times: by the filtergraph parser, which takes
+/// everything inside `'...'` literally; by the option parser, where `\` escapes
+/// the next character; and by drawtext itself, which treats `\` and `%` as
+/// special. A quote can't be escaped inside quotes, so `'` closes the quote,
+/// adds an escaped one and reopens. `,` `[` `]` `;` are escaped too so a
+/// filename can't inject a filter if the quoting is ever lost.
 pub fn escape_drawtext(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 4);
     for ch in s.chars() {
         match ch {
-            '\\' => out.push_str(r"\\"),
+            '\\' => out.push_str(r"\\\\"),
             ':' => out.push_str(r"\:"),
-            '\'' => out.push_str(r"\'"),
-            '%' => out.push_str("%%"),
+            '\'' => out.push_str(r"\'\''"),
+            '%' => out.push_str(r"\\%"),
             ',' => out.push_str(r"\,"),
             '[' => out.push_str(r"\["),
             ']' => out.push_str(r"\]"),
             ';' => out.push_str(r"\;"),
+            // drawtext breaks the line at a newline, drawing over the next header row.
+            c if c.is_control() => out.push(' '),
             c => out.push(c),
         }
     }
@@ -36,8 +41,8 @@ pub fn format_hms_escaped(seconds: f64) -> String {
 }
 
 /// Normalise a Windows-style path string for use as an ffmpeg `fontfile=`
-/// value: strip the `\\?\` extended-length prefix, convert backslashes to
-/// forward slashes, and escape the drive-letter colon.
+/// value: strip the `\\?\` extended-length prefix and convert backslashes to
+/// forward slashes.
 ///
 /// Pure string manipulation — no Windows APIs — so it compiles and tests
 /// on all platforms.
@@ -47,16 +52,32 @@ fn normalise_win_font_path(mut s: String) -> String {
     if s.starts_with(r"\\?\") && s.as_bytes().get(5) == Some(&b':') {
         s = s[4..].to_string();
     }
-    s = s.replace('\\', "/");
-    if let Some(idx) = s.find(':') {
-        s.replace_range(idx..idx + 1, r"\:");
-    }
-    s
+    s.replace('\\', "/")
 }
 
-/// Render a filesystem path for use as `drawtext` `fontfile=`. On Windows the
-/// drive-letter colon would otherwise be interpreted as an ffmpeg option
-/// separator, so we normalise slashes and escape the colon.
+/// Escape a value for a quoted filter option that drawtext doesn't expand,
+/// such as `fontfile='...'`. Like [`escape_drawtext`] minus drawtext's own
+/// level: the option parser still splits on `:` and unescapes `\\` and `'`.
+fn escape_option_value(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 4);
+    for ch in s.chars() {
+        match ch {
+            '\\' => out.push_str(r"\\"),
+            ':' => out.push_str(r"\:"),
+            '\'' => out.push_str(r"\'\''"),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
+fn font_value(s: String, windows: bool) -> String {
+    escape_option_value(&if windows { normalise_win_font_path(s) } else { s })
+}
+
+/// Render a filesystem path for use as `drawtext` `fontfile=`. The path is
+/// escaped like any option value, so a drive-letter colon or a quote in a
+/// folder name (`C:\Users\O'Brien`) can't end the option early.
 ///
 /// Tauri's resource resolver (and some Windows APIs) may return paths with the
 /// `\\?\` extended-length prefix. That prefix **requires** backslashes, so it
@@ -64,12 +85,7 @@ fn normalise_win_font_path(mut s: String) -> String {
 /// the underlying drive-letter path works fine without it for paths under
 /// MAX_PATH, and all our bundled-font paths are short.
 pub fn font_for_ffmpeg(p: &std::path::Path) -> String {
-    let s = p.to_string_lossy().into_owned();
-    if cfg!(windows) {
-        normalise_win_font_path(s)
-    } else {
-        s
-    }
+    font_value(p.to_string_lossy().into_owned(), cfg!(windows))
 }
 
 /// Per-cell timestamp overlay for contact-sheet thumbnails. `hms_escaped` must
@@ -121,8 +137,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn escapes_backslash_first() {
-        assert_eq!(escape_drawtext(r"a\b"), r"a\\b");
+    fn escapes_backslash_for_both_option_parser_and_drawtext() {
+        assert_eq!(escape_drawtext(r"a\b"), r"a\\\\b");
     }
 
     #[test]
@@ -131,19 +147,23 @@ mod tests {
     }
 
     #[test]
-    fn escapes_single_quote() {
-        assert_eq!(escape_drawtext("it's"), r"it\'s");
+    fn escapes_single_quote_by_closing_and_reopening_the_quote() {
+        assert_eq!(escape_drawtext("it's"), r"it\'\''s");
     }
 
     #[test]
-    fn escapes_percent() {
-        assert_eq!(escape_drawtext("50%"), "50%%");
+    fn escapes_percent_for_drawtext_expansion() {
+        assert_eq!(escape_drawtext("50%"), r"50\\%");
     }
 
     #[test]
     fn escapes_combined() {
-        // order matters: backslash first so earlier escapes aren't re-escaped
-        assert_eq!(escape_drawtext(r"C:\a'b%"), r"C\:\\a\'b%%");
+        assert_eq!(escape_drawtext(r"C:\a'b%"), r"C\:\\\\a\'\''b\\%");
+    }
+
+    #[test]
+    fn replaces_line_breaks_and_other_control_characters_with_spaces() {
+        assert_eq!(escape_drawtext("two\nlines\r\tok"), "two lines  ok");
     }
 
     #[test]
@@ -172,7 +192,7 @@ mod tests {
         // a new filter node should have all separators neutralised.
         assert_eq!(
             escape_drawtext("evil',[x];y:z%"),
-            r"evil\'\,\[x\]\;y\:z%%"
+            r"evil\'\''\,\[x\]\;y\:z\\%"
         );
     }
 
@@ -192,12 +212,28 @@ mod tests {
         assert_eq!(format_hms_escaped(59.999), r"00\:00\:59");
     }
 
-    // --- normalise_win_font_path tests (Windows font path logic, tested cross-platform) ---
+    // --- font path tests (Windows logic is tested cross-platform) ---
+
+    #[test]
+    fn font_value_escapes_a_quote_in_a_windows_user_folder() {
+        assert_eq!(
+            font_value(r"C:\Users\O'Brien\AppData\Local\Mosaic\DejaVuSans.ttf".into(), true),
+            r"C\:/Users/O\'\''Brien/AppData/Local/Mosaic/DejaVuSans.ttf"
+        );
+    }
+
+    #[test]
+    fn font_value_escapes_quotes_colons_and_backslashes_in_unix_paths() {
+        assert_eq!(
+            font_value(r"/Applications/Bob's: \apps/DejaVuSans.ttf".into(), false),
+            r"/Applications/Bob\'\''s\: \\apps/DejaVuSans.ttf"
+        );
+    }
 
     #[test]
     fn win_font_plain_drive_path() {
         assert_eq!(
-            normalise_win_font_path(r"C:\Fonts\DejaVu.ttf".into()),
+            font_value(r"C:\Fonts\DejaVu.ttf".into(), true),
             r"C\:/Fonts/DejaVu.ttf"
         );
     }
@@ -208,7 +244,7 @@ mod tests {
         // After normalisation the prefix must be gone and the drive colon
         // escaped — otherwise ffmpeg can't load the font.
         assert_eq!(
-            normalise_win_font_path(r"\\?\F:\Program Files (x86)\mosaic\fonts\DejaVu.ttf".into()),
+            font_value(r"\\?\F:\Program Files (x86)\mosaic\fonts\DejaVu.ttf".into(), true),
             r"F\:/Program Files (x86)/mosaic/fonts/DejaVu.ttf"
         );
     }
