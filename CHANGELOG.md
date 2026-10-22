@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The install commands in the "Required tools not found" panel can be selected and copied.** They inherited the app-wide no-select style, so you had to type them out.
+
 ## [0.1.9] - 2026-10-20
 
 ### Added

@@ -350,6 +350,8 @@ button:disabled {
   padding: 1px 6px;
   border-radius: 3px;
   color: var(--text);
+  user-select: text;
+  cursor: text;
 }
 .te-installs {
   display: flex;
