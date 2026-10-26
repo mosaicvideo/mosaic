@@ -161,6 +161,20 @@ fn builtin_defaults_used_when_config_empty() {
 }
 
 #[test]
+fn empty_suffix_names_output_after_source_stem() {
+    let out = TempDir::new().unwrap();
+    bin().args(["sheet", "--cols", "2", "--rows", "2", "--suffix", "", "-o"])
+        .arg(out.path()).arg(sample())
+        .assert().success();
+
+    let names: Vec<_> = fs::read_dir(out.path()).unwrap()
+        .filter_map(|e| e.ok())
+        .filter_map(|e| e.file_name().into_string().ok())
+        .collect();
+    assert_eq!(names, vec!["sample.png".to_string()]);
+}
+
+#[test]
 fn first_run_creates_config() {
     let cfg_dir = TempDir::new().unwrap();
     let cfg_path = cfg_dir.path().join(".mosaic-cli.toml");

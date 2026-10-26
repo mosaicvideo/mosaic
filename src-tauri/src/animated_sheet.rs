@@ -28,7 +28,7 @@ pub struct AnimatedSheetOptions {
     pub show_header: bool,
     #[serde(default)]
     pub header_title: bool,
-    #[serde(default)]
+    #[serde(default = "crate::output_path::default_animated_sheet_suffix")]
     pub suffix: String,
     #[serde(default)]
     pub theme: SheetTheme,

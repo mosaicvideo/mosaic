@@ -26,7 +26,7 @@ pub struct SheetOptions {
     pub header_title: bool,
     pub format: OutputFormat,
     pub jpeg_quality: u32,
-    #[serde(default)]
+    #[serde(default = "crate::output_path::default_sheet_suffix")]
     pub suffix: String,
     #[serde(default)]
     pub theme: SheetTheme,

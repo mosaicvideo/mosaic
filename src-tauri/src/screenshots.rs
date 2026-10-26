@@ -10,7 +10,7 @@ pub struct ScreenshotsOptions {
     pub count: u32,
     pub format: OutputFormat,
     pub jpeg_quality: u32,
-    #[serde(default)]
+    #[serde(default = "crate::output_path::default_shots_suffix")]
     pub suffix: String,
 }
 
@@ -75,4 +75,20 @@ pub async fn generate(
         move_into_place(staged, out)?;
     }
     Ok(outputs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_suffix_deserializes_to_default_but_empty_stays_empty() {
+        let missing: ScreenshotsOptions =
+            serde_json::from_str(r#"{"count":1,"format":"Png","jpeg_quality":92}"#).unwrap();
+        assert_eq!(missing.suffix, crate::output_path::DEFAULT_SHOTS_SUFFIX);
+
+        let empty: ScreenshotsOptions =
+            serde_json::from_str(r#"{"count":1,"format":"Png","jpeg_quality":92,"suffix":""}"#).unwrap();
+        assert_eq!(empty.suffix, "");
+    }
 }

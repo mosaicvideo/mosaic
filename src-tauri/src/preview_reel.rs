@@ -12,7 +12,7 @@ pub struct PreviewOptions {
     pub height: u32,
     pub fps: u32,
     pub quality: u32,
-    #[serde(default)]
+    #[serde(default = "crate::output_path::default_preview_suffix")]
     pub suffix: String,
     #[serde(default)]
     pub format: ReelFormat,

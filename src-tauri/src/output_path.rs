@@ -54,9 +54,10 @@ fn stem(p: &Path) -> String {
     p.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default()
 }
 
-fn resolved<'a>(s: &'a str, default: &'a str) -> &'a str {
-    if s.is_empty() { default } else { s }
-}
+pub fn default_sheet_suffix() -> String { DEFAULT_SHEET_SUFFIX.to_string() }
+pub fn default_shots_suffix() -> String { DEFAULT_SHOTS_SUFFIX.to_string() }
+pub fn default_preview_suffix() -> String { DEFAULT_PREVIEW_SUFFIX.to_string() }
+pub fn default_animated_sheet_suffix() -> String { DEFAULT_ANIMATED_SHEET_SUFFIX.to_string() }
 
 fn collision_free_path(
     out_dir: &Path,
@@ -81,7 +82,7 @@ pub fn contact_sheet_path(
     suffix: &str,
     exists_fn: &dyn Fn(&Path) -> bool,
 ) -> PathBuf {
-    let base = format!("{}{}", stem(source), resolved(suffix, DEFAULT_SHEET_SUFFIX));
+    let base = format!("{}{}", stem(source), suffix);
     collision_free_path(out_dir, &base, fmt.ext(), exists_fn)
 }
 
@@ -96,12 +97,7 @@ pub fn screenshot_path(
 ) -> PathBuf {
     let width = crate::layout::pad_width_for_count(count);
     let num = format!("{:0width$}", index, width = width);
-    let base = format!(
-        "{}{}{}",
-        stem(source),
-        resolved(suffix, DEFAULT_SHOTS_SUFFIX),
-        num,
-    );
+    let base = format!("{}{}{}", stem(source), suffix, num);
     collision_free_path(out_dir, &base, fmt.ext(), exists_fn)
 }
 
@@ -112,7 +108,7 @@ pub fn preview_reel_path(
     suffix: &str,
     exists_fn: &dyn Fn(&Path) -> bool,
 ) -> PathBuf {
-    let base = format!("{}{}", stem(source), resolved(suffix, DEFAULT_PREVIEW_SUFFIX));
+    let base = format!("{}{}", stem(source), suffix);
     collision_free_path(out_dir, &base, fmt.ext(), exists_fn)
 }
 
@@ -122,7 +118,7 @@ pub fn animated_sheet_path(
     suffix: &str,
     exists_fn: &dyn Fn(&Path) -> bool,
 ) -> PathBuf {
-    let base = format!("{}{}", stem(source), resolved(suffix, DEFAULT_ANIMATED_SHEET_SUFFIX));
+    let base = format!("{}{}", stem(source), suffix);
     collision_free_path(out_dir, &base, "webp", exists_fn)
 }
 
@@ -152,7 +148,7 @@ mod tests {
             Path::new("/videos/movie.mkv"),
             Path::new("/videos"),
             OutputFormat::Png,
-            "",
+            DEFAULT_SHEET_SUFFIX,
             &|_| false,
         );
         assert_eq!(p, PathBuf::from("/videos/movie_sheet.png"));
@@ -171,6 +167,18 @@ mod tests {
     }
 
     #[test]
+    fn sheet_empty_suffix_uses_bare_stem() {
+        let p = contact_sheet_path(
+            Path::new("/videos/movie.mkv"),
+            Path::new("/videos"),
+            OutputFormat::Jpeg,
+            "",
+            &|_| false,
+        );
+        assert_eq!(p, PathBuf::from("/videos/movie.jpg"));
+    }
+
+    #[test]
     fn sheet_appends_suffix_when_file_exists() {
         let taken: HashSet<PathBuf> = ["/out/movie_sheet.png", "/out/movie_sheet (1).png"]
             .into_iter().map(PathBuf::from).collect();
@@ -178,7 +186,7 @@ mod tests {
             Path::new("/videos/movie.mkv"),
             Path::new("/out"),
             OutputFormat::Png,
-            "",
+            DEFAULT_SHEET_SUFFIX,
             &|p| taken.contains(p),
         );
         assert_eq!(p, PathBuf::from("/out/movie_sheet (2).png"));
@@ -190,7 +198,7 @@ mod tests {
             Path::new("/a/x.mp4"),
             Path::new("/a"),
             OutputFormat::Jpeg,
-            "",
+            DEFAULT_SHEET_SUFFIX,
             &|_| false,
         );
         assert_eq!(p.extension().unwrap(), "jpg");
@@ -202,7 +210,7 @@ mod tests {
             Path::new("/v/clip.mp4"),
             Path::new("/v"),
             OutputFormat::Png,
-            "",
+            DEFAULT_SHOTS_SUFFIX,
             7,
             100,
             &|_| false,
@@ -216,7 +224,7 @@ mod tests {
             Path::new("/v/clip.mp4"),
             Path::new("/v"),
             OutputFormat::Png,
-            "",
+            DEFAULT_SHOTS_SUFFIX,
             3,
             5,
             &|_| false,
@@ -239,13 +247,27 @@ mod tests {
     }
 
     #[test]
+    fn screenshot_empty_suffix_puts_index_after_stem() {
+        let p = screenshot_path(
+            Path::new("/v/clip.mp4"),
+            Path::new("/v"),
+            OutputFormat::Png,
+            "",
+            1,
+            5,
+            &|_| false,
+        );
+        assert_eq!(p, PathBuf::from("/v/clip01.png"));
+    }
+
+    #[test]
     fn screenshot_appends_suffix_on_collision() {
         let taken: HashSet<PathBuf> = ["/out/clip_screens_01.png"].iter().map(PathBuf::from).collect();
         let p = screenshot_path(
             Path::new("/v/clip.mp4"),
             Path::new("/out"),
             OutputFormat::Png,
-            "",
+            DEFAULT_SHOTS_SUFFIX,
             1,
             5,
             &|p| taken.contains(p),
@@ -259,7 +281,7 @@ mod tests {
             Path::new("/videos/movie.mkv"),
             Path::new("/videos"),
             ReelFormat::Webp,
-            "",
+            DEFAULT_PREVIEW_SUFFIX,
             &|_| false,
         );
         assert_eq!(p, PathBuf::from("/videos/movie_reel.webp"));
@@ -285,10 +307,22 @@ mod tests {
             Path::new("/videos/movie.mkv"),
             Path::new("/out"),
             ReelFormat::Webp,
-            "",
+            DEFAULT_PREVIEW_SUFFIX,
             &|p| taken.contains(p),
         );
         assert_eq!(p, PathBuf::from("/out/movie_reel (2).webp"));
+    }
+
+    #[test]
+    fn reel_with_empty_suffix_never_overwrites_its_source() {
+        let p = preview_reel_path(
+            Path::new("/v/movie.webm"),
+            Path::new("/v"),
+            ReelFormat::Webm,
+            "",
+            &|p| p == Path::new("/v/movie.webm"),
+        );
+        assert_eq!(p, PathBuf::from("/v/movie (1).webm"));
     }
 
     #[test]
@@ -297,7 +331,7 @@ mod tests {
             Path::new("/v/movie.mkv"),
             Path::new("/v"),
             ReelFormat::Webm,
-            "",
+            DEFAULT_PREVIEW_SUFFIX,
             &|_| false,
         );
         assert_eq!(p, PathBuf::from("/v/movie_reel.webm"));
@@ -309,7 +343,7 @@ mod tests {
             Path::new("/v/movie.mkv"),
             Path::new("/v"),
             ReelFormat::Gif,
-            "",
+            DEFAULT_PREVIEW_SUFFIX,
             &|_| false,
         );
         assert_eq!(p, PathBuf::from("/v/movie_reel.gif"));
@@ -332,7 +366,7 @@ mod tests {
         let p = animated_sheet_path(
             Path::new("/videos/movie.mkv"),
             Path::new("/videos"),
-            "",
+            DEFAULT_ANIMATED_SHEET_SUFFIX,
             &|_| false,
         );
         assert_eq!(p, PathBuf::from("/videos/movie_animated_sheet.webp"));
@@ -358,7 +392,7 @@ mod tests {
         let p = animated_sheet_path(
             Path::new("/videos/movie.mkv"),
             Path::new("/out"),
-            "",
+            DEFAULT_ANIMATED_SHEET_SUFFIX,
             &|p| taken.contains(p),
         );
         assert_eq!(p, PathBuf::from("/out/movie_animated_sheet (2).webp"));

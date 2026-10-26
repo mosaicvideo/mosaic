@@ -70,7 +70,7 @@ pub struct ScreenshotsArgs {
     /// JPEG quality 50–100 (ignored for PNG).
     #[arg(long, value_parser = clap::value_parser!(u32).range(50..=100))]
     pub quality: Option<u32>,
-    /// Filename infix between the source stem and the index.
+    /// Filename infix between the source stem and the index; empty for none.
     #[arg(long)]
     pub suffix: Option<String>,
     #[command(flatten)]
@@ -125,7 +125,7 @@ pub struct SheetArgs {
     /// Color theme for background and text.
     #[arg(long, value_enum)]
     pub theme: Option<Theme>,
-    /// Filename infix inserted between stem and extension.
+    /// Filename infix inserted between stem and extension; empty for none.
     #[arg(long)]
     pub suffix: Option<String>,
     #[command(flatten)]
@@ -153,7 +153,7 @@ pub struct ReelArgs {
     /// Output container format.
     #[arg(long, value_enum)]
     pub format: Option<ReelFormat>,
-    /// Filename infix inserted between stem and extension.
+    /// Filename infix inserted between stem and extension; empty for none.
     #[arg(long)]
     pub suffix: Option<String>,
     #[command(flatten)]
@@ -211,7 +211,7 @@ pub struct AnimatedSheetArgs {
     /// Color theme for background and text.
     #[arg(long, value_enum)]
     pub theme: Option<Theme>,
-    /// Filename infix inserted between stem and extension.
+    /// Filename infix inserted between stem and extension; empty for none.
     #[arg(long)]
     pub suffix: Option<String>,
     #[command(flatten)]

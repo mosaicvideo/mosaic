@@ -248,7 +248,7 @@ fn template() -> &'static str {
         "# count = 8\n",
         "# format = \"png\"        # png | jpeg\n",
         "# quality = 92           # 50-100, JPEG only\n",
-        "# suffix = \"_screens_\"\n",
+        "# suffix = \"_screens_\"  # \"\" for none\n",
         "\n",
         "[sheet]\n",
         "# cols = 3\n",
@@ -263,7 +263,7 @@ fn template() -> &'static str {
         "# format = \"png\"        # png | jpeg\n",
         "# quality = 92\n",
         "# theme = \"dark\"        # dark | light\n",
-        "# suffix = \"_sheet\"\n",
+        "# suffix = \"_sheet\"     # \"\" for none\n",
         "\n",
         "[reel]\n",
         "# count = 15\n",
@@ -272,7 +272,7 @@ fn template() -> &'static str {
         "# fps = 24\n",
         "# quality = 75\n",
         "# format = \"webp\"       # webp | webm | gif\n",
-        "# suffix = \"_reel\"\n",
+        "# suffix = \"_reel\"      # \"\" for none\n",
         "\n",
         "[animated_sheet]\n",
         "# cols = 3\n",
@@ -288,7 +288,7 @@ fn template() -> &'static str {
         "# show_header = true\n",
         "# header_title = false  # true: header shows the file's embedded title, not its name\n",
         "# theme = \"dark\"\n",
-        "# suffix = \"_animated_sheet\"\n",
+        "# suffix = \"_animated_sheet\" # \"\" for none\n",
     )
 }
 

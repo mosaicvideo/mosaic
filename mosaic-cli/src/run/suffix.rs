@@ -5,9 +5,8 @@
 /// Validate a suffix from CLI or config. Returns the suffix unchanged
 /// on success, or an error string on rejection.
 ///
-/// Empty strings are allowed — downstream `output_path::resolved()`
-/// substitutes the built-in default when empty. That's why we only
-/// reject *whitespace-only* strings, not empties.
+/// An empty suffix is allowed and means none: the output is named after the
+/// source stem alone. Only *whitespace-only* strings are rejected.
 pub fn validate(s: &str) -> Result<String, String> {
     if s.is_empty() {
         return Ok(String::new());
