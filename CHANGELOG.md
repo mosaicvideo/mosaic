@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-11-14
+
+### Added
+
+- **An empty filename suffix now means no suffix** ([#4](https://github.com/mosaicvideo/mosaic/issues/4)), so outputs can be named after the video alone: `Movie.mkv` gives `Movie.jpg`. Before, clearing the field brought the default back. This works in the GUI, with `--suffix ""` in `mosaic-cli`, and with `suffix = ""` in `~/.mosaic-cli.toml`. If the name is already taken, Mosaic still adds ` (1)`, so it never overwrites a file.
+
+### Fixed
+
+- **A damaged video no longer stops a whole batch** ([#7](https://github.com/mosaicvideo/mosaic/issues/7)). MediaInfo or ffprobe could hang on a corrupt file, and Mosaic waited forever. Each tool now gets 30 seconds. When MediaInfo times out, the file is still processed without MediaInfo's extra header details. When ffprobe times out, only that file fails. The metadata viewer and `mosaic-cli probe --mediainfo` use the same limit.
+
+### Changed
+
+- **Updated Tauri and other dependencies, with security fixes in the auto-updater's TLS libraries** (`rustls`, `rustls-webpki` and the bundled root certificates).
+
 ## [0.1.10] - 2026-10-23
 
 ### Added
@@ -191,7 +205,8 @@ v0.1.1 users: **this release requires a manual download** since v0.1.1 predates 
 - ffmpeg/ffprobe tool detection with user-friendly error state
 - macOS, Windows, and Linux support (requires ffmpeg installed separately)
 
-[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.10...HEAD
+[unreleased]: https://github.com/mosaicvideo/mosaic/compare/v0.1.11...HEAD
+[0.1.11]: https://github.com/mosaicvideo/mosaic/compare/v0.1.10...v0.1.11
 [0.1.10]: https://github.com/mosaicvideo/mosaic/compare/v0.1.9...v0.1.10
 [0.1.9]: https://github.com/mosaicvideo/mosaic/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/mosaicvideo/mosaic/compare/v0.1.7...v0.1.8

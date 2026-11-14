@@ -112,24 +112,25 @@ jobs:
           releaseBody: |
             ## What's New
 
-            v0.1.10 makes missing ffmpeg or MediaInfo a one-click fix, and stops filenames with an apostrophe from failing contact sheets.
+            v0.1.11 keeps a batch running when a damaged video makes ffprobe or MediaInfo hang, lets you name outputs after the video alone, and updates the auto-updater's TLS libraries with security fixes.
 
             ### Added
 
-            - **Install missing tools from inside Mosaic.** The "Required tools not found" panel now shows a single command for your system, naming only what's missing, with a Copy button. On macOS (Homebrew) and Windows (winget), click **Install** to run it right there: the output streams into the panel, and the app turns back on as soon as the tools are found. On Linux the panel shows the command for your package manager (apt, dnf, pacman or zypper) to run in a terminal. `mosaic-cli` prints the same single command when a tool is missing.
+            - **Name outputs after the video alone.** Leave the filename suffix empty and `Movie.mkv` gives `Movie.jpg`, not `Movie_sheet.jpg`. Before, clearing the field brought the default back. This works in the GUI's settings, with `--suffix ""` in `mosaic-cli`, and with `suffix = ""` in `~/.mosaic-cli.toml`. If a file with that name already exists, for example a WebM reel next to its `.webm` source, Mosaic still adds ` (1)`, so it never overwrites anything. Thanks to the reporter of [#4](https://github.com/mosaicvideo/mosaic/issues/4).
 
             ### Fixed
 
-            - **Filenames with an apostrophe no longer fail.** Contact sheets and animated contact sheets failed with "No option name near…" for a file like `Now You Don't (2025).mkv`, because the header text broke ffmpeg's filter parsing. A `%` in the filename failed the same way, and a backslash went missing from the header. Thanks to the reporter of [#3](https://github.com/mosaicvideo/mosaic/issues/3).
-            - **An apostrophe in your user folder no longer breaks sheets.** Mosaic's font lives under your user folder on Windows, so a username like `O'Brien` broke timestamps and headers on every file.
-            - **A line break in a filename** no longer draws the header's first line over the second.
-            - **On Windows, tools installed while Mosaic is open are found after Retry**, without restarting the app.
+            - **A damaged video no longer stops a whole batch.** On a corrupt file, MediaInfo or ffprobe could hang, and Mosaic waited for it forever, so the files after it never ran. Each tool now gets 30 seconds. If MediaInfo times out, Mosaic still makes the file's outputs, only without MediaInfo's extra header details (such as the HDR format and the audio codec name). If ffprobe times out, only that file fails, with "ffprobe did not finish in 30 s", and the batch continues. The metadata viewer and `mosaic-cli probe --mediainfo` use the same limit. Thanks to the reporter of [#7](https://github.com/mosaicvideo/mosaic/issues/7).
+
+            ### Changed
+
+            - **Security fixes for the auto-updater.** The updater downloads new versions over TLS, and the libraries it uses for that (`rustls`, `rustls-webpki` and the bundled root certificates) had known security problems. This release updates them, together with Tauri and the other dependencies.
 
             ### Requirements
 
             **[ffmpeg](https://ffmpeg.org/) and [MediaInfo CLI](https://mediaarea.net/en/MediaInfo) must both be installed separately.** The app and the CLI check for `ffmpeg`, `ffprobe`, and `mediainfo` on your `PATH` at startup. Install via `brew install ffmpeg-full mediainfo` (macOS), `winget install Gyan.FFmpeg MediaArea.MediaInfo` (Windows), or `apt install ffmpeg mediainfo` (Linux).
 
-            **Upgrading from v0.1.9?** Auto-update handles the GUI. For the CLI, re-run the install one-liner:
+            **Upgrading from v0.1.10?** Auto-update handles the GUI. For the CLI, re-run the install one-liner:
 
             ```sh
             # macOS / Linux
