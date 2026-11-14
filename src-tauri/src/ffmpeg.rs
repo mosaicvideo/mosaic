@@ -388,6 +388,38 @@ mod tests {
         assert!(matches!(err, RunError::Killed));
     }
 
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn run_capture_with_timeout_stops_a_process_that_hangs() {
+        let start = std::time::Instant::now();
+        let err = run_capture_with_timeout(std::path::Path::new("/bin/sleep"), &["30"], std::time::Duration::from_millis(200))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, RunError::TimedOut { ref tool, .. } if tool == "sleep"));
+        assert!(start.elapsed() < std::time::Duration::from_secs(5));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn run_capture_with_timeout_returns_output_of_a_fast_process() {
+        let out = run_capture_with_timeout(std::path::Path::new("/bin/echo"), &["hi"], std::time::Duration::from_secs(5))
+            .await
+            .unwrap();
+        assert_eq!(out, "hi\n");
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn run_capture_with_timeout_stops_a_process_that_hangs() {
+        let exe = which::which("ping").unwrap();
+        let start = std::time::Instant::now();
+        let err = run_capture_with_timeout(&exe, &["-n", "30", "127.0.0.1"], std::time::Duration::from_millis(500))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, RunError::TimedOut { ref tool, .. } if tool.eq_ignore_ascii_case("ping")));
+        assert!(start.elapsed() < std::time::Duration::from_secs(10));
+    }
+
     #[cfg(windows)]
     fn cmd(script: &str) -> (std::path::PathBuf, Vec<String>) {
         (which::which("cmd").unwrap(), vec!["/c".into(), script.into()])
@@ -609,19 +641,47 @@ pub enum RunError {
     NonZero { code: i32, stderr: String },
     #[error("process killed")]
     Killed,
+    #[error("{tool} did not finish in {} s", .after.as_secs())]
+    TimedOut { tool: String, after: std::time::Duration },
     #[error("{0}")]
     Invalid(String),
 }
 
 pub async fn run_capture(exe: &std::path::Path, args: &[&str]) -> Result<String, RunError> {
+    capture(exe, args, None).await
+}
+
+pub const PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// A corrupt file can make ffprobe or MediaInfo hang, which would stall a whole batch.
+pub async fn run_capture_with_timeout(
+    exe: &std::path::Path,
+    args: &[&str],
+    after: std::time::Duration,
+) -> Result<String, RunError> {
+    capture(exe, args, Some(after)).await
+}
+
+async fn capture(
+    exe: &std::path::Path,
+    args: &[&str],
+    timeout: Option<std::time::Duration>,
+) -> Result<String, RunError> {
     maybe_log_argv(exe, args);
     let mut cmd = Command::new(exe);
     cmd.args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
     hide_window(&mut cmd);
-    let output = cmd.output().await?;
+    let output = match timeout {
+        None => cmd.output().await?,
+        Some(after) => tokio::time::timeout(after, cmd.output()).await.map_err(|_| RunError::TimedOut {
+            tool: exe.file_stem().unwrap_or(exe.as_os_str()).to_string_lossy().into_owned(),
+            after,
+        })??,
+    };
     if !output.status.success() {
         let code = output.status.code().unwrap_or(-1);
         return Err(RunError::NonZero {

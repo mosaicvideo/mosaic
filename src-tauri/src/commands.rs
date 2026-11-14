@@ -2,8 +2,8 @@ use crate::animated_sheet::{self, AnimatedSheetOptions};
 use crate::contact_sheet::{self, SheetOptions};
 use crate::events;
 use crate::ffmpeg::{
-    find_tool, locate_tools, missing_message, missing_tools, run_capture, run_streaming, Need, RunError, Tools,
-    DEFAULT_NEEDS,
+    find_tool, locate_tools, missing_message, missing_tools, run_capture, run_capture_with_timeout, run_streaming, Need, RunError, Tools,
+    DEFAULT_NEEDS, PROBE_TIMEOUT,
 };
 use crate::install_hint::{install_plan, Platform, Step};
 use crate::jobs::{JobState, PipelineContext, ProgressReporter};
@@ -83,7 +83,7 @@ pub async fn install_tools(app: AppHandle, state: State<'_, Arc<JobState>>) -> R
 #[tauri::command]
 pub async fn run_mediainfo(path: String) -> Result<String, String> {
     let tools = locate_tools().map_err(|e| e.to_string())?;
-    run_capture(&tools.mediainfo, &[&path]).await.map_err(|e| e.to_string())
+    run_capture_with_timeout(&tools.mediainfo, &[&path], PROBE_TIMEOUT).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -362,7 +362,7 @@ pub fn cancel_job(state: State<'_, Arc<JobState>>) {
 
 /// Canonical probe pipeline: ffprobe for structured metadata, MediaInfo for
 /// enrichment (HDR format, commercial audio name, bit depth, etc.). Both
-/// tools are required at startup; a non-zero exit or malformed MediaInfo
+/// tools are required at startup; a non-zero exit, a timeout or malformed MediaInfo
 /// output still degrades gracefully (`enrichment = None`) so a single bad
 /// file doesn't block the whole queue. MediaInfo's duration, then a frame
 /// count, stand in when ffprobe reports none (see `DurationSource`).
@@ -380,8 +380,8 @@ pub(crate) async fn probe(tools: &Tools, path: &str) -> Result<VideoInfo, String
     ];
     let mediainfo_args = ["--Output=JSON", path];
     let (ffprobe_res, mediainfo_res) = tokio::join!(
-        run_capture(&tools.ffprobe, &ffprobe_args),
-        run_capture(&tools.mediainfo, &mediainfo_args),
+        run_capture_with_timeout(&tools.ffprobe, &ffprobe_args, PROBE_TIMEOUT),
+        run_capture_with_timeout(&tools.mediainfo, &mediainfo_args, PROBE_TIMEOUT),
     );
     let json = ffprobe_res.map_err(|e| e.to_string())?;
     let mediainfo_json = mediainfo_res.ok();

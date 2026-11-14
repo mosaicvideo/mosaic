@@ -25,7 +25,12 @@ pub async fn run(args: ProbeArgs) -> i32 {
         let path_str = args.input.to_string_lossy();
         // Second invocation: fetch human-readable mediainfo for the wrapped output.
         // The first (inside `commands::probe`) runs --Output=JSON for enrichment.
-        let mi = match mosaic_lib::ffmpeg::run_capture(tools.mediainfo.as_path(), &[path_str.as_ref()]).await {
+        let mi = match mosaic_lib::ffmpeg::run_capture_with_timeout(
+            tools.mediainfo.as_path(),
+            &[path_str.as_ref()],
+            mosaic_lib::ffmpeg::PROBE_TIMEOUT,
+        )
+        .await {
             Ok(s) => s,
             Err(e) => { eprintln!("mediainfo: {e}"); return 1; }
         };
